@@ -52,6 +52,19 @@ def _validated_update_api_url() -> str:
         raise ValueError("Unexpected update check endpoint")
     return _LATEST_RELEASE_API_URL
 
+def _version_tuple(version: str) -> tuple:
+    """Parse 'x.y.z' into a comparable tuple; non-numeric parts become 0."""
+    parts = []
+    for piece in version.split("-")[0].split("."):
+        parts.append(int(piece) if piece.isdigit() else 0)
+    return tuple(parts)
+
+
+def _is_trusted_release_url(url: str) -> bool:
+    parsed = urllib.parse.urlparse(url)
+    return parsed.scheme == "https" and parsed.hostname == "github.com"
+
+
 _TOOLTIPS = {
     "Kp": "Proportional gain. Higher = stronger correction for large errors.",
     "Ki": "Integral gain. Eliminates steady-state offset over time.",
@@ -1062,9 +1075,9 @@ def _check_for_updates():
                 current_ver = VERSION.lstrip("v")
 
                 if current_ver != "Unknown" and latest_tag:
-                    if current_ver != latest_tag:
+                    if _version_tuple(latest_tag) > _version_tuple(current_ver):
                         msg = f"New version available: v{latest_tag}!"
-                        update_url = html_url
+                        update_url = html_url if _is_trusted_release_url(html_url) else ""
                     else:
                         msg = f"You are up to date! (v{current_ver})"
                         update_url = ""

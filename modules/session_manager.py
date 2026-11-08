@@ -17,6 +17,16 @@ _INDEX_FILENAME = "index.json"
 _CSV_HEADER = ["timestamp", "fish_name", "weight_g"]
 
 
+def _safe_cell(value) -> str:
+    """Neutralise spreadsheet formulas in exported text (leading = + - @)."""
+    text = "" if value is None else str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
+def _safe_row(row: dict) -> dict:
+    return {col: _safe_cell(row.get(col, "")) for col in _CSV_HEADER}
+
+
 def _synchronized(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -272,7 +282,7 @@ class SessionManager:
         with open(dest_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=_CSV_HEADER)
             writer.writeheader()
-            writer.writerows(rows)
+            writer.writerows(_safe_row(r) for r in rows)
 
     def _export_json(self, rows: list[dict], dest_path: str) -> None:
         with open(dest_path, "w", encoding="utf-8") as f:
@@ -284,5 +294,5 @@ class SessionManager:
         ws = wb.active
         ws.append(_CSV_HEADER)
         for row in rows:
-            ws.append([row.get(col, "") for col in _CSV_HEADER])
+            ws.append([_safe_row(row)[col] for col in _CSV_HEADER])
         wb.save(dest_path)

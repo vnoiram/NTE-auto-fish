@@ -1,6 +1,7 @@
 """Single source of runtime configuration for NTE Auto-Fish."""
 import json
 import logging
+import math
 import os
 from dataclasses import asdict, dataclass, field
 from random import SystemRandom
@@ -11,6 +12,47 @@ from modules.utils import APP_DIR
 DEFAULT_SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
 log = logging.getLogger("NTEFish")
 _RNG = SystemRandom()
+
+
+_INVALID = object()
+_HSV_MAX = (179, 255, 255)
+
+
+def _validate_hsv_triplet(key: str, value):
+    """Return a (H, S, V) tuple of ints within OpenCV's 8-bit HSV limits, or _INVALID."""
+    if not isinstance(value, (list, tuple)) or len(value) != 3:
+        return _INVALID
+    out = []
+    for item, limit in zip(value, _HSV_MAX):
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            return _INVALID
+        if not 0 <= item <= limit:
+            return _INVALID
+        out.append(int(item))
+    return tuple(out)
+
+
+def _coerce_setting(current, value):
+    """Validate a loaded value against the type of the current default; _INVALID if unusable."""
+    if isinstance(current, bool):
+        return value if isinstance(value, bool) else _INVALID
+    if isinstance(current, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return _INVALID
+        if not math.isfinite(value) or value < 0:
+            return _INVALID
+        return int(value) if isinstance(current, int) else float(value)
+    if isinstance(current, str):
+        return value if isinstance(value, str) else _INVALID
+    if isinstance(current, tuple):
+        if not isinstance(value, (list, tuple)) or len(value) != len(current):
+            return _INVALID
+        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in value):
+            return _INVALID
+        return tuple(value)
+    if isinstance(current, dict):
+        return value if isinstance(value, dict) else _INVALID
+    return value
 
 
 @dataclass
@@ -202,17 +244,23 @@ class AppConfig:
             with open(path, "r", encoding="utf-8") as handle:
                 data = json.load(handle)
 
-            def update_obj(obj, values):
+            def update_obj(obj, values, path=""):
                 for key, value in values.items():
                     if not hasattr(obj, key):
                         continue
                     attr = getattr(obj, key)
+                    name = f"{path}{key}"
                     if isinstance(value, dict) and hasattr(attr, "__dataclass_fields__"):
-                        update_obj(attr, value)
-                    elif isinstance(value, list):
-                        setattr(obj, key, tuple(value))
+                        update_obj(attr, value, f"{name}.")
+                        continue
+                    if isinstance(obj, HsvRange):
+                        value = _validate_hsv_triplet(key, value)
                     else:
-                        setattr(obj, key, value)
+                        value = _coerce_setting(attr, value)
+                    if value is _INVALID:
+                        log.warning("Ignoring invalid setting %s=%r", name, values[key])
+                        continue
+                    setattr(obj, key, value)
 
             update_obj(self, data)
         except (OSError, ValueError, TypeError) as exc:

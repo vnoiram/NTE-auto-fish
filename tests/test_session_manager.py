@@ -135,6 +135,15 @@ class TestSessionManager(unittest.TestCase):
         t.join()
         self.assertEqual(errors, [])
 
+    def test_csv_export_neutralises_formulas(self):
+        meta = self.mgr.start_session()
+        self.mgr.append_catch("=HYPERLINK(1)", "10")
+        dest = os.path.join(self._tmpdir, "out.csv")
+        self.mgr.export_session(meta.id, dest, "csv")
+        with open(dest, newline="", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        self.assertEqual(rows[0]["fish_name"], "'=HYPERLINK(1)")
+
 
 if __name__ == "__main__":
     unittest.main()

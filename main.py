@@ -18,7 +18,10 @@ from dataclasses import asdict
 from random import SystemRandom
 from typing import TYPE_CHECKING, Optional
 
-from config import CFG, AppConfig, DEFAULT_SETTINGS_PATH, jitter as cfg_jitter, sample_noise, sample_reaction
+from config import (
+    CFG, AppConfig, HsvRange, DEFAULT_SETTINGS_PATH, jitter as cfg_jitter, sample_noise, sample_reaction,
+    _INVALID, _coerce_setting, _validate_hsv_triplet,
+)
 
 try:
     from rapidocr_onnxruntime import RapidOCR as _RapidOCR
@@ -53,6 +56,7 @@ _DEFAULT_SCREEN_H = 2160
 _RESULT_CLOSE_FALLBACK_X = 960
 _RESULT_CLOSE_FALLBACK_Y = 540
 _BAR_WIDTH_RATIO = 0.375
+_MAX_CAPTURE_FAILURES = 5
 # _MAX_STRUGGLE_SECS and _BAIT_ERROR_THRESHOLD moved to TimingConfig
 
 
@@ -63,21 +67,34 @@ def _resource_path(*parts: str) -> str:
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 DATE_FORMAT = "%H:%M:%S"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format=LOG_FORMAT,
-    datefmt=DATE_FORMAT,
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.handlers.RotatingFileHandler(
-            os.path.join(APP_DIR, "fishing_bot.log"),
-            maxBytes=5 * 1024 * 1024,
-            backupCount=3,
-            encoding="utf-8",
-        ),
-    ],
-)
 log = logging.getLogger("NTEFish")
+_logging_configured = False
+
+
+def setup_logging() -> None:
+    """Configure console and rotating-file logging once (no side effects on import)."""
+    global _logging_configured
+    if _logging_configured:
+        return
+    _logging_configured = True
+    logging.basicConfig(
+        level=logging.INFO,
+        format=LOG_FORMAT,
+        datefmt=DATE_FORMAT,
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.handlers.RotatingFileHandler(
+                os.path.join(APP_DIR, "fishing_bot.log"),
+                maxBytes=5 * 1024 * 1024,
+                backupCount=3,
+                encoding="utf-8",
+            ),
+        ],
+    )
+
+
+class CaptureError(RuntimeError):
+    """Raised when a screen grab fails (e.g. the display is temporarily unavailable)."""
 
 
 class NTEFishingBot:
@@ -88,6 +105,7 @@ class NTEFishingBot:
         hide_ui_callback: Optional[callable] = None,
         show_ui_callback: Optional[callable] = None,
     ) -> None:
+        setup_logging()
         if not _TP_LOADED:
             raise RuntimeError(
                 "Missing runtime dependencies. Install with: "
@@ -101,10 +119,14 @@ class NTEFishingBot:
         
         if bridge:
             from gui.bridge import BridgeHandler
+            root = logging.getLogger()
+            for existing in list(root.handlers):
+                if isinstance(existing, BridgeHandler) and existing.bridge is bridge:
+                    root.removeHandler(existing)
             handler = BridgeHandler(bridge)
             handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt=DATE_FORMAT))
             # Add to root logger to capture all messages, or just 'NTEFish'
-            logging.getLogger().addHandler(handler)
+            root.addHandler(handler)
 
         self.capture = CaptureModule()
         self.input = InputModule()
@@ -151,12 +173,26 @@ class NTEFishingBot:
 
         self._last_fish_name: str = ""
         self._last_fish_weight_g: str = ""
+        self._bar_detected_in_struggle = False
+        self._reset_humanization_state()
 
         self._log("Bot initialized.")
         self._csv_handle = None
         self._csv_writer = None
         sessions_dir = os.path.join(APP_DIR, "sessions")
         self._session_manager = SessionManager(sessions_dir=sessions_dir)
+
+    def _grab(self, roi: dict):
+        try:
+            return self.capture.grab_bgr(roi)
+        except Exception as exc:
+            raise CaptureError(str(exc)) from exc
+
+    def _reset_humanization_state(self) -> None:
+        self._hum_reaction_end = 0.0
+        self._hum_pulse_end = 0.0
+        self._hum_pulse_state = "IDLE"
+        self._hum_target_action = "NONE"
 
     @property
     def is_stopped(self) -> bool:
@@ -184,6 +220,8 @@ class NTEFishingBot:
         self._consecutive_waiting_timeouts = 0
         self._last_fish_name = ""
         self._last_fish_weight_g = ""
+        self._bar_detected_in_struggle = False
+        self._reset_humanization_state()
         if not paused and self.cfg.fish_logging_enabled:
             self._session_manager.start_session()
 
@@ -401,6 +439,7 @@ class NTEFishingBot:
         self._session_start = time.time()
         self._last_time = time.time()
 
+        capture_failures = 0
         try:
             while not self._stop_flag:
                 now = time.time()
@@ -417,44 +456,20 @@ class NTEFishingBot:
                     self._stop_event.wait(timeout=0.1)
                     continue
 
-                state = self.sm.state
-
-                # --- Priority 1: bar element detection → immediate STRUGGLING ---
-                if state is not FishingState.STRUGGLING and self._roi_bar:
-                    bar_img = self.capture.grab_bgr(self._roi_bar)
-                    hsv_img = self.vision.to_hsv(bar_img)
-                    cur_x, _ = self.vision.get_hsv_centroid_x(
-                        bar_img,
-                        self.cfg.hsv.cursor.lower,
-                        self.cfg.hsv.cursor.upper,
-                        min_area=self._scaled_min_area,
-                        ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
-                        hsv_img=hsv_img,
+                try:
+                    self._tick()
+                    capture_failures = 0
+                except CaptureError as exc:
+                    capture_failures += 1
+                    self.input.release_all()
+                    if capture_failures >= _MAX_CAPTURE_FAILURES:
+                        self._log(f"Screen capture failed {capture_failures} times in a row: {exc}", logging.ERROR)
+                        break
+                    self._log(
+                        f"Screen capture failed ({capture_failures}/{_MAX_CAPTURE_FAILURES}): {exc}",
+                        logging.WARNING,
                     )
-                    tgt_x, _ = self.vision.get_hsv_centroid_x(
-                        bar_img,
-                        self.cfg.hsv.safe_zone.lower,
-                        self.cfg.hsv.safe_zone.upper,
-                        min_area=self._scaled_min_area,
-                        ignore_margin_ratio=0.0,
-                        hsv_img=hsv_img,
-                    )
-                    if cur_x is not None or tgt_x is not None:
-                        self._log(f"[{state.value}] Bar detected → STRUGGLING.")
-                        self._enter_struggling()
-                        self._push_status()
-                        continue
-
-                # --- State handlers ---
-                state = self.sm.state
-                if state is FishingState.IDLE:
-                    self._handle_idle()
-                elif state is FishingState.WAITING:
-                    self._handle_waiting()
-                elif state is FishingState.STRUGGLING:
-                    self._handle_struggling()
-                elif state is FishingState.RESULT:
-                    self._handle_result()
+                    self._stop_event.wait(timeout=0.5)
         except KeyboardInterrupt:
             self._log("Ctrl+C received.")
         except Exception:
@@ -488,11 +503,53 @@ class NTEFishingBot:
             except Exception:
                 log.debug("Failed to push final status during shutdown.", exc_info=True)
 
+    def _tick(self) -> None:
+        """Run one iteration of the control loop."""
+        state = self.sm.state
+
+        # --- Priority 1: bar element detection → immediate STRUGGLING ---
+        if state is not FishingState.STRUGGLING and self._roi_bar:
+            bar_img = self._grab(self._roi_bar)
+            hsv_img = self.vision.to_hsv(bar_img)
+            cur_x, _ = self.vision.get_hsv_centroid_x(
+                bar_img,
+                self.cfg.hsv.cursor.lower,
+                self.cfg.hsv.cursor.upper,
+                min_area=self._scaled_min_area,
+                ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
+                hsv_img=hsv_img,
+            )
+            tgt_x, _ = self.vision.get_hsv_centroid_x(
+                bar_img,
+                self.cfg.hsv.safe_zone.lower,
+                self.cfg.hsv.safe_zone.upper,
+                min_area=self._scaled_min_area,
+                ignore_margin_ratio=0.0,
+                hsv_img=hsv_img,
+            )
+            if cur_x is not None or tgt_x is not None:
+                self._log(f"[{state.value}] Bar detected → STRUGGLING.")
+                self._enter_struggling()
+                self._push_status()
+                return
+
+        # --- State handlers ---
+        state = self.sm.state
+        if state is FishingState.IDLE:
+            self._handle_idle()
+        elif state is FishingState.WAITING:
+            self._handle_waiting()
+        elif state is FishingState.STRUGGLING:
+            self._handle_struggling()
+        elif state is FishingState.RESULT:
+            self._handle_result()
+
     def _enter_struggling(self) -> None:
         """Common setup when transitioning into STRUGGLING from any state."""
         self._bait_error_count = 0
         self._consecutive_waiting_timeouts = 0
         self._bar_detected_in_struggle = False
+        self._reset_humanization_state()
 
         # Humanized hook reaction latency
         if self.cfg.humanization.enabled:
@@ -523,7 +580,7 @@ class NTEFishingBot:
         # Check for error dialog shortly after cast (dialog appears immediately)
         self._stop_event.wait(timeout=0.3)
         if self._roi_error:
-            err_img = self.capture.grab_bgr(self._roi_error)
+            err_img = self._grab(self._roi_error)
             if self.vision.check_error_region(err_img, white_pixel_min=self._scaled_error_white_min):
                 self._bait_error_count += 1
                 self._log(
@@ -571,7 +628,7 @@ class NTEFishingBot:
             self.sm.transition(FishingState.IDLE)
             return
 
-        btn_img = self.capture.grab_bgr(self._roi_button)
+        btn_img = self._grab(self._roi_button)
         if self.vision.check_blue_trigger(
             btn_img,
             self.cfg.hsv.blue,
@@ -592,7 +649,7 @@ class NTEFishingBot:
             self.sm.transition(FishingState.RESULT)
             return
 
-        bar_img = self.capture.grab_bgr(self._roi_bar)
+        bar_img = self._grab(self._roi_bar)
         hsv_img = self.vision.to_hsv(bar_img)
         
         cursor_x, _ = self.vision.get_hsv_centroid_x(
@@ -650,13 +707,6 @@ class NTEFishingBot:
             if hcfg.enabled:
                 now = time.perf_counter()
                 
-                # Initialize state variables on first run or transition
-                if not hasattr(self, "_hum_reaction_end"):
-                    self._hum_reaction_end = 0.0
-                    self._hum_pulse_end = 0.0
-                    self._hum_pulse_state = "IDLE"
-                    self._hum_target_action = "NONE"
-
                 # PID noise overlay
                 if hcfg.pid_noise_enabled:
                     output += sample_noise(hcfg.pid_noise_amplitude, hcfg.pid_noise_dist)
@@ -829,7 +879,7 @@ class NTEFishingBot:
                 f"for too long ({self._lost_frames} frames)."
             )
             self.input.release_all()
-            if getattr(self, "_bar_detected_in_struggle", False):
+            if self._bar_detected_in_struggle:
                 self.sm.transition(FishingState.RESULT)
             else:
                 self._log(
@@ -856,12 +906,12 @@ class NTEFishingBot:
         Capture the result card and OCR the fish name and weight.
         Returns (name, weight_g) strings, or ("", "") if OCR is unavailable or fails.
         """
+        global _ocr_engine, _OCR_AVAILABLE
         if not self.cfg.fish_logging_enabled or not _OCR_AVAILABLE:
             return "", ""
         if not self._screen_w or not self._screen_h:
             return "", ""
 
-        global _ocr_engine, _OCR_AVAILABLE
         if _ocr_engine is None:
             try:
                 _ocr_engine = _RapidOCR()
@@ -941,7 +991,7 @@ class NTEFishingBot:
     def _handle_result(self) -> None:
         # Check for error dialog early — it auto-dismisses in ~2s
         if self._roi_error:
-            err_img = self.capture.grab_bgr(self._roi_error)
+            err_img = self._grab(self._roi_error)
             if self.vision.check_error_region(err_img, white_pixel_min=self._scaled_error_white_min):
                 self._log("[RESULT] Error dialog detected (fish escaped?).")
                 self.sm.transition(FishingState.IDLE)
@@ -959,7 +1009,7 @@ class NTEFishingBot:
         # If the cursor or safe zone is still visible on the bar, the
         # STRUGGLING → RESULT transition was premature (tracking was
         # temporarily lost). Release keys and go back to IDLE to recast.
-        bar_img = self.capture.grab_bgr(self._roi_bar)
+        bar_img = self._grab(self._roi_bar)
         cur_x, _ = self.vision.get_hsv_centroid_x(
             bar_img,
             self.cfg.hsv.cursor.lower,
@@ -1122,6 +1172,13 @@ def _cmd_config_set(args: argparse.Namespace) -> None:
     except (ValueError, TypeError) as exc:
         print(f"Invalid value '{args.value}' for {args.key}: {exc}")
         return
+    if isinstance(parent, HsvRange):
+        new_val = _validate_hsv_triplet(attr, new_val)
+    else:
+        new_val = _coerce_setting(current, new_val)
+    if new_val is _INVALID:
+        print(f"Value '{args.value}' is out of range or has the wrong type for {args.key}.")
+        return
     setattr(parent, attr, new_val)
     CFG.save()
     print(f"{args.key} = {new_val!r}")
@@ -1273,6 +1330,7 @@ if __name__ == "__main__":
         from modules.io_module import CaptureModule, InputModule  # noqa: F811
         from modules.vision import VisionModule  # noqa: F811
 
+    setup_logging()
     _set_dpi_awareness()
 
     parser = argparse.ArgumentParser(

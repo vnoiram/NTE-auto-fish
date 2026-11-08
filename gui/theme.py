@@ -156,7 +156,7 @@ def build_global_theme(scale: float = 1.0) -> int:
             dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (60, 75, 85, 240))
             dpg.add_theme_color(dpg.mvThemeCol_Tab, (28, 30, 36, 200))
             dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (40, 48, 56, 220))
-            dpg.add_theme_color(dpg.mvThemeCol_TabActive, ACCENT)
+            dpg.add_theme_color(dpg.mvThemeCol_TabSelected, ACCENT)
 
             # Buttons
             dpg.add_theme_color(dpg.mvThemeCol_Button, BTN_NEUTRAL)

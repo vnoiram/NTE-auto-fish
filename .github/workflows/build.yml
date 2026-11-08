@@ -84,7 +84,7 @@ jobs:
           --add-data "templates;templates" \
           --add-data "assets;assets" \
           --add-data "version.txt;." \
-          --collect-data rapidocr_onnxruntime \
+          --collect-data rapidocr \
           --hidden-import openpyxl \
           --exclude-module unittest \
           --exclude-module test \
@@ -106,10 +106,10 @@ jobs:
     - name: Check OCR and XLSX dependencies are available to the bundler
       shell: bash
       run: |
-        python -c "import openpyxl, xml.etree.ElementTree, rapidocr_onnxruntime"
+        python -c "import openpyxl, xml.etree.ElementTree, rapidocr"
         python - <<'PY'
         import importlib.util, pathlib
-        pkg = importlib.util.find_spec("rapidocr_onnxruntime")
+        pkg = importlib.util.find_spec("rapidocr")
         root = pathlib.Path(pkg.submodule_search_locations[0])
         assert (root / "config.yaml").exists(), "rapidocr config.yaml missing"
         assert list((root / "models").glob("*.onnx")), "rapidocr models missing"

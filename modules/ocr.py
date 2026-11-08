@@ -6,7 +6,7 @@ from typing import Callable, Optional
 log = logging.getLogger("NTEFish")
 
 try:
-    from rapidocr_onnxruntime import RapidOCR as _RapidOCR
+    from rapidocr import RapidOCR as _RapidOCR
     OCR_IMPORTABLE = True
 except ImportError:
     _RapidOCR = None  # type: ignore[assignment,misc]
@@ -73,10 +73,10 @@ class CatchOcr:
             if cv2.countNonZero(thresh) > thresh.size * 0.5:
                 thresh = cv2.bitwise_not(thresh)
             bgr = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
-            result, _ = self._engine(bgr)
-            if not result:
+            result = self._engine(bgr)
+            if not result.txts:
                 return ""
-            return " ".join(r[1] for r in result).strip()
+            return " ".join(result.txts).strip()
         except Exception:
             log.debug("OCR region failed.", exc_info=True)
             return ""

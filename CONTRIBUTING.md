@@ -5,7 +5,7 @@ Thanks for your interest in contributing! This guide will help you get started.
 ## Prerequisites
 
 - **Windows** (required — uses `pydirectinput` and `ctypes.windll`)
-- **Python 3.11+**
+- **Python 3.14+**
 - **Elevated terminal** (administrator privileges for input simulation)
 - A running copy of the game for manual testing
 

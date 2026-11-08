@@ -4,7 +4,7 @@
 
 NTE-auto-fish is a visual auto-fishing bot for a game. It captures screen regions, uses OpenCV HSV color detection to identify game elements (cursor, safe zone bar, bite-trigger button), and sends simulated keyboard input via PyDirectInput to automatically catch fish. The bot operates as a 4-state finite state machine: **IDLE -> WAITING -> STRUGGLING -> RESULT -> IDLE**.
 
-- **Language**: Python 3.11+ (CI uses 3.11, type hints use `float | None` union syntax)
+- **Language**: Python 3.14+ (CI uses 3.14, type hints use `float | None` union syntax)
 - **Platform**: Windows-only (pydirectinput, ctypes.windll)
 - **GUI**: DearPyGui with glassmorphism dark theme
 - **Entry points**: `start_gui.py` (GUI), `main.py` (headless CLI with subcommands)

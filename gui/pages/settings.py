@@ -32,7 +32,6 @@ CATEGORIES = [
     ("vision",        "Vision & Detection"),
     ("timing",        "Timing"),
     ("input",         "Input & Hotkeys"),
-    ("calibration",   "Calibration"),
     ("humanization",  "Humanization"),
     ("system",        "System & Updates"),
 ]
@@ -182,7 +181,6 @@ def create_settings(
             _build_vision_settings(bridge)
             _build_timing_settings()
             _build_input_settings(bridge, on_hotkeys_changed)
-            _build_calibration_settings()
             _build_humanization_settings()
             _build_system_settings()
 
@@ -519,6 +517,9 @@ def _build_vision_settings(bridge: BotBridge):
 # ---------------------------------------------------------------------------
 
 
+_scan_editor_open = threading.Event()
+
+
 def _open_scanning_area_editor() -> None:
     """Spawn a transparent fullscreen overlay on the game monitor.
 
@@ -531,6 +532,10 @@ def _open_scanning_area_editor() -> None:
         import tkinter as tk
     except ImportError:
         log.warning("Tkinter is not available in this build; scanning area editor is disabled.")
+        return
+
+    if _scan_editor_open.is_set():
+        log.info("Scanning area editor is already open.")
         return
 
     monitors = get_monitors()
@@ -548,6 +553,15 @@ def _open_scanning_area_editor() -> None:
     _BORDER      = 3
 
     def _run() -> None:
+        try:
+            _run_overlay()
+        except Exception:
+            log.warning("Scanning area editor failed.", exc_info=True)
+        finally:
+            _scan_editor_open.clear()
+
+    def _run_overlay() -> None:
+        # All Tk objects live and die on this thread.
         root = tk.Tk()
         root.overrideredirect(True)
         root.geometry(f"{sw}x{sh}+{off_x}+{off_y}")
@@ -701,6 +715,7 @@ def _open_scanning_area_editor() -> None:
         redraw()
         root.mainloop()
 
+    _scan_editor_open.set()
     threading.Thread(target=_run, daemon=True).start()
 
 
@@ -819,46 +834,6 @@ def _build_input_settings(
             "Stop", tag="cfg_hotkey_stop", width=200,
             default=CFG.hotkeys.stop,
             cb=lambda s, d: _set_hotkey("stop", d, bridge, on_hotkeys_changed),
-        )
-
-
-def _build_calibration_settings():
-    with dpg.group(tag="settings_group_calibration"):
-        section_header("Calibration", color=ACCENT)
-        caption_text("Template matching parameters for automatic ROI detection.")
-        dpg.add_spacer(height=8)
-
-        _slider_with_tooltip(
-            "Scale min", tag="cfg_cal_scale_min",
-            min_val=0.2, max_val=1.5, fmt="%.2f",
-            default=CFG.calibration.scale_min,
-            cb=lambda s, d: _set(CFG.calibration, "scale_min", d),
-        )
-        _slider_with_tooltip(
-            "Scale max", tag="cfg_cal_scale_max",
-            min_val=1.0, max_val=3.0, fmt="%.2f",
-            default=CFG.calibration.scale_max,
-            cb=lambda s, d: _set(CFG.calibration, "scale_max", d),
-        )
-        _input_with_tooltip(
-            "Scale steps", tag="cfg_cal_scale_steps", width=140,
-            default=CFG.calibration.scale_steps,
-            cb=lambda s, d: _set_int(
-                CFG.calibration, "scale_steps", d, "cfg_cal_scale_steps", 1,
-            ),
-        )
-        _slider_with_tooltip(
-            "Confidence", tag="cfg_cal_confidence",
-            min_val=0.3, max_val=0.95, fmt="%.2f",
-            default=CFG.calibration.confidence_threshold,
-            cb=lambda s, d: _set(CFG.calibration, "confidence_threshold", d),
-        )
-        _input_with_tooltip(
-            "ROI padding", tag="cfg_cal_roi_padding", width=140,
-            default=CFG.calibration.roi_padding,
-            cb=lambda s, d: _set_int(
-                CFG.calibration, "roi_padding", d, "cfg_cal_roi_padding", 0,
-            ),
         )
 
 
@@ -1312,11 +1287,6 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_debug_mode", CFG.debug_mode)
     dpg.configure_viewport(0, always_on_top=CFG.always_on_top)
 
-    dpg.set_value("cfg_cal_scale_min", CFG.calibration.scale_min)
-    dpg.set_value("cfg_cal_scale_max", CFG.calibration.scale_max)
-    dpg.set_value("cfg_cal_scale_steps", CFG.calibration.scale_steps)
-    dpg.set_value("cfg_cal_confidence", CFG.calibration.confidence_threshold)
-    dpg.set_value("cfg_cal_roi_padding", CFG.calibration.roi_padding)
 
     monitors = _monitor_labels()
     idx = min(CFG.monitor_index, len(monitors) - 1)

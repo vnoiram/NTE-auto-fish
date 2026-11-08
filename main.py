@@ -4,9 +4,7 @@ Entry points:
   - Headless: python main.py
   - GUI:      python start_gui.py
 """
-import argparse
 import csv
-import ctypes
 import json
 import logging
 import logging.handlers
@@ -14,21 +12,14 @@ import os
 import sys
 import threading
 import time
-from dataclasses import asdict
 from random import SystemRandom
 from typing import TYPE_CHECKING, Optional
 
 from config import (
-    CFG, AppConfig, HsvRange, DEFAULT_SETTINGS_PATH, jitter as cfg_jitter, sample_noise, sample_reaction,
-    _INVALID, _coerce_setting, _validate_hsv_triplet,
+    CFG, AppConfig, ensure_settings_loaded, jitter as cfg_jitter, sample_noise, sample_reaction,
 )
 
-try:
-    from rapidocr_onnxruntime import RapidOCR as _RapidOCR
-    _OCR_AVAILABLE = True
-except ImportError:
-    _OCR_AVAILABLE = False
-_ocr_engine = None  # type: ignore[assignment]  # lazy-initialised on first use
+from modules.ocr import CatchOcr, ratios_to_roi
 from modules.logic import FishingState, FishingStateMachine, PIDController
 from modules.utils import APP_DIR, bundled_path
 from modules.session_manager import SessionManager
@@ -106,6 +97,7 @@ class NTEFishingBot:
         show_ui_callback: Optional[callable] = None,
     ) -> None:
         setup_logging()
+        ensure_settings_loaded()
         if not _TP_LOADED:
             raise RuntimeError(
                 "Missing runtime dependencies. Install with: "
@@ -181,6 +173,7 @@ class NTEFishingBot:
         self._csv_writer = None
         sessions_dir = os.path.join(APP_DIR, "sessions")
         self._session_manager = SessionManager(sessions_dir=sessions_dir)
+        self._ocr = CatchOcr()
 
     def _grab(self, roi: dict):
         try:
@@ -343,7 +336,7 @@ class NTEFishingBot:
         }
 
         try:
-            scene = self.capture.grab_bgr(region)
+            self.capture.grab_bgr(region)  # verify the screen can be captured
         except Exception as e:
             self._log(f"[Calibration] Failed to capture screen: {e}. Is the game fullscreen and minimized?", logging.ERROR)
             self.request_stop()
@@ -359,7 +352,6 @@ class NTEFishingBot:
         self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 1.0))
         self._scaled_error_white_min = int(max(1200 * scale_sq, 10.0))
         
-        pad = self.cfg.calibration.roi_padding
         self._log(
             f"[Calibration] Screen resolution: {self._screen_w}x{self._screen_h}"
         )
@@ -902,91 +894,28 @@ class NTEFishingBot:
             self._session_manager.append_catch(name, weight_g)
 
     def _ocr_catch_screen(self) -> tuple[str, str]:
-        """
-        Capture the result card and OCR the fish name and weight.
-        Returns (name, weight_g) strings, or ("", "") if OCR is unavailable or fails.
-        """
-        global _ocr_engine, _OCR_AVAILABLE
-        if not self.cfg.fish_logging_enabled or not _OCR_AVAILABLE:
-            return "", ""
-        if not self._screen_w or not self._screen_h:
+        """OCR the result card; returns ("", "") if logging is off, OCR is unavailable or fails."""
+        if not self.cfg.fish_logging_enabled or not self._screen_w or not self._screen_h:
             return "", ""
 
-        if _ocr_engine is None:
+        def _roi(ratios) -> dict:
+            return ratios_to_roi(ratios, self._screen_w, self._screen_h, self._mon_x, self._mon_y)
+
+        hide_ui = show_ui = None
+        if self.bridge:
             try:
-                _ocr_engine = _RapidOCR()
-            except Exception:
-                # e.g. model files missing in a frozen build; don't take the bot down.
-                log.warning("OCR engine failed to initialise; disabling OCR.", exc_info=True)
-                _OCR_AVAILABLE = False
-                return "", ""
-
-        import re
-
-        def _roi(left_r, top_r, right_r, bottom_r) -> dict:
-            return {
-                "left":   self._mon_x + int(self._screen_w * left_r),
-                "top":    self._mon_y + int(self._screen_h * top_r),
-                "width":  int(self._screen_w * (right_r - left_r)),
-                "height": int(self._screen_h * (bottom_r - top_r)),
-            }
-
-        def _ocr_region(roi: dict) -> str:
-            try:
-                img = self.capture.grab_bgr(roi)
-                # Scale up small regions so OCR has enough pixels to work with
-                h, w = img.shape[:2]
-                if h < 80:
-                    img = cv2.resize(img, (w * 3, h * 3), interpolation=cv2.INTER_CUBIC)
-                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                # Otsu picks the optimal split per-image; works for both
-                # light-on-dark and dark-on-light text without a hard-coded level.
-                _, thresh = cv2.threshold(
-                    gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-                )
-                # If the background is mostly white the text is dark — invert so
-                # characters are always white on black (better for RapidOCR).
-                if cv2.countNonZero(thresh) > thresh.size * 0.5:
-                    thresh = cv2.bitwise_not(thresh)
-                # RapidOCR expects BGR
-                bgr = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
-                result, _ = _ocr_engine(bgr)
-                if not result:
-                    return ""
-                return " ".join(r[1] for r in result).strip()
-            except Exception:
-                log.debug("OCR region failed.", exc_info=True)
-                return ""
-
-        try:
-            import dearpygui.dearpygui as _dpg
-            _gui_active = bool(self.bridge) and _dpg.is_dearpygui_running()
-        except ImportError:
-            # Headless/CLI install without dearpygui.
-            _gui_active = False
-        if self._hide_ui and _gui_active:
-            try:
-                self._hide_ui()
-            except Exception:
-                self._log("Failed to hide DPG window for OCR capture", logging.DEBUG)
-        try:
-            name_roi = _roi(*self.cfg.ocr_name_roi_ratios)
-            raw_name = _ocr_region(name_roi)
-            name = re.sub(r"[^\w '\-]", " ", raw_name).strip()
-            name = re.sub(r" {2,}", " ", name)
-
-            weight_roi = _roi(*self.cfg.ocr_weight_roi_ratios)
-            raw_weight = _ocr_region(weight_roi)
-            m = re.search(r"(\d+)", raw_weight)
-            weight_g = m.group(1) if m else ""
-        finally:
-            if self._show_ui and _gui_active:
-                try:
-                    self._show_ui()
-                except Exception:
-                    self._log("Failed to show DPG window after OCR capture", logging.DEBUG)
-
-        return name, weight_g
+                import dearpygui.dearpygui as _dpg
+                if _dpg.is_dearpygui_running():
+                    hide_ui, show_ui = self._hide_ui, self._show_ui
+            except ImportError:
+                pass  # headless install without dearpygui
+        return self._ocr.read(
+            self.capture,
+            _roi(self.cfg.ocr_name_roi_ratios),
+            _roi(self.cfg.ocr_weight_roi_ratios),
+            hide_ui=hide_ui,
+            show_ui=show_ui,
+        )
 
     def _handle_result(self) -> None:
         # Check for error dialog early — it auto-dismisses in ~2s
@@ -1078,246 +1007,6 @@ class NTEFishingBot:
         self._stop_event.wait(timeout=close_delay)
 
 
-def _set_dpi_awareness() -> None:
-    try:
-        ctypes.windll.shcore.SetProcessDpiAwareness(1)
-    except Exception:
-        log.debug("SetProcessDpiAwareness failed; trying SetProcessDPIAware.", exc_info=True)
-        try:
-            ctypes.windll.user32.SetProcessDPIAware()
-        except Exception:
-            log.debug("SetProcessDPIAware failed.", exc_info=True)
-
-
-# ---------------------------------------------------------------------------
-# CLI command handlers
-# ---------------------------------------------------------------------------
-
-def _cmd_start(_args: argparse.Namespace) -> None:
-    bot = NTEFishingBot()
-    bot.calibrate()
-    bot.run()
-
-
-def _cmd_calibrate(_args: argparse.Namespace) -> None:
-    bot = NTEFishingBot()
-    bot.calibrate()
-    print(f"Button ROI: {bot._roi_button}")
-    print(f"Bar ROI:    {bot._roi_bar}")
-    if bot._roi_error:
-        print(f"Error ROI:  {bot._roi_error}")
-    print("Calibration complete.")
-
-
-def _cmd_reset(_args: argparse.Namespace) -> None:
-    CFG.reset()
-    print(f"Configuration reset to defaults: {DEFAULT_SETTINGS_PATH}")
-
-
-def _cmd_config_show(args: argparse.Namespace) -> None:
-    data = asdict(CFG)
-    section = getattr(args, "section", None)
-    if section:
-        parts = section.split(".")
-        obj = data
-        for p in parts:
-            if isinstance(obj, dict) and p in obj:
-                obj = obj[p]
-            else:
-                print(f"Unknown config path: {section}")
-                return
-        print(json.dumps({parts[-1]: obj} if isinstance(obj, (dict, list)) else {parts[-1]: obj}, indent=4, ensure_ascii=False))
-    else:
-        print(json.dumps(data, indent=4, ensure_ascii=False))
-
-
-def _resolve_cfg_path(path: str):
-    """Walk the CFG dataclass by dot-separated path. Returns (parent, attr, current_value)."""
-    parts = path.split(".")
-    obj = CFG
-    for p in parts[:-1]:
-        if not hasattr(obj, p):
-            return None, None, None
-        child = getattr(obj, p)
-        if hasattr(child, "__dataclass_fields__"):
-            obj = child
-        else:
-            return None, None, None
-    attr = parts[-1]
-    if not hasattr(obj, attr):
-        return None, None, None
-    return obj, attr, getattr(obj, attr)
-
-
-def _parse_value(raw: str, target):
-    """Convert a string value to match the target's type."""
-    if isinstance(target, bool):
-        return raw.lower() in ("true", "1", "yes")
-    if isinstance(target, tuple):
-        return tuple(int(x.strip()) for x in raw.strip("() ").split(","))
-    if isinstance(target, int):
-        return int(raw)
-    if isinstance(target, float):
-        return float(raw)
-    return raw
-
-
-def _cmd_config_set(args: argparse.Namespace) -> None:
-    parent, attr, current = _resolve_cfg_path(args.key)
-    if parent is None:
-        print(f"Unknown config key: {args.key}")
-        return
-    try:
-        new_val = _parse_value(args.value, current)
-    except (ValueError, TypeError) as exc:
-        print(f"Invalid value '{args.value}' for {args.key}: {exc}")
-        return
-    if isinstance(parent, HsvRange):
-        new_val = _validate_hsv_triplet(attr, new_val)
-    else:
-        new_val = _coerce_setting(current, new_val)
-    if new_val is _INVALID:
-        print(f"Value '{args.value}' is out of range or has the wrong type for {args.key}.")
-        return
-    setattr(parent, attr, new_val)
-    CFG.save()
-    print(f"{args.key} = {new_val!r}")
-
-
-def _interactive_menu() -> None:
-    while True:
-        print()
-        print("=== NTE Auto-Fish ===")
-        print("1. Start fishing bot")
-        print("2. Calibrate (show ROI results)")
-        print("3. Show configuration")
-        print("4. Edit configuration")
-        print("5. Reset configuration to defaults")
-        print("0. Exit")
-        choice = input("\nSelect [0-5]: ").strip()
-
-        if choice == "1":
-            _cmd_start(argparse.Namespace())
-            break
-        elif choice == "2":
-            _cmd_calibrate(argparse.Namespace())
-        elif choice == "3":
-            _cmd_config_show(argparse.Namespace(section=None))
-        elif choice == "4":
-            _interactive_edit_config()
-        elif choice == "5":
-            confirm = input("Reset all settings to defaults? [y/N]: ").strip().lower()
-            if confirm == "y":
-                _cmd_reset(argparse.Namespace())
-        elif choice == "0":
-            print("Bye.")
-            break
-        else:
-            print("Invalid choice.")
-
-
-def _interactive_edit_config() -> None:
-    categories = [
-        ("PID parameters", [
-            ("pid.kp", "Proportional gain"),
-            ("pid.ki", "Integral gain"),
-            ("pid.kd", "Derivative gain"),
-            ("pid.integral_limit", "Integral limit"),
-            ("pid.deadband", "Deadband"),
-            ("pid.adaptive", "Adaptive (true/false)"),
-            ("pid.ema_alpha", "EMA alpha"),
-            ("pid.max_dt", "Max dt"),
-        ]),
-        ("HSV thresholds", [
-            ("hsv.blue.lower", "Blue lower (H,S,V)"),
-            ("hsv.blue.upper", "Blue upper (H,S,V)"),
-            ("hsv.safe_zone.lower", "Safe zone lower (H,S,V)"),
-            ("hsv.safe_zone.upper", "Safe zone upper (H,S,V)"),
-            ("hsv.cursor.lower", "Cursor lower (H,S,V)"),
-            ("hsv.cursor.upper", "Cursor upper (H,S,V)"),
-        ]),
-        ("Key bindings", [
-            ("keys.cast", "Cast key"),
-            ("keys.left", "Left key"),
-            ("keys.right", "Right key"),
-            ("keys.exit", "Exit key"),
-        ]),
-        ("Timing", [
-            ("timing.cast_animation_secs", "Cast animation (s)"),
-            ("timing.bite_timeout_secs", "Bite timeout (s)"),
-            ("timing.lost_frames_threshold", "Lost frames threshold"),
-            ("timing.result_wait_secs", "Result wait (s)"),
-            ("timing.key_press_duration", "Key press duration (s)"),
-        ]),
-        ("Humanization", [
-            ("humanization.enabled", "Enabled (true/false)"),
-            ("humanization.mouse_move_curve_amplitude", "Mouse curve amplitude (px)"),
-            ("humanization.mouse_move_duration_min", "Mouse move duration min (s)"),
-            ("humanization.mouse_move_duration_max", "Mouse move duration max (s)"),
-            ("humanization.mouse_offset_x", "Mouse click offset X (px)"),
-            ("humanization.mouse_offset_y", "Mouse click offset Y (px)"),
-            ("humanization.hook_reaction_min", "Hook reaction delay min (s)"),
-            ("humanization.hook_reaction_max", "Hook reaction delay max (s)"),
-            ("humanization.pulse_hold_min", "Pulse hold min (s)"),
-            ("humanization.pulse_hold_max", "Pulse hold max (s)"),
-            ("humanization.pulse_release_min", "Pulse release min (s)"),
-            ("humanization.pulse_release_max", "Pulse release max (s)"),
-            ("humanization.reaction_latency_min", "Struggle reaction min (s)"),
-            ("humanization.reaction_latency_max", "Struggle reaction max (s)"),
-            ("humanization.pid_noise_enabled", "PID noise (true/false)"),
-            ("humanization.pid_noise_amplitude", "PID noise amplitude (px)"),
-            ("humanization.adaptive_enabled", "Adaptive focus (true/false)"),
-        ]),
-        ("Other", [
-            ("min_blue_pixels", "Min blue pixels"),
-            ("result_close_method", "Result close (click/esc)"),
-            ("debug_mode", "Debug mode (true/false)"),
-        ]),
-    ]
-
-    while True:
-        print()
-        print("--- Edit Configuration ---")
-        for i, (name, _) in enumerate(categories, 1):
-            print(f"  {i}. {name}")
-        print("  0. Back")
-        cat_choice = input("\nSelect category [0-5]: ").strip()
-        if cat_choice == "0":
-            return
-        try:
-            idx = int(cat_choice) - 1
-            cat_name, fields = categories[idx]
-        except (ValueError, IndexError):
-            print("Invalid choice.")
-            continue
-
-        while True:
-            print(f"\n--- {cat_name} ---")
-            for i, (key, desc) in enumerate(fields, 1):
-                _, _, val = _resolve_cfg_path(key)
-                print(f"  {i}. {desc} ({key}) = {val!r}")
-            print("  0. Back")
-            field_choice = input("\nSelect field to edit [0, 1-{}]: ".format(len(fields))).strip()
-            if field_choice == "0":
-                break
-            try:
-                fi = int(field_choice) - 1
-                key, desc = fields[fi]
-            except (ValueError, IndexError):
-                print("Invalid choice.")
-                continue
-            _, _, current = _resolve_cfg_path(key)
-            new_val = input(f"  New value for {desc} (current: {current!r}): ").strip()
-            if not new_val:
-                print("  Cancelled.")
-                continue
-            _cmd_config_set(argparse.Namespace(key=key, value=new_val))
-
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
-
 if __name__ == "__main__":
     # Validate dependencies before runtime startup.
     from modules.deps import CLI_PACKAGES, exit_if_missing_dependencies
@@ -1325,51 +1014,14 @@ if __name__ == "__main__":
     exit_if_missing_dependencies(CLI_PACKAGES)
 
     if not _TP_LOADED:
-        import cv2  # noqa: F811
+        import cv2  # noqa: F401,F811
         from screeninfo import get_monitors  # noqa: F811
         from modules.io_module import CaptureModule, InputModule  # noqa: F811
         from modules.vision import VisionModule  # noqa: F811
 
+    from modules.cli import _set_dpi_awareness, run_cli
+
     setup_logging()
+    ensure_settings_loaded()
     _set_dpi_awareness()
-
-    parser = argparse.ArgumentParser(
-        prog="NTE-Auto-Fish",
-        description="NTE Auto-Fishing bot — headless/CLI mode",
-    )
-    sub = parser.add_subparsers(dest="command")
-
-    sub.add_parser("start", help="Run the fishing bot")
-    sub.add_parser("calibrate", help="Calibrate and show ROI results")
-    sub.add_parser("reset", help="Reset settings.json to defaults")
-
-    cfg_parser = sub.add_parser("config", help="View or edit configuration")
-    cfg_sub = cfg_parser.add_subparsers(dest="config_action")
-
-    show_parser = cfg_sub.add_parser("show", help="Show current configuration")
-    show_parser.add_argument("section", nargs="?", default=None,
-                             help="Dot path to show (e.g. pid, hsv.blue)")
-
-    set_parser = cfg_sub.add_parser("set", help="Set a config value")
-    set_parser.add_argument("key", help="Dot path, e.g. pid.kp")
-    set_parser.add_argument("value", help="New value")
-
-    args = parser.parse_args()
-
-    if args.command is None:
-        _interactive_menu()
-    elif args.command == "start":
-        _cmd_start(args)
-    elif args.command == "calibrate":
-        _cmd_calibrate(args)
-    elif args.command == "reset":
-        _cmd_reset(args)
-    elif args.command == "config":
-        if args.config_action == "show":
-            _cmd_config_show(args)
-        elif args.config_action == "set":
-            _cmd_config_set(args)
-        else:
-            cfg_parser.print_help()
-    else:
-        parser.print_help()
+    run_cli(NTEFishingBot)

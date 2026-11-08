@@ -1,8 +1,8 @@
-"""Computer vision helpers for template matching and HSV detection."""
+"""Computer vision helpers for HSV detection."""
 import cv2
 import numpy as np
 
-from config import CFG, CalibrationConfig, HsvRange
+from config import CFG, HsvRange
 
 _ERROR_BRIGHTNESS_THRESHOLD = 50
 _ERROR_WHITE_PIXEL_MIN = 1200
@@ -15,52 +15,6 @@ _KERNEL_3x3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
 class VisionModule:
     """Stateless image processing utilities."""
-
-    @staticmethod
-    def find_template_multi_scale(
-        scene_bgr: np.ndarray,
-        template_bgr: np.ndarray,
-        calibration: CalibrationConfig | None = None,
-    ):
-        """Find a template in a scene while allowing scale differences."""
-        cfg = calibration or CFG.calibration
-        scales = np.linspace(cfg.scale_min, cfg.scale_max, cfg.scale_steps)
-
-        scene_gray = cv2.cvtColor(scene_bgr, cv2.COLOR_BGR2GRAY)
-        tmpl_gray = cv2.cvtColor(template_bgr, cv2.COLOR_BGR2GRAY)
-        t_h, t_w = tmpl_gray.shape[:2]
-
-        best_val = -np.inf
-        best_loc = None
-        best_scale = 1.0
-
-        for scale in scales:
-            new_w = max(1, int(t_w * scale))
-            new_h = max(1, int(t_h * scale))
-
-            if new_h >= scene_gray.shape[0] or new_w >= scene_gray.shape[1]:
-                continue
-            if new_w < 8 or new_h < 8:
-                continue
-
-            interp = cv2.INTER_AREA if scale < 1.0 else cv2.INTER_LINEAR
-            resized = cv2.resize(tmpl_gray, (new_w, new_h), interpolation=interp)
-            result = cv2.matchTemplate(scene_gray, resized, cv2.TM_CCOEFF_NORMED)
-            _, val, _, loc = cv2.minMaxLoc(result)
-
-            if val > best_val:
-                best_val = val
-                best_loc = loc
-                best_scale = scale
-
-        if best_val < cfg.confidence_threshold or best_loc is None:
-            return None
-
-        x1 = best_loc[0]
-        y1 = best_loc[1]
-        x2 = int(x1 + t_w * best_scale)
-        y2 = int(y1 + t_h * best_scale)
-        return (x1, y1, x2, y2)
 
     @staticmethod
     def to_hsv(bgr_img: np.ndarray) -> np.ndarray:

@@ -3,6 +3,7 @@ import json
 import logging
 import math
 import os
+import threading
 from dataclasses import asdict, dataclass, field
 from random import SystemRandom
 from typing import Tuple
@@ -172,15 +173,6 @@ class HumanizationConfig:
 
 
 @dataclass
-class CalibrationConfig:
-    scale_min: float = 0.5
-    scale_max: float = 2.0
-    scale_steps: int = 30
-    confidence_threshold: float = 0.72
-    roi_padding: int = 25
-
-
-@dataclass
 class KeyConfig:
     cast: str = "f"
     left: str = "a"
@@ -200,7 +192,6 @@ class AppConfig:
     pid: PidConfig = field(default_factory=PidConfig)
     roi: RoiConfig = field(default_factory=RoiConfig)
     timing: TimingConfig = field(default_factory=TimingConfig)
-    calibration: CalibrationConfig = field(default_factory=CalibrationConfig)
     keys: KeyConfig = field(default_factory=KeyConfig)
     hotkeys: HotkeyConfig = field(default_factory=HotkeyConfig)
     humanization: HumanizationConfig = field(default_factory=HumanizationConfig)
@@ -297,4 +288,14 @@ def sample_noise(amplitude: float, dist: str = "gaussian") -> float:
 
 
 CFG = AppConfig()
-CFG.load()
+_settings_loaded = False
+_settings_lock = threading.Lock()
+
+
+def ensure_settings_loaded() -> None:
+    """Load settings.json into CFG once. Called by entry points, not on import."""
+    global _settings_loaded
+    with _settings_lock:
+        if not _settings_loaded:
+            CFG.load()
+            _settings_loaded = True

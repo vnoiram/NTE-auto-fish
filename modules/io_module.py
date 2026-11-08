@@ -33,7 +33,7 @@ class CaptureModule:
         if self._sct is None:
             with self._sct_lock:
                 if self._sct is None:
-                    self._sct = mss.mss()
+                    self._sct = mss.MSS()
         return self._sct
 
     def grab_bgr(self, roi: dict) -> np.ndarray:

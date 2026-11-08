@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import csv
+import functools
 import json
 import logging
 import os
+import threading
 import time
 from dataclasses import asdict, dataclass
 from typing import Optional
@@ -13,6 +15,14 @@ log = logging.getLogger("NTEFish")
 
 _INDEX_FILENAME = "index.json"
 _CSV_HEADER = ["timestamp", "fish_name", "weight_g"]
+
+
+def _synchronized(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return func(self, *args, **kwargs)
+    return wrapper
 
 
 @dataclass
@@ -30,11 +40,15 @@ class SessionManager:
         self._active_meta: Optional[SessionMeta] = None
         self._csv_handle = None
         self._csv_writer = None
+        # Re-entrant: public methods call each other (e.g. start_session -> end_session).
+        # The bot thread and GUI thread share one instance.
+        self._lock = threading.RLock()
 
     # ------------------------------------------------------------------
     # Session lifecycle
     # ------------------------------------------------------------------
 
+    @_synchronized
     def start_session(self) -> SessionMeta:
         """Create a new session file and register it in the index."""
         if self._csv_handle is not None:
@@ -53,12 +67,16 @@ class SessionManager:
         meta = SessionMeta(id=session_id, start=start_str, fish_count=0, filename=filename)
         self._active_meta = meta
 
-        sessions = self._read_index()
+        sessions = self._read_index_strict()
+        if sessions is None:
+            sessions = self._rebuild_index()
+        sessions = [x for x in sessions if x.id != meta.id]
         sessions.append(meta)
         self._write_index(sessions)
 
         return meta
 
+    @_synchronized
     def append_catch(self, name: str, weight_g: str) -> None:
         """Append a catch row to the active session and update the index."""
         if self._active_meta is None or self._csv_writer is None:
@@ -70,7 +88,10 @@ class SessionManager:
         self._csv_handle.flush()
 
         self._active_meta.fish_count += 1
-        sessions = self._read_index()
+        sessions = self._read_index_strict()
+        if sessions is None:
+            # Corrupt index: rebuild from CSV files so other sessions stay visible.
+            sessions = self._rebuild_index()
         for s in sessions:
             if s.id == self._active_meta.id:
                 s.fish_count = self._active_meta.fish_count
@@ -85,6 +106,7 @@ class SessionManager:
             ))
         self._write_index(sessions)
 
+    @_synchronized
     def end_session(self) -> None:
         """Flush and close the active session file."""
         if self._csv_handle is None:
@@ -93,7 +115,7 @@ class SessionManager:
             self._csv_handle.flush()
             self._csv_handle.close()
         except Exception:
-            log.debug("Failed to close session CSV.", exc_info=True)
+            log.warning("Failed to close session CSV.", exc_info=True)
         finally:
             self._csv_handle = None
             self._csv_writer = None
@@ -103,13 +125,15 @@ class SessionManager:
     # Query / management
     # ------------------------------------------------------------------
 
+    @_synchronized
     def load_sessions(self) -> list[SessionMeta]:
         """Return all sessions, newest last. Rebuilds from files if index is missing/corrupt."""
-        sessions = self._read_index()
+        sessions = self._read_index_strict()
         if not sessions:
             sessions = self._rebuild_index()
         return sessions
 
+    @_synchronized
     def delete_session(self, session_id: str) -> None:
         """Remove a session's CSV file and its index entry."""
         if session_id == self.active_session_id():
@@ -123,10 +147,11 @@ class SessionManager:
                 if os.path.exists(path):
                     os.remove(path)
             except Exception:
-                log.debug("Failed to delete session file: %s", path, exc_info=True)
+                log.warning("Failed to delete session file: %s", path, exc_info=True)
             sessions = [s for s in sessions if s.id != session_id]
             self._write_index(sessions)
 
+    @_synchronized
     def export_session(self, session_id: str, dest_path: str, fmt: str) -> None:
         """Export a session to dest_path in fmt ('csv', 'json', or 'xlsx')."""
         sessions = self._read_index()
@@ -148,18 +173,21 @@ class SessionManager:
         else:
             raise ValueError(f"Unknown export format: {fmt}")
 
+    @_synchronized
     def active_fish_count(self) -> int:
         """Return fish count for the current active session (0 if none)."""
         if self._active_meta is None:
             return 0
         return self._active_meta.fish_count
 
+    @_synchronized
     def active_session_start(self) -> str:
         """Return the start timestamp of the active session, or empty string if none."""
         if self._active_meta is None:
             return ""
         return self._active_meta.start
 
+    @_synchronized
     def active_session_id(self) -> Optional[str]:
         """Return the ID of the currently active session, or None."""
         if self._active_meta is None:
@@ -173,7 +201,8 @@ class SessionManager:
     def _index_path(self) -> str:
         return os.path.join(self._dir, _INDEX_FILENAME)
 
-    def _read_index(self) -> list[SessionMeta]:
+    def _read_index_strict(self) -> Optional[list[SessionMeta]]:
+        """Return the index entries, [] if no index exists, None if it is unreadable."""
         path = self._index_path()
         if not os.path.exists(path):
             return []
@@ -182,8 +211,12 @@ class SessionManager:
                 data = json.load(f)
             return [SessionMeta(**entry) for entry in data]
         except Exception:
-            log.debug("Failed to read session index; will rebuild.", exc_info=True)
-            return []
+            log.warning("Failed to read session index; it will be rebuilt.", exc_info=True)
+            return None
+
+    def _read_index(self) -> list[SessionMeta]:
+        sessions = self._read_index_strict()
+        return [] if sessions is None else sessions
 
     def _write_index(self, sessions: list[SessionMeta]) -> None:
         tmp = self._index_path() + ".tmp"
@@ -192,7 +225,7 @@ class SessionManager:
                 json.dump([asdict(s) for s in sessions], f, indent=2)
             os.replace(tmp, self._index_path())
         except Exception:
-            log.debug("Failed to write session index.", exc_info=True)
+            log.warning("Failed to write session index.", exc_info=True)
 
     def _rebuild_index(self) -> list[SessionMeta]:
         """Scan the sessions folder and rebuild the index from CSV files."""
@@ -219,7 +252,7 @@ class SessionManager:
                     filename=fname,
                 ))
         except Exception:
-            log.debug("Failed to rebuild session index.", exc_info=True)
+            log.warning("Failed to rebuild session index.", exc_info=True)
         if sessions:
             self._write_index(sessions)
         return sessions
@@ -232,7 +265,7 @@ class SessionManager:
             with open(path, newline="", encoding="utf-8") as f:
                 return list(csv.DictReader(f))
         except Exception:
-            log.debug("Failed to read session CSV: %s", filename, exc_info=True)
+            log.warning("Failed to read session CSV: %s", filename, exc_info=True)
             return []
 
     def _export_csv(self, rows: list[dict], dest_path: str) -> None:

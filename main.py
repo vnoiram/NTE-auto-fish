@@ -861,9 +861,15 @@ class NTEFishingBot:
         if not self._screen_w or not self._screen_h:
             return "", ""
 
-        global _ocr_engine
+        global _ocr_engine, _OCR_AVAILABLE
         if _ocr_engine is None:
-            _ocr_engine = _RapidOCR()
+            try:
+                _ocr_engine = _RapidOCR()
+            except Exception:
+                # e.g. model files missing in a frozen build; don't take the bot down.
+                log.warning("OCR engine failed to initialise; disabling OCR.", exc_info=True)
+                _OCR_AVAILABLE = False
+                return "", ""
 
         import re
 
@@ -902,8 +908,12 @@ class NTEFishingBot:
                 log.debug("OCR region failed.", exc_info=True)
                 return ""
 
-        import dearpygui.dearpygui as _dpg
-        _gui_active = _dpg.is_dearpygui_running()
+        try:
+            import dearpygui.dearpygui as _dpg
+            _gui_active = bool(self.bridge) and _dpg.is_dearpygui_running()
+        except ImportError:
+            # Headless/CLI install without dearpygui.
+            _gui_active = False
         if self._hide_ui and _gui_active:
             try:
                 self._hide_ui()

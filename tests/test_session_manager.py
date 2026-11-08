@@ -105,5 +105,36 @@ class TestSessionManager(unittest.TestCase):
         self.assertEqual(ws.cell(2, 2).value, "Perch")
 
 
+    def test_corrupt_index_keeps_other_sessions_visible(self):
+        first = self.mgr.start_session()
+        self.mgr.end_session()
+        second = self.mgr.start_session()
+        with open(os.path.join(self._tmpdir, "index.json"), "w", encoding="utf-8") as f:
+            f.write("{not json")
+        self.mgr.append_catch("Carp", "100")
+        ids = {s.id for s in self.mgr.load_sessions()}
+        self.assertEqual(ids, {first.id, second.id})
+
+    def test_concurrent_append_and_end_does_not_raise(self):
+        import threading
+        errors = []
+
+        def worker():
+            try:
+                for _ in range(200):
+                    self.mgr.append_catch("Carp", "1")
+            except Exception as exc:  # pragma: no cover - failure path
+                errors.append(exc)
+
+        self.mgr.start_session()
+        t = threading.Thread(target=worker)
+        t.start()
+        for _ in range(50):
+            self.mgr.end_session()
+            self.mgr.start_session()
+        t.join()
+        self.assertEqual(errors, [])
+
+
 if __name__ == "__main__":
     unittest.main()

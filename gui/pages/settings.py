@@ -84,10 +84,10 @@ _TOOLTIPS = {
     "Toggle": "Hotkey to pause/resume the bot (e.g. f8).",
     "Stop": "Hotkey to stop the bot (e.g. f12).",
     "Humanize input": "Add natural variation to timing and key behavior.",
-    "Pulse hold min": "Minimum key hold duration during struggle (seconds).",
-    "Pulse hold max": "Maximum key hold duration during struggle (seconds).",
-    "Pulse gap min": "Minimum release gap between pulses (seconds).",
-    "Pulse gap max": "Maximum release gap between pulses (seconds).",
+    "Button hold min (s)": "Minimum W/A button hold duration during struggle.",
+    "Button hold max (s)": "Maximum W/A button hold duration during struggle.",
+    "Button released min (s)": "Minimum released time between W/A pulses.",
+    "Button released max (s)": "Maximum released time between W/A pulses.",
     "Deadband taps": "Send micro-corrections when cursor is near center.",
     "Tap chance": "Probability of a micro-tap per cycle in the deadband.",
     "Reaction min": "Minimum reaction delay before responding (seconds).",
@@ -96,6 +96,17 @@ _TOOLTIPS = {
     "PID noise": "Add random noise to PID output for less predictable key timing.",
     "Noise amplitude": "Maximum noise magnitude added to PID output (pixels).",
     "Noise dist": "Noise distribution: uniform (flat) or gaussian (bell curve).",
+    "Movement scale min": "Smallest multiplier for a normal key-hold pulse.",
+    "Movement scale max": "Largest multiplier for a normal key-hold pulse.",
+    "Slow move chance": "Chance of shorter holds and longer released gaps.",
+    "Slow hold scale": "Multiplier applied to button hold time during slow movement.",
+    "Slow gap scale": "Multiplier applied to button released time during slow movement.",
+    "Reverse flick chance": (
+        "Chance of a fast flick only when changing W/A direction."
+    ),
+    "Flick hold scale": "Multiplier applied to button hold time during a flick.",
+    "Flick gap scale": "Multiplier applied to button released time after a flick.",
+    "Random action chance": "Chance of inserting one very short left or right tap.",
     "Cast jitter": "Random variation on cast timing (+/- seconds).",
     "Result jitter": "Random variation on result wait (+/- seconds).",
     "Adaptive focus": "Speed up response and shorten pulse gaps when the fish is far away.",
@@ -853,25 +864,25 @@ def _build_humanization_settings():
         dpg.add_text("Key Pulse Timing", color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
-            "Pulse hold min (s)", tag="cfg_hum_pulse_hold_min",
+            "Button hold min (s)", tag="cfg_hum_pulse_hold_min",
             min_val=0.010, max_val=0.150, fmt="%.3f",
             default=CFG.humanization.pulse_hold_min,
             cb=lambda s, d: _set(CFG.humanization, "pulse_hold_min", d),
         )
         _slider_with_tooltip(
-            "Pulse hold max (s)", tag="cfg_hum_pulse_hold_max",
+            "Button hold max (s)", tag="cfg_hum_pulse_hold_max",
             min_val=0.020, max_val=0.200, fmt="%.3f",
             default=CFG.humanization.pulse_hold_max,
             cb=lambda s, d: _set(CFG.humanization, "pulse_hold_max", d),
         )
         _slider_with_tooltip(
-            "Pulse gap min (s)", tag="cfg_hum_pulse_release_min",
+            "Button released min (s)", tag="cfg_hum_pulse_release_min",
             min_val=0.002, max_val=0.050, fmt="%.3f",
             default=CFG.humanization.pulse_release_min,
             cb=lambda s, d: _set(CFG.humanization, "pulse_release_min", d),
         )
         _slider_with_tooltip(
-            "Pulse gap max (s)", tag="cfg_hum_pulse_release_max",
+            "Button released max (s)", tag="cfg_hum_pulse_release_max",
             min_val=0.005, max_val=0.080, fmt="%.3f",
             default=CFG.humanization.pulse_release_max,
             cb=lambda s, d: _set(CFG.humanization, "pulse_release_max", d),
@@ -933,6 +944,67 @@ def _build_humanization_settings():
             items=["uniform", "gaussian"],
             default=CFG.humanization.pid_noise_dist,
             cb=lambda s, d: _set(CFG.humanization, "pid_noise_dist", d),
+        )
+
+        dpg.add_spacer(height=8)
+        dpg.add_text("Cursor Movement Styles", color=TEXT_MUTED)
+        dpg.add_spacer(height=4)
+        with dpg.group(horizontal=True):
+            _slider_with_tooltip(
+                "Movement scale min", tag="cfg_hum_move_scale_min",
+                min_val=0.25, max_val=1.5, fmt="%.2f",
+                default=CFG.humanization.movement_scale_min,
+                cb=lambda s, d: _set(CFG.humanization, "movement_scale_min", d),
+            )
+            _slider_with_tooltip(
+                "Movement scale max", tag="cfg_hum_move_scale_max",
+                min_val=0.5, max_val=2.0, fmt="%.2f",
+                default=CFG.humanization.movement_scale_max,
+                cb=lambda s, d: _set(CFG.humanization, "movement_scale_max", d),
+            )
+        _slider_with_tooltip(
+            "Slow move chance", tag="cfg_hum_slow_chance",
+            min_val=0.0, max_val=0.5, fmt="%.2f",
+            default=CFG.humanization.slow_move_chance,
+            cb=lambda s, d: _set(CFG.humanization, "slow_move_chance", d),
+        )
+        with dpg.group(horizontal=True):
+            _slider_with_tooltip(
+                "Slow hold scale", tag="cfg_hum_slow_hold_scale",
+                min_val=0.1, max_val=1.0, fmt="%.2f",
+                default=CFG.humanization.slow_move_hold_scale_max,
+                cb=lambda s, d: _set(CFG.humanization, "slow_move_hold_scale_max", d),
+            )
+            _slider_with_tooltip(
+                "Slow gap scale", tag="cfg_hum_slow_gap_scale",
+                min_val=1.0, max_val=3.0, fmt="%.2f",
+                default=CFG.humanization.slow_move_gap_scale,
+                cb=lambda s, d: _set(CFG.humanization, "slow_move_gap_scale", d),
+            )
+        _slider_with_tooltip(
+            "Reverse flick chance", tag="cfg_hum_flick_chance",
+            min_val=0.0, max_val=1.0, fmt="%.2f",
+            default=CFG.humanization.flick_chance_on_reverse,
+            cb=lambda s, d: _set(CFG.humanization, "flick_chance_on_reverse", d),
+        )
+        with dpg.group(horizontal=True):
+            _slider_with_tooltip(
+                "Flick hold scale", tag="cfg_hum_flick_hold_scale",
+                min_val=1.0, max_val=3.0, fmt="%.2f",
+                default=CFG.humanization.flick_hold_scale_max,
+                cb=lambda s, d: _set(CFG.humanization, "flick_hold_scale_max", d),
+            )
+            _slider_with_tooltip(
+                "Flick gap scale", tag="cfg_hum_flick_gap_scale",
+                min_val=0.1, max_val=1.0, fmt="%.2f",
+                default=CFG.humanization.flick_gap_scale,
+                cb=lambda s, d: _set(CFG.humanization, "flick_gap_scale", d),
+            )
+        _slider_with_tooltip(
+            "Random action chance", tag="cfg_hum_random_action_chance",
+            min_val=0.0, max_val=0.2, fmt="%.2f",
+            default=CFG.humanization.random_action_chance,
+            cb=lambda s, d: _set(CFG.humanization, "random_action_chance", d),
         )
 
         dpg.add_spacer(height=8)
@@ -1308,6 +1380,15 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_hum_noise_enabled", CFG.humanization.pid_noise_enabled)
     dpg.set_value("cfg_hum_noise_amp", CFG.humanization.pid_noise_amplitude)
     dpg.set_value("cfg_hum_noise_dist", CFG.humanization.pid_noise_dist)
+    dpg.set_value("cfg_hum_move_scale_min", CFG.humanization.movement_scale_min)
+    dpg.set_value("cfg_hum_move_scale_max", CFG.humanization.movement_scale_max)
+    dpg.set_value("cfg_hum_slow_chance", CFG.humanization.slow_move_chance)
+    dpg.set_value("cfg_hum_slow_hold_scale", CFG.humanization.slow_move_hold_scale_max)
+    dpg.set_value("cfg_hum_slow_gap_scale", CFG.humanization.slow_move_gap_scale)
+    dpg.set_value("cfg_hum_flick_chance", CFG.humanization.flick_chance_on_reverse)
+    dpg.set_value("cfg_hum_flick_hold_scale", CFG.humanization.flick_hold_scale_max)
+    dpg.set_value("cfg_hum_flick_gap_scale", CFG.humanization.flick_gap_scale)
+    dpg.set_value("cfg_hum_random_action_chance", CFG.humanization.random_action_chance)
     dpg.set_value("cfg_hum_cast_jitter", CFG.humanization.cast_animation_jitter)
     dpg.set_value("cfg_hum_result_jitter", CFG.humanization.result_wait_jitter)
     dpg.set_value("cfg_hum_adaptive_enabled", CFG.humanization.adaptive_enabled)

@@ -147,6 +147,21 @@ class HumanizationConfig:
     pid_noise_amplitude: float = 3.0  # pixels
     pid_noise_dist: str = "gaussian"  # "uniform" / "gaussian"
 
+    # Cursor movement styles (STRUGGLING)
+    movement_scale_min: float = 0.85
+    movement_scale_max: float = 1.25
+    slow_move_chance: float = 0.20
+    slow_move_hold_scale_min: float = 0.45
+    slow_move_hold_scale_max: float = 0.75
+    slow_move_gap_scale: float = 1.60
+    flick_chance_on_reverse: float = 0.35
+    flick_hold_scale_min: float = 1.60
+    flick_hold_scale_max: float = 2.20
+    flick_gap_scale: float = 0.45
+    random_action_chance: float = 0.05
+    random_action_duration_min: float = 0.012
+    random_action_duration_max: float = 0.035
+
     # Adaptive humanization (Intensity-based focus)
     adaptive_enabled: bool = True
     adaptive_latency_min_scale: float = 0.3
@@ -285,6 +300,61 @@ def sample_noise(amplitude: float, dist: str = "gaussian") -> float:
     if dist == "gaussian":
         return _RNG.gauss(0, amplitude / 2)
     return _RNG.uniform(-amplitude, amplitude)
+
+
+@dataclass(frozen=True)
+class MovementPulse:
+    """Timing multipliers and an optional harmless extra tap for one pulse."""
+
+    profile: str
+    hold_scale: float
+    gap_scale: float
+    random_action: bool
+    random_direction: int
+    random_duration: float
+
+
+def sample_movement_pulse(
+    cfg: HumanizationConfig,
+    allow_flick: bool = False,
+) -> MovementPulse:
+    """Sample a normal, slow, or direction-change flick pulse."""
+    if allow_flick and _RNG.random() < cfg.flick_chance_on_reverse:
+        profile = "flick"
+        hold_scale = _RNG.uniform(
+            cfg.flick_hold_scale_min,
+            cfg.flick_hold_scale_max,
+        )
+        gap_scale = cfg.flick_gap_scale
+    elif _RNG.random() < cfg.slow_move_chance:
+        profile = "slow"
+        hold_scale = _RNG.uniform(
+            cfg.slow_move_hold_scale_min,
+            cfg.slow_move_hold_scale_max,
+        )
+        gap_scale = cfg.slow_move_gap_scale
+    else:
+        profile = "normal"
+        hold_scale = _RNG.uniform(
+            cfg.movement_scale_min,
+            cfg.movement_scale_max,
+        )
+        gap_scale = 1.0
+
+    random_action = _RNG.random() < cfg.random_action_chance
+    random_direction = -1 if _RNG.random() < 0.5 else 1
+    random_duration = _RNG.uniform(
+        cfg.random_action_duration_min,
+        cfg.random_action_duration_max,
+    )
+    return MovementPulse(
+        profile=profile,
+        hold_scale=hold_scale,
+        gap_scale=gap_scale,
+        random_action=random_action,
+        random_direction=random_direction,
+        random_duration=random_duration,
+    )
 
 
 CFG = AppConfig()

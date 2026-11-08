@@ -2,8 +2,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
-from config import AppConfig
+from config import AppConfig, HumanizationConfig, sample_movement_pulse
 
 
 class TestAppConfig(unittest.TestCase):
@@ -63,6 +64,39 @@ class TestAppConfig(unittest.TestCase):
         self.assertEqual(cfg.hsv.blue.lower, defaults.hsv.blue.lower)
         self.assertEqual(cfg.hsv.blue.upper, (130, 255, 255))
         self.assertFalse(cfg.debug_mode)
+
+    def test_flick_profile_is_only_sampled_when_direction_reverses(self):
+        cfg = HumanizationConfig(flick_chance_on_reverse=1.0)
+        reverse_rng = Mock()
+        reverse_rng.random.side_effect = [0.0, 1.0, 0.0]
+        reverse_rng.uniform.side_effect = [1.8, 0.02]
+
+        with patch("config._RNG", reverse_rng):
+            reverse_pulse = sample_movement_pulse(cfg, allow_flick=True)
+
+        normal_rng = Mock()
+        normal_rng.random.side_effect = [1.0, 1.0, 0.0]
+        normal_rng.uniform.side_effect = [1.0, 0.02]
+        with patch("config._RNG", normal_rng):
+            normal_pulse = sample_movement_pulse(cfg, allow_flick=False)
+
+        self.assertEqual(reverse_pulse.profile, "flick")
+        self.assertEqual(reverse_pulse.hold_scale, 1.8)
+        self.assertEqual(reverse_pulse.gap_scale, cfg.flick_gap_scale)
+        self.assertEqual(normal_pulse.profile, "normal")
+
+    def test_slow_profile_can_include_a_short_random_action(self):
+        cfg = HumanizationConfig(slow_move_chance=1.0)
+        rng = Mock()
+        rng.random.side_effect = [0.0, 0.0, 0.8]
+        rng.uniform.side_effect = [0.6, 0.02]
+
+        with patch("config._RNG", rng):
+            pulse = sample_movement_pulse(cfg, allow_flick=False)
+
+        self.assertEqual(pulse.profile, "slow")
+        self.assertTrue(pulse.random_action)
+        self.assertEqual(pulse.random_direction, 1)
 
 
 if __name__ == "__main__":

@@ -36,6 +36,8 @@ class TestDearPyGuiCompatibility(unittest.TestCase):
             self.assertTrue(dpg.does_item_exist("PrimaryWindow"))
             self.assertTrue(dpg.does_item_exist("pid_plot"))
             self.assertTrue(dpg.does_item_exist("btn_save"))
+            self.assertTrue(dpg.does_item_exist("cfg_hum_flick_chance"))
+            self.assertTrue(dpg.does_item_exist("cfg_hum_random_action_chance"))
             self.assertTrue(dpg.does_item_exist("log_container"))
         finally:
             dpg.destroy_context()

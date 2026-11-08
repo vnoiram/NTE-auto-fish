@@ -16,7 +16,8 @@ from random import SystemRandom
 from typing import TYPE_CHECKING, Optional
 
 from config import (
-    CFG, AppConfig, ensure_settings_loaded, jitter as cfg_jitter, sample_noise, sample_reaction,
+    CFG, AppConfig, ensure_settings_loaded, jitter as cfg_jitter,
+    sample_movement_pulse, sample_noise, sample_reaction,
 )
 
 from modules.ocr import CatchOcr, ratios_to_roi
@@ -186,6 +187,8 @@ class NTEFishingBot:
         self._hum_pulse_end = 0.0
         self._hum_pulse_state = "IDLE"
         self._hum_target_action = "NONE"
+        self._hum_gap_scale = 1.0
+        self._hum_flick_pending = False
 
     @property
     def is_stopped(self) -> bool:
@@ -712,6 +715,10 @@ class NTEFishingBot:
 
                 # Check if we need to start a new reaction delay
                 if desired_action != self._hum_target_action:
+                    self._hum_flick_pending = (
+                        desired_action in {"LEFT", "RIGHT"}
+                        and self._hum_target_action in {"LEFT", "RIGHT"}
+                    )
                     self._hum_target_action = desired_action
                     
                     # Adaptive humanization
@@ -753,11 +760,43 @@ class NTEFishingBot:
                     if self._hum_pulse_state == "IDLE" or now >= self._hum_pulse_end:
                         if self._hum_pulse_state == "GAP" or self._hum_pulse_state == "IDLE":
                             # Transition to HOLD
+                            allow_flick = (
+                                self._hum_flick_pending
+                                and effective_action == self._hum_target_action
+                            )
+                            pulse = sample_movement_pulse(
+                                hcfg,
+                                allow_flick=allow_flick,
+                            )
+                            if allow_flick:
+                                self._hum_flick_pending = False
                             if hcfg.adaptive_enabled:
                                 hold_factor = 1.0 + intensity * (hcfg.adaptive_pulse_hold_max_scale - 1.0)
                             else:
                                 hold_factor = 1.0
-                            hold_t = _RNG.uniform(hcfg.pulse_hold_min * hold_factor, hcfg.pulse_hold_max * hold_factor)
+
+                            if pulse.random_action:
+                                random_key = (
+                                    self.cfg.keys.right
+                                    if pulse.random_direction > 0
+                                    else self.cfg.keys.left
+                                )
+                                self.input.pulse_hold(
+                                    random_key,
+                                    pulse.random_duration,
+                                    0.0,
+                                    self._stop_event,
+                                )
+                                if self._stop_event.is_set():
+                                    self.input.release_all()
+                                    return
+                                now = time.perf_counter()
+
+                            hold_t = _RNG.uniform(
+                                hcfg.pulse_hold_min * hold_factor,
+                                hcfg.pulse_hold_max * hold_factor,
+                            ) * pulse.hold_scale
+                            self._hum_gap_scale = pulse.gap_scale
                             self._hum_pulse_end = now + hold_t
                             self._hum_pulse_state = "HOLD"
                             self.input.hold(target_key)
@@ -767,7 +806,10 @@ class NTEFishingBot:
                                 gap_factor = max(hcfg.adaptive_pulse_gap_min_scale, 1.0 - intensity * (1.0 - hcfg.adaptive_pulse_gap_min_scale))
                             else:
                                 gap_factor = 1.0
-                            gap_t = _RNG.uniform(hcfg.pulse_release_min * gap_factor, hcfg.pulse_release_max * gap_factor)
+                            gap_t = _RNG.uniform(
+                                hcfg.pulse_release_min * gap_factor,
+                                hcfg.pulse_release_max * gap_factor,
+                            ) * self._hum_gap_scale
                             self._hum_pulse_end = now + gap_t
                             self._hum_pulse_state = "GAP"
                             self.input.release(target_key)

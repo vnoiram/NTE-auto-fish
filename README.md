@@ -35,12 +35,11 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 - **Faster area-check OCR.**
 - **One executable for GUI and CLI**: There is no separate CLI package; the same EXE opens the GUI, or runs the CLI when started with arguments.
 - **More ways to build**: Build locally in Windows Sandbox, or prepare on Linux and let the Windows GitHub Actions runner build the EXE and download it (see the build sections below).
-- **Stable builds**: The default icon is the character artwork and builds get a plain, fixed name (no random build ID unless you ask for one).
+- **Character icon and random build names**: The default icon is the character artwork, and every build gets a random build ID in its name (pass `--build-id none` for a plain name).
 
 ![Area adjustment illustration](docs/images/area-adjustment.png)
 
 **Why there is no pull request upstream:** there are "religious" differences (in the engineer sense: matters of taste, not of correctness) between upstream and this fork: a random name instead of a fixed one, a different character as the icon, and Python 3.14 instead of 3.11. This fork implements them, I prefer them, and I do not want to push them onto upstream.  
-※ The random-name feature is experimental and is not included in the builds.
 
 **The bigger reason:** upstream has not merged any outside pull request since 2026-06. As of 2026-11-10, two open pull requests ([#60](https://github.com/Chizukuo/NTE-auto-fish/pull/60), [#61](https://github.com/Chizukuo/NTE-auto-fish/pull/61)) are marked as mergeable without conflicts and have been left for months. A new one would most likely not be merged either, so I consider it wasted effort.
 
@@ -114,9 +113,8 @@ window, and sidebar name, while `--icon` changes the EXE and window icon. Built-
 `target-fish`, and `fisher-cat`; the default is `classic` (the character artwork) and `random` picks one per build.
 Provide a custom `.ico` path to use your own.
 On Windows, run the same build directly with `python scripts/build_windows.py --app-name "Fishing Tools" --icon classic`. App names are ASCII-only
-to avoid native Windows title-bar encoding problems. By default no build ID is added, so the file name, window title
-and settings file stay the same between builds. Pass `--build-id my-id` to add an ID, or `--build-id random` to
-generate a unique one to prevent artifact collisions.
+to avoid native Windows title-bar encoding problems. Every build gets a random 12-character build ID in its file name and window title, which
+prevents artifact collisions. Pass `--build-id my-id` for a fixed ID, or `--build-id none` for a plain name without one.
 Branded builds also namespace their settings, log, debug CSV, and session directory with the app name and build ID,
 so multiple builds can run from the same directory without overwriting each other's runtime data. Unbranded source
 runs retain the legacy filenames.

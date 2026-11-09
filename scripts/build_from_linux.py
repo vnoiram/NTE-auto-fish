@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--build-id",
         default="",
-        help="Optional ID for the file name; omitted = none, random = generate one",
+        help="Optional ID for the file name; omitted or random = generate one, none = no ID",
     )
     parser.add_argument(
         "--ref", help="Pushed branch or tag; defaults to the current branch"

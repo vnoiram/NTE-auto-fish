@@ -177,8 +177,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--build-id",
-        help="Optional ID added to the name and settings files; 'random' generates one. "
-        "Default: none (a plain, stable name)",
+        help="ID added to the name and settings files. Default: a random 12-character ID; "
+        "'none' builds a plain name without an ID",
     )
     parser.add_argument("--dist-dir", default="dist")
     parser.add_argument(
@@ -195,9 +195,10 @@ def main() -> int:
     try:
         app_name = validate_app_name(args.app_name)
         icon_path = resolve_icon(args.icon)
-        if not args.build_id:
+        choice = (args.build_id or "").strip().lower()
+        if choice == "none":
             build_id = ""
-        elif args.build_id.strip().lower() == "random":
+        elif not choice or choice == "random":
             build_id = new_build_id()
         else:
             build_id = validate_build_id(args.build_id)

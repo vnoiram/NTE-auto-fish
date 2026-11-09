@@ -18,7 +18,7 @@ on:
         default: "classic"
         type: string
       build_id:
-        description: "Optional build ID added to the file name; blank = none, random = generate"
+        description: "Optional build ID for the file name; blank or random = generate one, none = no ID"
         required: false
         default: ""
         type: string

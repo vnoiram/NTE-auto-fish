@@ -57,7 +57,7 @@ class BotBridge:
         # True while the user is checking/adjusting the scan areas with the bot stopped.
         self.preview_active = False
         self.snapshot_request = False  # take a new full-screen snapshot for the area check
-        # (fish, minutes) the user set on the dashboard; the bot counts from the moment
+        # (fish, seconds) the user set on the dashboard; the bot counts from the moment
         # it picks it up. (0, 0) clears the auto stop.
         self.limit_request: tuple[int, int] | None = None
         self.snapshot_busy = False  # a snapshot is being taken right now

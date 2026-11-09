@@ -451,7 +451,7 @@ class RunLimitTest(unittest.TestCase):
 
     def test_request_counts_from_now(self):
         bot = self._bot()
-        bot.bridge.limit_request = (3, 2)
+        bot.bridge.limit_request = (3, 120)
         bot._apply_limit_request()
         self.assertEqual(bot._fish_limit_target, 8)
         self.assertEqual(bot._time_limit_until, 220.0)

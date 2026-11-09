@@ -204,6 +204,15 @@ def create_dashboard(
                 width=int(70 * _s),
             )
             dpg.add_text(tr("min"))
+            dpg.add_input_int(
+                tag="limit_sec_input",
+                default_value=0,
+                min_value=0,
+                min_clamped=True,
+                step=0,
+                width=int(70 * _s),
+            )
+            dpg.add_text(tr("sec"))
             styled_button(
                 "Set",
                 "btn_limit_set",
@@ -307,12 +316,14 @@ def _set_limit(bridge: BotBridge) -> None:
     """Auto-stop after N fish and/or M minutes, counted from now (0 = unused)."""
     fish = max(0, int(dpg.get_value("limit_fish_input") or 0))
     minutes = max(0, int(dpg.get_value("limit_min_input") or 0))
-    bridge.limit_request = (fish, minutes)
+    secs = max(0, int(dpg.get_value("limit_sec_input") or 0))
+    bridge.limit_request = (fish, minutes * 60 + secs)
 
 
 def _clear_limit(bridge: BotBridge) -> None:
     dpg.set_value("limit_fish_input", 0)
     dpg.set_value("limit_min_input", 0)
+    dpg.set_value("limit_sec_input", 0)
     bridge.limit_request = (0, 0)
 
 

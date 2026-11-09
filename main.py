@@ -885,11 +885,11 @@ class NTEFishingBot:
         if req is None:
             return
         self.bridge.limit_request = None
-        fish, minutes = req
+        fish, secs = req
         self._fish_limit_target = self._fish_count + fish if fish > 0 else None
-        self._time_limit_until = self._active_secs + minutes * 60 if minutes > 0 else None
+        self._time_limit_until = self._active_secs + secs if secs > 0 else None
         self._time_limit_notified = False
-        self._log(f"[Limit] Auto stop set: {fish or '-'} fish / {minutes or '-'} min from now.")
+        self._log(f"[Limit] Auto stop set: {fish or '-'} fish / {secs or '-'} s from now.")
 
     def _run_time_limit_reached(self) -> bool:
         until = self._time_limit_until

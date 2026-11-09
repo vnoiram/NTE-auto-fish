@@ -130,6 +130,7 @@ _JA = {
     "Auto stop (0 = no limit; counted from when you press Set)": "自動停止(0 = 無制限。「設定」を押した時点から数えます)",
     "fish": "匹",
     "min": "分",
+    "sec": "秒",
     "Set": "設定",
     "{n} fish left": "あと {n} 匹",
     "{m}:{s:02d} left": "残り {m}:{s:02d}",

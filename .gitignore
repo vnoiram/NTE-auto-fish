@@ -56,3 +56,4 @@ fishing_bot.log
 fishing_data.csv
 settings.json
 *.log
+.pre-push-check-ignore.md

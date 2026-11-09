@@ -42,7 +42,12 @@ class TestHSVCentroid(unittest.TestCase):
 
     def _get_min_area(self, filename: str) -> float:
         base_area = _DEFAULT_MIN_AREA
-        thresholds = {"4k": base_area, "2k": base_area / 2.0, "1080p": base_area / 4.0}
+        thresholds = {
+            "4k": base_area,
+            "2k": base_area / 2.0,
+            "1080p": base_area / 4.0,
+            "fhd": base_area / 4.0,
+        }
         parts = filename.lower().split("_")
         res = next((p for p in parts if p in thresholds), "4k")
         return thresholds[res]

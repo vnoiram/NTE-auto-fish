@@ -78,7 +78,7 @@ def pick_profile(
     return best
 
 
-# Background signatures measured from daytime and evening game screenshots.
+# Background signatures measured from daytime, evening and night game screenshots.
 _DAY_SIGNATURE = (
     0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,
     0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,
@@ -86,6 +86,14 @@ _DAY_SIGNATURE = (
     0.0897, 0.0766, 0.0047, 0.0033, 0.0001, 0.0000, 0.0000, 0.0000, 0.0000,
     0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,
     0.0000, 0.0000, 0.0000, 0.5657, 0.2136, 0.1589, 0.0532, 0.0086,
+)
+_NIGHT_SIGNATURE = (
+    0.0139, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,
+    0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,
+    0.0000, 0.0000, 0.0000, 0.0000, 0.0003, 0.0000, 0.0000, 0.0019, 0.9392,
+    0.0306, 0.0032, 0.0007, 0.0023, 0.0011, 0.0037, 0.0028, 0.0002, 0.0000,
+    0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,
+    0.0079, 0.0578, 0.1429, 0.3878, 0.2509, 0.1231, 0.0257, 0.0040,
 )
 _EVENING_SIGNATURE = (
     0.0076, 0.0396, 0.0619, 0.0852, 0.4655, 0.2432, 0.0622, 0.0111, 0.0034,
@@ -98,7 +106,7 @@ _EVENING_SIGNATURE = (
 
 
 def default_profiles() -> list[dict[str, Any]]:
-    """Built-in day and evening profiles; HSV values start at the defaults."""
+    """Built-in day, evening and night profiles; HSV values start at the defaults."""
     from config import HsvConfig
 
     hsv = HsvConfig()
@@ -106,6 +114,7 @@ def default_profiles() -> list[dict[str, Any]]:
     for name, signature in (
         ("Day", _DAY_SIGNATURE),
         ("Evening", _EVENING_SIGNATURE),
+        ("Night", _NIGHT_SIGNATURE),
     ):
         profiles.append(
             {

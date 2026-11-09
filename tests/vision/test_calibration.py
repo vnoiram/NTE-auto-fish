@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -127,6 +128,40 @@ class TestCalibration(unittest.TestCase):
 
     def test_describe_reports_size(self):
         self.assertIn("200x40", describe(np.zeros((40, 200, 3), np.uint8)))
+
+
+_DATA = Path(__file__).parent / "data"
+_HINTS = ((75, 190, 190), (100, 255, 255)), ((18, 115, 240), (40, 150, 255))
+
+
+def _load(rel: str) -> np.ndarray:
+    return cv2.imdecode(np.fromfile(_DATA / rel, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+
+class TestCalibrationOnGameSamples(unittest.TestCase):
+    def test_night_gauge_ignores_the_blue_sky(self):
+        img = _load("bar/positive/bar_positive_fhd_nigh_1.png")
+        for fn in (suggest_gauge, suggest_gauge_at_start):
+            safe, cursor = fn(img, *_HINTS)
+            self.assertIsNotNone(safe, fn.__name__)
+            self.assertTrue(75 <= safe.lower[0] and safe.upper[0] <= 100, fn.__name__)
+            self.assertIsNotNone(cursor, fn.__name__)
+            self.assertTrue(18 <= cursor.lower[0] and cursor.upper[0] <= 40)
+
+    def test_day_and_evening_gauges_find_cyan_safe_zone(self):
+        for rel in (
+            "bar/positive/bar_positive_4k_1.png",
+            "bar/positive/bar_positive_4k_3.png",
+            "cursor/positive/cursor_positive_4k_2.png",
+        ):
+            safe, _ = suggest_gauge(_load(rel), *_HINTS)
+            self.assertIsNotNone(safe, rel)
+            self.assertTrue(75 <= safe.lower[0] and safe.upper[0] <= 100, rel)
+
+    def test_night_bite_prompt_is_found(self):
+        sug = suggest_bite(_load("blue/positive/blue_positive_fhd_night_1.png"))
+        self.assertIsNotNone(sug)
+        self.assertTrue(85 <= sug.peak_hue <= 140)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
 # C extensions
 *.so
 
@@ -57,3 +58,7 @@ fishing_data.csv
 settings.json
 *.log
 .pre-push-check-ignore.md
+.serena/
+
+# Windows download metadata
+*:Zone.Identifier

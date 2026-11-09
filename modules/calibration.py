@@ -133,11 +133,12 @@ def suggest_bite(bgr: np.ndarray) -> Suggestion | None:
 
 
 # (min_sat, min_val) pairs tried in order, strict to loose.
-_SAFE_LEVELS = ((80, 120), (50, 80), (30, 50))
+_SAFE_LEVELS = ((170, 180), (80, 120), (50, 80), (30, 50))
 _CURSOR_LEVELS = ((40, 235), (40, 200), (30, 150))
 
 
 _HINT_HUE_PAD = 20
+_ICON_MARGIN = 0.12  # the gauge ROI can include round icons at both ends
 
 
 def _hint_band(hint) -> tuple[int, int] | None:
@@ -165,6 +166,10 @@ def suggest_gauge(
     """
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     ignore = background.mask(hsv) if background is not None else None
+    cols = slice(int(hsv.shape[1] * _ICON_MARGIN), int(hsv.shape[1] * (1 - _ICON_MARGIN)))
+    hsv = hsv[:, cols]
+    if ignore is not None:
+        ignore = ignore[:, cols]
     safe_band = _hint_band(safe_hint)
     cursor_band = _hint_band(cursor_hint)
     safe = None

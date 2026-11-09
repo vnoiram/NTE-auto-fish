@@ -363,6 +363,22 @@ class TestBaitErrorDetectionOption(unittest.TestCase):
         bot._enter_waiting.assert_called_once_with()
 
 
+class TestJudgeText(unittest.TestCase):
+    def test_text_shows_used_bars_and_detections(self):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.battle_detect_safe_zone = False
+        bot.sm = MagicMock()
+        bot.sm.state = FishingState.WAITING
+        text = bot._judge_text(120, None, "streak 1")
+        self.assertIn("WAITING", text)
+        self.assertIn("cursor found", text)
+        self.assertIn("safe zone -", text)
+        self.assertIn("used for battle: cursor", text)
+        self.assertNotIn("cursor + safe zone", text)
+        self.assertIn("streak 1", text)
+
+
 class TestDeadbandPlaySelection(unittest.TestCase):
     def test_battle_gate_is_rolled_once_then_uses_existing_tap_chance(self):
         bot = NTEFishingBot.__new__(NTEFishingBot)

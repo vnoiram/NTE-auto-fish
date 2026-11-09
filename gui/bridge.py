@@ -58,6 +58,7 @@ class BotBridge:
         # Live previews for the dashboard tracker (RGBA uint8 arrays or None).
         self.preview: dict = {
             "bar": None,
+            "judge_text": "",
             "button": None,
             "icons": None,
             "icons_text": "",

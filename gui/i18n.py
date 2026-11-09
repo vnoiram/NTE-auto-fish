@@ -134,6 +134,7 @@ _JA = {
     "Icon area": "アイコン領域",
     "Preview zoom": "プレビューの拡大率",
     "Retake snapshot": "撮り直す",
+    "Live view while the bot runs": "実行中に常時更新して表示(デバッグ用)",
     "Adjust from current screen": "現在の画面で調整",
     "Show the target on screen, press the button, and the colors are measured after a short countdown. Nothing changes until you apply.": "対象を画面に表示してボタンを押すと、数秒後に色を測定します。適用するまで設定は変わりません。",
     "Bite detection": "アタリ判定",

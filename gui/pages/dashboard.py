@@ -354,6 +354,12 @@ def _create_previews():
         for tag, (w, h) in _PREVIEW_TEXTURES.items():
             dpg.add_dynamic_texture(w, h, [0.0] * (w * h * 4), tag=f"{tag}_tex")
     _create_drag_handlers()
+    dpg.add_checkbox(
+        label=tr("Live view while the bot runs"),
+        tag="pv_live",
+        default_value=CFG.tracker_preview_enabled,
+        callback=lambda s, v: setattr(CFG, "tracker_preview_enabled", bool(v)),
+    )
     dpg.add_button(
         label=tr("Check and adjust areas"),
         tag="btn_area_check",
@@ -385,6 +391,7 @@ def _create_previews():
     )
     dpg.add_text(tr("Bar area"), color=TEXT_MUTED)
     dpg.add_image("pv_bar_tex", tag="pv_bar", width=BAR_SIZE[0], height=BAR_SIZE[1])
+    dpg.add_text("", tag="pv_judge_text", wrap=int(480 * _s))
     dpg.add_text(tr("Bite prompt area"), color=TEXT_MUTED)
     with dpg.group(horizontal=True):
         dpg.add_image(

@@ -683,7 +683,13 @@ class NTEFishingBot:
         hsv_img = self.vision.to_hsv(bar_img)
         cursor_x, _ = self._find_cursor(bar_img, hsv_img)
         target_x, _ = self._find_target(bar_img, hsv_img)
-        self._publish_bar_preview(bar_img, cursor_x, target_x)
+        self._publish_bar_preview(
+            bar_img,
+            cursor_x,
+            target_x,
+            f"enter battle after {_BAR_ENTER_FRAMES} frames in a row "
+            f"(now {getattr(self, '_bar_streak', 0)})",
+        )
         if not self._battle_bars_all_visible(cursor_x, target_x):
             self._bar_streak = 0
             if state is FishingState.WAITING:
@@ -907,11 +913,28 @@ class NTEFishingBot:
         self._next_preview_at = now + _PREVIEW_INTERVAL_SECS
         return bridge
 
-    def _publish_bar_preview(self, bar_img, cursor_x, target_x) -> None:
+    def _judge_text(self, cursor_x, target_x, detail: str) -> str:
+        """One line on how the bars are being judged, for the live tracker."""
+        cfg = self.cfg
+        used = []
+        if cfg.battle_detect_cursor:
+            used.append("cursor")
+        if cfg.battle_detect_safe_zone:
+            used.append("safe zone")
+        if not used:
+            used = ["cursor", "safe zone"]
+        return (
+            f"[{self.sm.state.value}] cursor {'found' if cursor_x is not None else '-'}, "
+            f"safe zone {'found' if target_x is not None else '-'} | "
+            f"used for battle: {' + '.join(used)} | {detail}"
+        )
+
+    def _publish_bar_preview(self, bar_img, cursor_x, target_x, detail: str = "") -> None:
         bridge = self._preview_due()
         if bridge is None:
             return
         try:
+            bridge.preview["judge_text"] = self._judge_text(cursor_x, target_x, detail)
             bridge.preview["bar"] = render_bar_preview(
                 bar_img,
                 cursor_x,
@@ -1069,7 +1092,14 @@ class NTEFishingBot:
         self._cursor_x_rel = cursor_x
         self._target_x_rel = target_x
         self._gauge_assist_step(bar_img, cursor_x, target_x)
-        self._publish_bar_preview(bar_img, cursor_x, target_x)
+        self._publish_bar_preview(
+            bar_img,
+            cursor_x,
+            target_x,
+            "in battle, stays while a used bar is visible "
+            f"(bars gone for {self._battle_absent_frames}/"
+            f"{self.cfg.timing.lost_frames_threshold} frames)",
+        )
 
         output = 0.0
         action = "NONE"

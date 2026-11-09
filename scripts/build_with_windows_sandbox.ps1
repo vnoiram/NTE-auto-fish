@@ -130,6 +130,10 @@ $logonCommand
     $deadline = [DateTime]::UtcNow.AddMinutes($TimeoutMinutes)
     $startedAt = [DateTime]::UtcNow
     $sessionSeen = $false
+    $liveLog = Join-Path $stagedOutput "sandbox-build.log"
+    $logOffset = 0L
+    $lastNotice = [DateTime]::UtcNow
+    $logSeen = $false
 
     while ([DateTime]::UtcNow -lt $deadline) {
         if (Test-Path -LiteralPath $successMarker) { break }
@@ -155,6 +159,35 @@ $logonCommand
             else {
                 $sessionSeen = $true
             }
+        }
+        # Relay new Sandbox log output so progress is visible on the host.
+        if (Test-Path -LiteralPath $liveLog) {
+            try {
+                $stream = [IO.File]::Open($liveLog, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+                try {
+                    if ($stream.Length -gt $logOffset) {
+                        [void]$stream.Seek($logOffset, [IO.SeekOrigin]::Begin)
+                        $reader = New-Object IO.StreamReader($stream)
+                        $chunk = $reader.ReadToEnd()
+                        $logOffset = $stream.Position
+                        if ($chunk.Length -gt 0) { Write-Host $chunk -NoNewline }
+                        $logSeen = $true
+                        $lastNotice = [DateTime]::UtcNow
+                    }
+                }
+                finally { $stream.Dispose() }
+            }
+            catch { }
+        }
+        if (([DateTime]::UtcNow - $lastNotice).TotalSeconds -ge 15) {
+            $elapsed = [int]([DateTime]::UtcNow - $startedAt).TotalSeconds
+            if ($logSeen) {
+                Write-Host "[host] Build in progress in the Sandbox... (${elapsed}s elapsed)"
+            }
+            else {
+                Write-Host "[host] Waiting for the build to start in the Sandbox (no output yet, ${elapsed}s elapsed). Run the printed command inside the Sandbox."
+            }
+            $lastNotice = [DateTime]::UtcNow
         }
         Start-Sleep -Seconds 2
         if ($null -ne $sandboxProcess) { $sandboxProcess.Refresh() }

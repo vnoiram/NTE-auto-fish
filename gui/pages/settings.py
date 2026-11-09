@@ -1488,7 +1488,7 @@ def _build_input_settings(
             callback=lambda s, d: _on_top_changed(d),
         )
         dpg.add_checkbox(
-            label=tr("Detect bait exhaustion (cast error dialog)"),
+            label=tr("Detect bait exhaustion (cast fails repeatedly)"),
             tag="cfg_bait_error_detect",
             default_value=CFG.bait_error_detection_enabled,
             callback=lambda s, d: _set(CFG, "bait_error_detection_enabled", d),

@@ -11,12 +11,14 @@ from screeninfo import get_monitors
 
 from config import CFG
 from gui.bridge import BotBridge
-from modules.roi import compute_rois
+from modules.ocr import CatchOcr, ratios_to_roi
+from modules.roi import compute_icon_roi, compute_rois
 from modules.vision import VisionModule
 
 log = logging.getLogger("NTEFish")
 
 _INTERVAL_SECS = 0.4
+_OCR_EVERY_N = 5  # OCR is slow: read the name/weight areas every few iterations
 _REFERENCE_W, _REFERENCE_H = 3840, 2160
 
 
@@ -32,13 +34,42 @@ class PreviewPump:
     def stop(self) -> None:
         self._stop.set()
 
+    @staticmethod
+    def _read_ocr(ocr, capture, mon, pv, render) -> None:
+        """OCR the fish name / weight areas as they are set now and show what was read."""
+        name_roi = ratios_to_roi(
+            CFG.ocr_name_roi_ratios, mon.width, mon.height, mon.x, mon.y
+        )
+        weight_roi = ratios_to_roi(
+            CFG.ocr_weight_roi_ratios, mon.width, mon.height, mon.x, mon.y
+        )
+        if not ocr.available:
+            pv["ocr_name_text"] = pv["ocr_weight_text"] = "OCR unavailable"
+            return
+        ocr.read(capture, name_roi, weight_roi)
+        for key in ("name", "weight"):
+            region = ocr.last_regions.get(key)
+            if region is None:
+                continue
+            raw, binary, text = region
+            pv[f"ocr_{key}"] = render(raw, binary)
+            pv[f"ocr_{key}_text"] = text
+
     def _run(self) -> None:
         from modules.io_module import CaptureModule
-        from modules.preview import render_bar_preview, render_button_preview
+        from modules.preview import (
+            render_bar_preview,
+            render_button_preview,
+            render_icon_preview,
+            render_ocr_preview,
+        )
 
         capture = CaptureModule()
+        ocr = CatchOcr()
+        tick = 0
         try:
             while not self._stop.wait(_INTERVAL_SECS):
+                tick += 1
                 try:
                     if not self._bridge.latest_status().is_stopped:
                         continue  # the running bot publishes its own previews
@@ -86,6 +117,14 @@ class PreviewPump:
                         button_roi["width"],
                         button_roi["height"],
                     )
+                    icon_img = capture.grab_bgr(compute_icon_roi(CFG, mon))
+                    count = VisionModule.count_icons(icon_img, scale)
+                    pv["icons"] = render_icon_preview(icon_img)
+                    pv["icons_text"] = (
+                        f"icons {count} (failed cast at >= {CFG.cast_icon_fail_min})"
+                    )
+                    if tick % _OCR_EVERY_N == 1:
+                        self._read_ocr(ocr, capture, mon, pv, render_ocr_preview)
                     pv["version"] += 1
                 except Exception:
                     log.debug("Preview pump iteration failed.", exc_info=True)

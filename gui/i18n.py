@@ -130,7 +130,6 @@ _JA = {
     "Press \"Check and adjust areas\" while the bot is stopped, then drag a preview image to shift its scan area (the area follows your drag). Fine tuning and resizing: Settings > Vision & Detection.": "Bot の停止中に「領域を確認・調整」を押し、プレビュー画像をドラッグすると、読取領域がずれます(ドラッグに合わせて領域が動きます)。細かい調整やサイズ変更は、設定 > Vision & Detection で行えます。",
     "Check and adjust areas": "領域を確認・調整",
     "Stop checking areas": "領域の確認を終了",
-    "Bait error check area": "エサ切れ判定領域",
     "Cast check area (action-bar icons)": "キャスト判定領域(右下のアイコン)",
     "Icon area": "アイコン領域",
     "Adjust from current screen": "現在の画面で調整",

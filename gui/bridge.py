@@ -60,8 +60,6 @@ class BotBridge:
             "button": None,
             "icons": None,
             "icons_text": "",
-            "error": None,
-            "error_text": "",
             "ocr_name": None,
             "ocr_weight": None,
             "ocr_name_text": "",

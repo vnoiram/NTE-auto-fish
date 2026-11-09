@@ -34,7 +34,6 @@ from modules.ocr import CatchOcr, ratios_to_roi
 from modules.preview import (
     render_bar_preview,
     render_button_preview,
-    render_error_preview,
     render_icon_preview,
     render_ocr_preview,
 )
@@ -66,7 +65,6 @@ _BG_SAMPLE_INTERVAL_SECS = 1.0
 _PROFILE_CHECK_INTERVAL_SECS = 5.0
 _PREVIEW_INTERVAL_SECS = 0.2
 _ERROR_CONFIRM_DELAY_SECS = 0.7  # the real dialog stays; a transient match must too
-_ERROR_CAPTURE_LIMIT = 5
 _BAR_ENTER_FRAMES = 3  # consecutive frames with all selected bars before a fight starts
 _ASSIST_WINDOW_SECS = 2.0
 _PROFILE_MIN_SAMPLES = 3
@@ -722,17 +720,6 @@ class NTEFishingBot:
             hsv_img=hsv_img,
         )
 
-    def _describe_error_region(self, img) -> str:
-        """Numbers behind an error-dialog match, for the log and the preview."""
-        try:
-            s = self.vision.error_region_stats(img)
-            return (
-                f"brightness {s['brightness']:.0f}, white px {s['white']}, "
-                f"centered {s['center_share']:.0%}"
-            )
-        except Exception:
-            return "no details"
-
     def _publish_icon_preview(self, img, count: int) -> None:
         bridge = getattr(self, "bridge", None)
         if bridge is None or not self.cfg.tracker_preview_enabled:
@@ -745,35 +732,6 @@ class NTEFishingBot:
             bridge.preview["version"] += 1
         except Exception:
             log.debug("Icon preview failed.", exc_info=True)
-
-    def _publish_error_preview(self, img, is_error: bool) -> None:
-        bridge = getattr(self, "bridge", None)
-        if bridge is None or not self.cfg.tracker_preview_enabled:
-            return
-        try:
-            bridge.preview["error"] = render_error_preview(img)
-            verdict = "ERROR" if is_error else "ok"
-            bridge.preview["error_text"] = f"{verdict}: {self._describe_error_region(img)}"
-            bridge.preview["version"] += 1
-        except Exception:
-            log.debug("Error preview failed.", exc_info=True)
-
-    def _save_error_capture(self, img) -> None:
-        """Keep a few matched error strips so false matches can be inspected."""
-        try:
-            import cv2
-
-            folder = os.path.join(APP_DIR, "debug_captures")
-            os.makedirs(folder, exist_ok=True)
-            if len(os.listdir(folder)) >= _ERROR_CAPTURE_LIMIT:
-                return
-            path = os.path.join(folder, f"error_region_{int(time.time())}.png")
-            ok, buf = cv2.imencode(".png", img)
-            if ok:
-                buf.tofile(path)
-                self._log(f"[ERROR] Saved the matched area to {path}")
-        except Exception:
-            log.debug("Failed to save error capture.", exc_info=True)
 
     def _selected_bars(self, cursor_x, target_x) -> list[bool]:
         """Visibility of each bar chosen for battle detection."""
@@ -852,11 +810,9 @@ class NTEFishingBot:
         self._stop_event.wait(timeout=_ERROR_CONFIRM_DELAY_SECS)
         return self._count_action_icons() >= need
 
-    def _handle_cast_failure(self, detail: str, err_img=None) -> None:
+    def _handle_cast_failure(self, detail: str) -> None:
         """Count a failed cast; stop once the bait-error limit is reached."""
         self._bait_error_count += 1
-        if err_img is not None:
-            self._save_error_capture(err_img)
         self._log(
             f"[ERROR] Cast error ({self._bait_error_count}/{self.cfg.timing.bait_error_threshold}), "
             f"retrying... ({detail})"
@@ -889,33 +845,6 @@ class NTEFishingBot:
                 minimum=0.1,
             )
         self._stop_event.wait(timeout=error_check_delay)
-        if (
-            not use_icons
-            and self._roi_error
-            and self.cfg.bait_error_detection_enabled
-        ):
-            # Fallback without the icon area: look for the error dialog.
-            err_img = self._grab(self._roi_error)
-            is_error = self.vision.check_error_region(
-                err_img, white_pixel_min=self._scaled_error_white_min
-            )
-            self._publish_error_preview(err_img, is_error)
-            if is_error:
-                # The real dialog stays on screen; a transient match must persist.
-                self._stop_event.wait(timeout=_ERROR_CONFIRM_DELAY_SECS)
-                err_img = self._grab(self._roi_error)
-                is_error = self.vision.check_error_region(
-                    err_img, white_pixel_min=self._scaled_error_white_min
-                )
-                self._publish_error_preview(err_img, is_error)
-                if not is_error:
-                    self._log(
-                        "[ERROR] Dialog match was transient, ignoring "
-                        f"({self._describe_error_region(err_img)})."
-                    )
-            if is_error:
-                self._handle_cast_failure(self._describe_error_region(err_img), err_img)
-                return
         # Wait out the rest of the cast animation
         anim_secs = self.cfg.timing.cast_animation_secs
         if self.cfg.humanization.enabled:
@@ -1060,13 +989,13 @@ class NTEFishingBot:
         self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 1.0))
         self._log(f"[Profile] Switched to '{profile['name']}' (background match).")
 
-    def _spam_cast_if_due(self) -> bool:
-        """Press the cast key at random intervals. Returns True if the bot stopped."""
+    def _spam_cast_if_due(self) -> None:
+        """Press the cast key at random intervals while waiting for a bite."""
         if not self.cfg.spam_cast_enabled:
-            return False
+            return
         now = time.perf_counter()
         if now < self._next_spam_at:
-            return False
+            return
         lo, hi = sorted((self.cfg.spam_cast_interval_min, self.cfg.spam_cast_interval_max))
         lo = max(lo, 0.1)
         self._next_spam_at = now + _RNG.uniform(lo, max(hi, lo))
@@ -1074,20 +1003,6 @@ class NTEFishingBot:
         if self.cfg.humanization.enabled:
             dur = sample_timing(dur, self.cfg.humanization, minimum=0.02)
         self.input.press(self.cfg.keys.cast, dur)
-
-        # Bait exhausted: the cast error dialog appears right after the press.
-        if self._roi_error and self.cfg.bait_error_detection_enabled:
-            self._stop_event.wait(timeout=0.3)
-            err_img = self._grab(self._roi_error)
-            if self.vision.check_error_region(
-                err_img, white_pixel_min=self._scaled_error_white_min
-            ):
-                self._log("[WAITING] Cast error while spamming, bait likely exhausted; stopping bot.")
-                self.input.release_all()
-                self.request_stop("Bait exhausted while spamming")
-                self._push_status()
-                return True
-        return False
 
     def _handle_waiting(self) -> None:
         if self.sm.time_in_state > self._waiting_timeout_secs:
@@ -1119,8 +1034,8 @@ class NTEFishingBot:
 
         self._maybe_switch_profile()
 
-        if self.cfg.spam_cast_enabled and self._spam_cast_if_due():
-            return
+        if self.cfg.spam_cast_enabled:
+            self._spam_cast_if_due()
 
         poll = self.cfg.timing.waiting_poll_interval
         if self.cfg.humanization.enabled:

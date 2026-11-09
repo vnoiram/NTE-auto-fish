@@ -5,7 +5,12 @@ ratios when saved, otherwise from the automatic defaults, plus the manual
 pixel corrections from the settings.
 """
 
-from config import DEFAULT_BAR_RATIOS, DEFAULT_BUTTON_RATIOS, ratios_are_set
+from config import (
+    DEFAULT_BAR_RATIOS,
+    DEFAULT_BUTTON_RATIOS,
+    DEFAULT_ICON_RATIOS,
+    ratios_are_set,
+)
 
 
 def _from_ratios(ratios, mon) -> dict:
@@ -45,3 +50,13 @@ def compute_rois(cfg, mon) -> tuple[dict, dict]:
         "height": button["height"],
     }
     return bar, button
+
+
+def compute_icon_roi(cfg, mon) -> dict:
+    """The lower-right action-bar area used to tell a failed cast from a good one."""
+    ratios = (
+        cfg.icon_roi_ratios
+        if ratios_are_set(cfg.icon_roi_ratios)
+        else DEFAULT_ICON_RATIOS
+    )
+    return _from_ratios(ratios, mon)

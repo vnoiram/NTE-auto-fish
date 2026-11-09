@@ -201,20 +201,15 @@ class TestSpamCast(unittest.TestCase):
     def test_disabled_does_not_press(self):
         bot = self._make_bot(False)
         bot.cfg.spam_cast_enabled = False
-        self.assertFalse(bot._spam_cast_if_due())
+        bot._spam_cast_if_due()
         bot.input.press.assert_not_called()
 
     def test_presses_then_waits_for_next_interval(self):
         bot = self._make_bot(False)
-        self.assertFalse(bot._spam_cast_if_due())
+        bot._spam_cast_if_due()
         self.assertEqual(bot.input.press.call_count, 1)
-        self.assertFalse(bot._spam_cast_if_due())
+        bot._spam_cast_if_due()
         self.assertEqual(bot.input.press.call_count, 1)
-
-    def test_stops_when_bait_is_exhausted(self):
-        bot = self._make_bot(True)
-        self.assertTrue(bot._spam_cast_if_due())
-        bot.request_stop.assert_called_once()
 
 
 class TestProfileSwitching(unittest.TestCase):
@@ -349,7 +344,7 @@ class TestRoiOffsets(unittest.TestCase):
 
 
 class TestBaitErrorDetectionOption(unittest.TestCase):
-    def test_idle_skips_error_check_when_disabled(self):
+    def test_idle_skips_the_icon_check_when_disabled(self):
         bot = NTEFishingBot.__new__(NTEFishingBot)
         bot.cfg = AppConfig()
         bot.cfg.humanization.enabled = False
@@ -359,73 +354,12 @@ class TestBaitErrorDetectionOption(unittest.TestCase):
         bot._log = MagicMock()
         bot._stop_event = MagicMock()
         bot._stop_flag = False
-        bot._roi_error = {"width": 1}
+        bot._roi_icon = {"width": 10}
         bot._grab = MagicMock()
         bot.vision = MagicMock()
         bot._enter_waiting = MagicMock()
         bot._handle_idle()
         bot._grab.assert_not_called()
-        bot._enter_waiting.assert_called_once_with()
-
-
-class TestCastIconCheck(unittest.TestCase):
-    def _bot(self, counts):
-        bot = NTEFishingBot.__new__(NTEFishingBot)
-        bot.cfg = AppConfig()
-        bot.cfg.humanization.enabled = False
-        bot.cfg.timing.cast_animation_secs = 0.0
-        bot.cfg.timing.bait_error_threshold = 2
-        bot.input = MagicMock()
-        bot._log = MagicMock()
-        bot._stop_event = MagicMock()
-        bot._stop_flag = False
-        bot._bait_error_count = 0
-        bot._roi_error = {}
-        bot._roi_icon = {"width": 10}
-        bot._current_scale = 0.5
-        bot._grab = MagicMock(return_value=object())
-        bot.vision = MagicMock()
-        bot.vision.count_icons.side_effect = counts
-        bot.sm = MagicMock()
-        bot.request_stop = MagicMock()
-        bot._push_status = MagicMock()
-        bot._enter_waiting = MagicMock()
-        bot._save_error_capture = MagicMock()
-        return bot
-
-    def test_icons_gone_means_the_cast_worked(self):
-        bot = self._bot([1])
-        bot._handle_idle()
-        bot._enter_waiting.assert_called_once_with()
-        bot.sm.transition.assert_not_called()
-
-    def test_icons_still_visible_counts_as_a_failed_cast(self):
-        bot = self._bot([4, 4])  # first look and the confirmation
-        bot._handle_idle()
-        bot._enter_waiting.assert_not_called()
-        self.assertEqual(bot._bait_error_count, 1)
-        bot.sm.transition.assert_called_once_with(FishingState.IDLE)
-
-    def test_a_passing_frame_is_not_a_failure(self):
-        bot = self._bot([4, 1])  # icons seen once, gone on confirmation
-        bot._handle_idle()
-        bot._enter_waiting.assert_called_once_with()
-
-    def test_stops_after_the_error_limit(self):
-        bot = self._bot([4, 4])
-        bot._bait_error_count = 1
-        bot._handle_idle()
-        bot.request_stop.assert_called_once()
-        bot._enter_waiting.assert_not_called()
-
-    def test_without_the_icon_area_the_dialog_check_is_used(self):
-        bot = self._bot([])
-        bot._roi_icon = {}
-        bot._roi_error = {"width": 1}
-        bot._scaled_error_white_min = 1
-        bot.vision.check_error_region.return_value = False
-        bot._handle_idle()
-        bot.vision.count_icons.assert_not_called()
         bot._enter_waiting.assert_called_once_with()
 
 

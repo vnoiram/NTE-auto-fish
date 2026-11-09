@@ -9,7 +9,6 @@ import numpy as np
 
 BAR_SIZE = (512, 48)  # (width, height)
 BUTTON_SIZE = (176, 144)
-ERROR_SIZE = (512, 32)
 ICON_SIZE = (258, 78)
 OCR_SIZE = (256, 96)  # raw crop on top, binarised image below
 
@@ -87,13 +86,6 @@ def render_ocr_preview(raw_bgr: np.ndarray, binary: np.ndarray) -> np.ndarray:
     cv2.line(rgba, (0, half), (width - 1, half), (255, 255, 255, 160), 1)
     return rgba
 
-
-def render_error_preview(error_bgr: np.ndarray) -> np.ndarray:
-    """The strip checked for the cast-error dialog, shrunk to a fixed size."""
-    small = cv2.resize(error_bgr, ERROR_SIZE, interpolation=cv2.INTER_AREA)
-    rgba = _to_rgba(small)
-    cv2.rectangle(rgba, (0, 0), (ERROR_SIZE[0] - 1, ERROR_SIZE[1] - 1), (255, 255, 255, 120), 1)
-    return rgba
 
 
 def render_icon_preview(icon_bgr: np.ndarray) -> np.ndarray:

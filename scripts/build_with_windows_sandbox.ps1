@@ -36,7 +36,10 @@ if ($null -eq $sandboxCommand) {
 $temporaryRoot = Join-Path $env:TEMP ("nte-auto-fish-build-" + [guid]::NewGuid().ToString("N"))
 $stagedSource = Join-Path $temporaryRoot "source"
 $stagedOutput = Join-Path $temporaryRoot "output"
-if ($Manual) {
+# Windows Sandbox cannot map UNC paths (e.g. \\wsl.localhost\...), so only local drive paths are mapped directly.
+$outputIsUnc = $OutputDirectory.StartsWith("\\")
+$directOutput = $Manual -and -not $outputIsUnc
+if ($directOutput) {
     # Manual mode maps the real output directory so the Sandbox writes the EXE straight to the host.
     $stagedOutput = $OutputDirectory
 }
@@ -63,7 +66,7 @@ try {
     # Place the guest build script next to the .wsb file; the folder is mapped read-only as C:\Scripts.
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $guestScriptName) -Destination (Join-Path $temporaryRoot $guestScriptName) -Force
 
-    if ($Manual) {
+    if ($directOutput) {
         Remove-Item -LiteralPath (Join-Path $stagedOutput "build-success.txt"), (Join-Path $stagedOutput "build-error.txt"), (Join-Path $stagedOutput "sandbox-build.log") -Force -ErrorAction SilentlyContinue
     }
 
@@ -133,7 +136,13 @@ $logonCommand
         Write-Host $configurationPath -ForegroundColor Cyan
         Write-Host "2. Open PowerShell inside Windows Sandbox and run this command:"
         Write-Host $guestBuildCommand -ForegroundColor Cyan
-        Write-Host "The EXE and sandbox-build.log are written directly to: $OutputDirectory"
+        if ($directOutput) {
+            Write-Host "The EXE and sandbox-build.log are written directly to: $OutputDirectory"
+        }
+        else {
+            Write-Host "UNC paths cannot be mapped, so the EXE and sandbox-build.log are written next to the .wsb file to: $stagedOutput"
+            Write-Host "Copy them to $OutputDirectory after the build."
+        }
         Write-Host "The staged source stays in $temporaryRoot (delete it after the build)."
         try {
             Set-Clipboard -Value $guestBuildCommand

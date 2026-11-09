@@ -58,7 +58,7 @@ _RESULT_METHODS = {
 }
 
 _LATEST_RELEASE_API_URL = (
-    "https://api.github.com/repos/Chizukuo/NTE-auto-fish/releases/latest"
+    "https://api.github.com/repos/vnoiram/NTE-auto-fish/releases/latest"
 )
 _LATEST_RELEASE_API_HOST = "api.github.com"
 
@@ -2111,7 +2111,7 @@ def _build_system_settings():
                 "View Releases",
                 "btn_gh_releases",
                 callback=lambda: webbrowser.open(
-                    "https://github.com/Chizukuo/NTE-auto-fish/releases"
+                    "https://github.com/vnoiram/NTE-auto-fish/releases"
                 ),
                 variant="neutral",
                 width=int(140 * _s),
@@ -2122,7 +2122,7 @@ def _build_system_settings():
                 "Report Issue",
                 "btn_gh_issues",
                 callback=lambda: webbrowser.open(
-                    "https://github.com/Chizukuo/NTE-auto-fish/issues"
+                    "https://github.com/vnoiram/NTE-auto-fish/issues"
                 ),
                 variant="neutral",
                 width=int(140 * _s),

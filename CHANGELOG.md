@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.0](https://github.com/vnoiram/NTE-auto-fish/compare/v0.11.0...v0.12.0) (2026-11-09)
+
+
+### Features
+
+* gate center play per fishing battle ([2e6d1f1](https://github.com/vnoiram/NTE-auto-fish/commit/2e6d1f1c0020585bcf001015b17078fd95594f1a))
+* unify configurable human timing variation ([1be6605](https://github.com/vnoiram/NTE-auto-fish/commit/1be66056e82b884f4ee19259ada8906e69935fc0))
+
+
+### Bug Fixes
+
+* reduce settings screen update load ([ff4d397](https://github.com/vnoiram/NTE-auto-fish/commit/ff4d3978cd4f6b38035acd177ae8b8c64cd3303e))
+* require complete fishing bar before tracking ([7d8fd9e](https://github.com/vnoiram/NTE-auto-fish/commit/7d8fd9ef016a773947ec92b4711b84002add1291))
+
 ## [0.11.0](https://github.com/vnoiram/NTE-auto-fish/compare/v0.10.0...v0.11.0) (2026-11-09)
 
 

@@ -182,6 +182,9 @@ class TimingConfig:
     struggling_poll_interval: float = 0.058
     bait_error_threshold: int = 3
     max_struggle_secs: float = 120.0
+    # Stop automatically after this many fish / minutes of running (0 = no limit).
+    max_fish_count: int = 0
+    max_run_minutes: int = 0
     # Random pause between pressing start/resume and the first cast.
     start_delay_min_secs: float = 1.4
     start_delay_max_secs: float = 2.6

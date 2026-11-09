@@ -188,6 +188,7 @@ class NTEFishingBot:
         self._stop_event = threading.Event()
         self._is_stopped = True
         self._start_delay_pending = False
+        self._active_secs = 0.0
         self._fps = 0.0
         self._last_time = time.time()
         self._last_action = "NONE"
@@ -256,6 +257,7 @@ class NTEFishingBot:
         self._is_stopped = False
         self._is_paused = paused
         self._start_delay_pending = not paused
+        self._active_secs = 0.0
         self.sm = FishingStateMachine()
         self.pid.reset()
         self._fish_count = 0
@@ -614,6 +616,10 @@ class NTEFishingBot:
                     self._stop_event.wait(timeout=0.1)
                     continue
 
+                self._active_secs += max(0.0, min(dt, 5.0))
+                if self._run_time_limit_reached():
+                    continue
+
                 if self._start_delay_pending:
                     self._start_delay_pending = False
                     self._wait_start_delay()
@@ -855,6 +861,15 @@ class NTEFishingBot:
             return
         self.sm.transition(FishingState.IDLE)
         self._push_status()
+
+    def _run_time_limit_reached(self) -> bool:
+        limit = self.cfg.timing.max_run_minutes
+        if limit > 0 and self._active_secs >= limit * 60:
+            self._log(f"[Limit] Run time limit of {limit} min reached.")
+            self.request_stop("Run time limit reached")
+            self._push_status()
+            return True
+        return False
 
     def _wait_start_delay(self) -> None:
         """Pause a random moment after start/resume before the first cast."""
@@ -1514,6 +1529,11 @@ class NTEFishingBot:
         self._append_catch(fish_name, weight_g)
         self._dismiss_result()
         self.sm.transition(FishingState.IDLE)
+        limit = self.cfg.timing.max_fish_count
+        if limit > 0 and self._fish_count >= limit:
+            self._log(f"[Limit] Fish count limit of {limit} reached.")
+            self.request_stop("Fish count limit reached")
+            self._push_status()
 
     def _dismiss_result(self) -> None:
         """Dismiss the result screen by clicking or pressing the exit key."""

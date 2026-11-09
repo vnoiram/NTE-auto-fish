@@ -99,6 +99,8 @@ _TOOLTIPS = {
     "Result wait (s)": "Wait time after fish caught before closing the result dialog.",
     "Waiting poll (s)": "Interval between bite-detection checks.",
     "Tracking poll (s)": "Interval between cursor/target position updates.",
+    "Stop after fish count": "Stop the bot automatically after this many fish are caught (0 = no limit).",
+    "Stop after minutes": "Stop the bot automatically after this many minutes of running (0 = no limit).",
     "Bait error limit": "Consecutive cast errors before assuming bait is exhausted and stopping.",
     "Max struggle (s)": "Max seconds in the struggle phase before force-ending (safety timeout).",
     "Toggle": "Hotkey to pause/resume the bot (e.g. f8).",
@@ -1457,6 +1459,24 @@ def _build_timing_settings():
                 1,
             ),
         )
+        _input_with_tooltip(
+            "Stop after fish count",
+            tag="cfg_timing_max_fish",
+            width=140,
+            default=CFG.timing.max_fish_count,
+            cb=lambda s, d: _set_int(
+                CFG.timing, "max_fish_count", d, "cfg_timing_max_fish", 0
+            ),
+        )
+        _input_with_tooltip(
+            "Stop after minutes",
+            tag="cfg_timing_max_minutes",
+            width=140,
+            default=CFG.timing.max_run_minutes,
+            cb=lambda s, d: _set_int(
+                CFG.timing, "max_run_minutes", d, "cfg_timing_max_minutes", 0
+            ),
+        )
         _slider_with_tooltip(
             "Max struggle (s)",
             tag="cfg_timing_max_struggle",
@@ -2335,6 +2355,8 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_timing_track_poll", CFG.timing.struggling_poll_interval)
     dpg.set_value("cfg_timing_bait_err", CFG.timing.bait_error_threshold)
     dpg.set_value("cfg_timing_max_struggle", CFG.timing.max_struggle_secs)
+    dpg.set_value("cfg_timing_max_fish", CFG.timing.max_fish_count)
+    dpg.set_value("cfg_timing_max_minutes", CFG.timing.max_run_minutes)
 
     dpg.set_value("cfg_key_cast", CFG.keys.cast)
     dpg.set_value("cfg_key_left", CFG.keys.left)

@@ -48,7 +48,7 @@ Manages in-game key bindings and the bot's global hotkeys.
     *   **Exit key:** Key to close UI screens (Default: Esc)
 *   **Result close:** How to close the result popup. Options: "Click center" or "Press exit key".
 *   **Always on top:** Keeps the GUI window on top of the game window.
-*   **Debug logging:** Writes detailed PID tracking data to `fishing_data.csv`. Only recommended for troubleshooting.
+*   **Debug logging:** Writes detailed PID tracking data to `fishing_data.csv`. Branded builds add their build namespace to the filename. Only recommended for troubleshooting.
 *   **Monitor:** If you have multiple monitors, select the one running the game to ensure the capture region is correct.
 *   **Global Hotkeys:**
     *   **Toggle:** Hotkey to pause/resume the bot (Default: F8). Recommend using this before navigating game menus.

@@ -91,13 +91,16 @@ window, and sidebar name, while `--icon` changes the EXE and window icon. On Win
 with `python scripts/build_windows.py --app-name "Fishing Tools" --icon path/to/app.ico`. App names are ASCII-only
 to avoid native Windows title-bar encoding problems. Every build receives a random 12-character build ID in its
 filename and window title to prevent artifact collisions. Pass `--build-id my-id` when a stable ID is preferred.
+Branded builds also namespace their settings, log, debug CSV, and session directory with the app name and build ID,
+so multiple builds can run from the same directory without overwriting each other's runtime data. Unbranded source
+runs retain the legacy filenames.
 
 ## Notes
 
 - Run from an elevated terminal on Windows.
 - Borderless window or windowed fullscreen usually gives the most reliable capture behavior.
 - Hotkeys are configurable in the GUI and re-register after editing.
-- Debug logging writes extra tracking data to `fishing_data.csv`.
+- Debug logging writes extra tracking data to `fishing_data.csv`; branded builds add their build namespace to the filename.
 
 ## Known Issues
 

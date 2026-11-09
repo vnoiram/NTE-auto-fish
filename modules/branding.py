@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 
 from modules.utils import bundled_path
@@ -66,6 +67,25 @@ def load_branding() -> Branding:
 BRANDING = load_branding()
 APP_NAME = BRANDING.app_name
 BUILD_ID = BRANDING.build_id
+
+
+def _storage_namespace(branding: Branding) -> str:
+    if not branding.build_id:
+        return ""
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", branding.app_name).strip("-.")
+    return f"{slug[:40] or 'Application'}-b{branding.build_id}"
+
+
+STORAGE_NAMESPACE = _storage_namespace(BRANDING)
+
+
+def scoped_runtime_name(name: str, namespace: str | None = None) -> str:
+    """Add a build namespace to a runtime file or directory name."""
+    namespace = STORAGE_NAMESPACE if namespace is None else namespace
+    if not namespace:
+        return name
+    stem, extension = os.path.splitext(name)
+    return f"{stem}-{namespace}{extension}"
 
 
 def app_icon_path() -> str:

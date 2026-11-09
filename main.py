@@ -21,6 +21,7 @@ from config import (
 )
 
 from modules.ocr import CatchOcr, ratios_to_roi
+from modules.branding import scoped_runtime_name
 from modules.logic import FishingState, FishingStateMachine, PIDController
 from modules.utils import APP_DIR, bundled_path
 from modules.session_manager import SessionManager
@@ -76,7 +77,7 @@ def setup_logging() -> None:
         handlers=[
             logging.StreamHandler(sys.stdout),
             logging.handlers.RotatingFileHandler(
-                os.path.join(APP_DIR, "fishing_bot.log"),
+                os.path.join(APP_DIR, scoped_runtime_name("fishing_bot.log")),
                 maxBytes=5 * 1024 * 1024,
                 backupCount=3,
                 encoding="utf-8",
@@ -173,7 +174,7 @@ class NTEFishingBot:
         self._log("Bot initialized.")
         self._csv_handle = None
         self._csv_writer = None
-        sessions_dir = os.path.join(APP_DIR, "sessions")
+        sessions_dir = os.path.join(APP_DIR, scoped_runtime_name("sessions"))
         self._session_manager = SessionManager(sessions_dir=sessions_dir)
         self._ocr = CatchOcr()
 
@@ -895,7 +896,8 @@ class NTEFishingBot:
             target_text = f"{target_x}" if target_x is not None else "None"
             try:
                 if not self._csv_handle:
-                    self._csv_handle = open("fishing_data.csv", "a", newline="", encoding="utf-8")
+                    csv_path = os.path.join(APP_DIR, scoped_runtime_name("fishing_data.csv"))
+                    self._csv_handle = open(csv_path, "a", newline="", encoding="utf-8")
                     self._csv_writer = csv.writer(self._csv_handle)
                 
                 self._csv_writer.writerow(

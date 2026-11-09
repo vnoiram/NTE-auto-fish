@@ -267,7 +267,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("start", help="Run the fishing bot")
     sub.add_parser("calibrate", help="Calibrate and show ROI results")
-    sub.add_parser("reset", help="Reset settings.json to defaults")
+    sub.add_parser("reset", help="Reset the active build's settings file to defaults")
 
     cfg_parser = sub.add_parser("config", help="View or edit configuration")
     cfg_sub = cfg_parser.add_subparsers(dest="config_action")

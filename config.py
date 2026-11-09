@@ -9,8 +9,9 @@ from random import SystemRandom
 from typing import Tuple
 
 from modules.utils import APP_DIR
+from modules.branding import scoped_runtime_name
 
-DEFAULT_SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
+DEFAULT_SETTINGS_PATH = os.path.join(APP_DIR, scoped_runtime_name("settings.json"))
 SUPPORTED_LANGUAGES = frozenset({"en", "ja"})
 log = logging.getLogger("NTEFish")
 _RNG = SystemRandom()
@@ -388,7 +389,7 @@ _settings_lock = threading.Lock()
 
 
 def ensure_settings_loaded() -> None:
-    """Load settings.json into CFG once. Called by entry points, not on import."""
+    """Load the build-scoped settings file once. Called by entry points, not on import."""
     global _settings_loaded
     with _settings_lock:
         if not _settings_loaded:

@@ -36,6 +36,19 @@ class TestBranding(unittest.TestCase):
         self.assertEqual(result.app_name, "Fishing Tools")
         self.assertEqual(result.build_id, "abc123")
 
+    def test_runtime_names_are_scoped_by_build_without_changing_legacy_names(self):
+        namespace = branding._storage_namespace(branding.Branding("Fishing Tools", "abc123"))
+        self.assertEqual(namespace, "Fishing-Tools-babc123")
+        self.assertEqual(
+            branding.scoped_runtime_name("settings.json", namespace),
+            "settings-Fishing-Tools-babc123.json",
+        )
+        self.assertEqual(branding.scoped_runtime_name("settings.json", ""), "settings.json")
+        self.assertEqual(
+            branding.scoped_runtime_name("sessions", "Fishing-Tools-babc123"),
+            "sessions-Fishing-Tools-babc123",
+        )
+
 
 class TestWindowsBuildScript(unittest.TestCase):
     def test_app_name_validation_rejects_control_characters(self):

@@ -39,15 +39,36 @@ class TestFishingDetection(unittest.TestCase):
         not_hooked._enter_struggling.assert_not_called()
         hooked._enter_struggling.assert_called_once_with()
 
-    def test_tick_does_not_scan_bar_to_enter_struggling(self):
+    def _make_tick_bot(self, state, cursor, target):
         bot = self._make_waiting_bot(False)
+        bot.sm.state = state
+        bot._roi_bar = {"width": 100, "height": 100}
+        bot._scaled_min_area = 1
+        bot.vision.get_hsv_centroid_x.side_effect = [(cursor, 0.0), (target, 0.0)]
+        bot._push_status = MagicMock()
         bot._handle_waiting = MagicMock()
+        bot._handle_idle = MagicMock()
+        bot._handle_result = MagicMock()
+        return bot
 
+    def test_tick_enters_struggling_when_all_selected_bars_are_visible(self):
+        for state in (FishingState.IDLE, FishingState.WAITING, FishingState.RESULT):
+            bot = self._make_tick_bot(state, 100, 150)
+            bot._tick()
+            bot._enter_struggling.assert_called_once_with(press_hook=False)
+            bot._handle_waiting.assert_not_called()
+
+    def test_tick_needs_every_selected_bar_to_enter(self):
+        bot = self._make_tick_bot(FishingState.WAITING, 100, None)
         bot._tick()
-
-        bot._handle_waiting.assert_called_once_with()
-        bot.vision.get_hsv_centroid_x.assert_not_called()
         bot._enter_struggling.assert_not_called()
+        bot._handle_waiting.assert_called_once_with()
+
+    def test_tick_enters_with_only_the_selected_bar(self):
+        bot = self._make_tick_bot(FishingState.WAITING, 100, None)
+        bot.cfg.battle_detect_safe_zone = False
+        bot._tick()
+        bot._enter_struggling.assert_called_once_with(press_hook=False)
 
     def _make_struggling_bot(self, detections, threshold=2):
         bot = NTEFishingBot.__new__(NTEFishingBot)
@@ -167,15 +188,6 @@ class TestSpamCast(unittest.TestCase):
         bot = self._make_bot(True)
         self.assertTrue(bot._spam_cast_if_due())
         bot.request_stop.assert_called_once_with()
-
-    def test_waiting_enters_fight_when_bars_visible_while_spamming(self):
-        bot = TestFishingDetection()._make_waiting_bot(False)
-        bot.cfg.spam_cast_enabled = True
-        bot._roi_bar = {"width": 100, "height": 100}
-        bot._scaled_min_area = 1
-        bot.vision.get_hsv_centroid_x.return_value = (50, 0.0)
-        bot._handle_waiting()
-        bot._enter_struggling.assert_called_once_with(press_hook=False)
 
 
 class TestProfileSwitching(unittest.TestCase):

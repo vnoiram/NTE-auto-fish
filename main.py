@@ -566,6 +566,22 @@ class NTEFishingBot:
     def _tick(self) -> None:
         """Run one iteration of the control loop."""
         state = self.sm.state
+
+        # Priority 1: the battle bars are on screen in any non-fight state, so
+        # a fight is running (even if the bite prompt was missed).
+        if state is not FishingState.STRUGGLING and self._roi_bar:
+            bar_img = self._grab(self._roi_bar)
+            hsv_img = self.vision.to_hsv(bar_img)
+            cursor_x, _ = self._find_cursor(bar_img, hsv_img)
+            target_x, _ = self._find_target(bar_img, hsv_img)
+            if self._battle_bars_all_visible(cursor_x, target_x):
+                self._log(f"[{state.value}] Battle bars detected -> STRUGGLING.")
+                self._enter_struggling(press_hook=False)
+                self._push_status()
+                return
+            if state is FishingState.WAITING:
+                self._sample_background(bar_img, cursor_x, target_x)
+
         if state is FishingState.IDLE:
             self._handle_idle()
         elif state is FishingState.WAITING:
@@ -597,15 +613,26 @@ class NTEFishingBot:
             hsv_img=hsv_img,
         )
 
-    def _battle_bars_visible(self, cursor_x, target_x) -> bool:
-        """True when any bar selected for battle detection is on screen."""
+    def _selected_bars(self, cursor_x, target_x) -> list[bool]:
+        """Visibility of each bar chosen for battle detection."""
         use_cursor = self.cfg.battle_detect_cursor
         use_target = self.cfg.battle_detect_safe_zone
         if not use_cursor and not use_target:
             use_cursor = use_target = True  # never let detection be fully disabled
-        return (use_cursor and cursor_x is not None) or (
-            use_target and target_x is not None
-        )
+        seen = []
+        if use_cursor:
+            seen.append(cursor_x is not None)
+        if use_target:
+            seen.append(target_x is not None)
+        return seen
+
+    def _battle_bars_visible(self, cursor_x, target_x) -> bool:
+        """True while ANY selected bar is on screen (used to stay in the fight)."""
+        return any(self._selected_bars(cursor_x, target_x))
+
+    def _battle_bars_all_visible(self, cursor_x, target_x) -> bool:
+        """True when EVERY selected bar is on screen (used to enter the fight)."""
+        return all(self._selected_bars(cursor_x, target_x))
 
     def _enter_struggling(self, press_hook: bool = True) -> None:
         """Common setup when transitioning into STRUGGLING from any state."""
@@ -727,20 +754,16 @@ class NTEFishingBot:
             except Exception:
                 log.debug("Gauge assist callback failed", exc_info=True)
 
-    def _sample_background(self) -> None:
+    def _sample_background(self, bar_img, cursor_x, target_x) -> None:
         """While waiting the gauge is hidden: learn the colours behind it."""
         background = getattr(self, "_background", None)
-        if background is None:
+        if background is None or cursor_x is not None or target_x is not None:
             return
         now = time.perf_counter()
         if now < getattr(self, "_next_bg_sample_at", 0.0):
             return
         self._next_bg_sample_at = now + _BG_SAMPLE_INTERVAL_SECS
-        bar_img = self._grab(self._roi_bar)
-        cursor_x, _ = self._find_cursor(bar_img)
-        target_x, _ = self._find_target(bar_img)
-        if cursor_x is None and target_x is None:
-            background.add(bar_img)
+        background.add(bar_img)
 
     def _maybe_switch_profile(self) -> None:
         """Apply the profile closest to the current background, if enabled."""
@@ -820,22 +843,10 @@ class NTEFishingBot:
             self._enter_struggling()
             return
 
-        self._sample_background()
         self._maybe_switch_profile()
 
-        if self.cfg.spam_cast_enabled:
-            # Spamming may already have hooked the fish without the blue prompt
-            # being seen; the battle bars on screen mean the fight has started.
-            bar_img = self._grab(self._roi_bar)
-            hsv_img = self.vision.to_hsv(bar_img)
-            cursor_x, _ = self._find_cursor(bar_img, hsv_img)
-            target_x, _ = self._find_target(bar_img, hsv_img)
-            if self._battle_bars_visible(cursor_x, target_x):
-                self._log("[WAITING] Battle bars visible, entering fight.")
-                self._enter_struggling(press_hook=False)
-                return
-            if self._spam_cast_if_due():
-                return
+        if self.cfg.spam_cast_enabled and self._spam_cast_if_due():
+            return
 
         poll = self.cfg.timing.waiting_poll_interval
         if self.cfg.humanization.enabled:

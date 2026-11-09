@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 from pathlib import Path
@@ -17,7 +17,7 @@ BUILTIN_ICON_NAMES = frozenset({"classic", "bobber", "target-fish", "fisher-cat"
 
 
 def run(*args: str, capture: bool = False) -> str:
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         args,
         cwd=ROOT,
         check=True,

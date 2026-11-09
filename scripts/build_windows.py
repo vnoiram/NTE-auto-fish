@@ -10,7 +10,7 @@ import os
 import re
 import secrets
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 import unicodedata
 import uuid
@@ -233,7 +233,7 @@ def main() -> int:
 
     manifest_path, bundled_icon = prepare_branding(app_name, build_id, icon_path)
     dist_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(command, cwd=ROOT, check=True)
+    subprocess.run(command, cwd=ROOT, check=True)  # nosec B603
 
     slug = filename_slug(app_name)
     built_exe = dist_dir / f"{slug}-b{build_id}.exe"

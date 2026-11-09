@@ -1155,22 +1155,20 @@ class NTEFishingBot:
         self._stop_event.wait(timeout=close_delay)
 
 
-if __name__ == "__main__":
+def run_headless(argv: list[str] | None = None) -> None:
+    """Run the command-line interface (shared by main.py and the GUI executable)."""
     # Validate dependencies before runtime startup.
     from modules.deps import CLI_PACKAGES, exit_if_missing_dependencies
 
     exit_if_missing_dependencies(CLI_PACKAGES)
-
-    if not _TP_LOADED:
-        import cv2  # noqa: F401
-        from screeninfo import get_monitors
-
-        from modules.io_module import CaptureModule, InputModule
-        from modules.vision import VisionModule
 
     from modules.cli import _set_dpi_awareness, run_cli
 
     setup_logging()
     ensure_settings_loaded()
     _set_dpi_awareness()
-    run_cli(NTEFishingBot)
+    run_cli(NTEFishingBot, argv)
+
+
+if __name__ == "__main__":
+    run_headless()

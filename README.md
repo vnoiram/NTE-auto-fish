@@ -33,7 +33,7 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 
 | Path | Description |
 | :--- | :--- |
-| `start_gui.py` | Recommended GUI entry point. |
+| `start_gui.py` | Recommended GUI entry point (also runs the CLI when given arguments). |
 | `main.py` | Headless entry point and core bot loop. |
 | `config.py` | Runtime configuration for PID, HSV, keys, timing, and calibration. |
 | `gui/` | DearPyGui control center, panels, and thread-safe bridge. |
@@ -47,6 +47,9 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 
 1. Download the latest `NTE-Auto-Fish-v*.*.*-Windows-x64.exe` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases).
 2. Run it as Administrator so simulated input can reach the game.
+3. The same EXE also runs the CLI when started with arguments from a terminal, e.g. `NTE-Auto-Fish.exe start` or `NTE-Auto-Fish.exe --help`
+   (commands: `start`, `calibrate`, `config show/set`, `reset`). With no arguments it opens the GUI. Because the EXE requests
+   administrator rights, run it from an elevated terminal to see output in the same window; otherwise a new console window opens.
 
 ### Option 2: CLI Package
 

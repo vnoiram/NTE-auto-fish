@@ -22,6 +22,26 @@ log = logging.getLogger("NTEFish")
 _bot_factory: Callable = None  # type: ignore[assignment]
 
 
+def attach_console() -> None:
+    """Give a windowed (no-console) Windows executable usable stdout/stderr/stdin.
+
+    Attaches to the parent console when possible; otherwise opens a new console
+    window (e.g. when the elevated executable was started from a normal shell).
+    """
+    import sys
+
+    if sys.platform != "win32":
+        return
+    kernel32 = ctypes.windll.kernel32
+    attach_parent_process = -1
+    if not kernel32.AttachConsole(attach_parent_process):
+        if not kernel32.AllocConsole():
+            return
+    sys.stdin = open("CONIN$", encoding="utf-8")  # noqa: SIM115
+    sys.stdout = open("CONOUT$", "w", encoding="utf-8")  # noqa: SIM115
+    sys.stderr = open("CONOUT$", "w", encoding="utf-8")  # noqa: SIM115
+
+
 def _set_dpi_awareness() -> None:
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(1)

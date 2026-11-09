@@ -81,6 +81,9 @@ class PreviewPump:
     def _take_snapshot(self) -> None:
         from modules.io_module import CaptureModule
 
+        self._bridge.snapshot_busy = True
+        self._status("Hiding the window and capturing the game screen...")
+        log.info("[Area check] Taking a snapshot of the game screen.")
         mon = _active_monitor()
         region = {"left": mon.x, "top": mon.y, "width": mon.width, "height": mon.height}
         hidden = False
@@ -95,6 +98,7 @@ class PreviewPump:
                     log.debug("Failed to hide the window for the snapshot.", exc_info=True)
             image = capture.grab_bgr(region)
         finally:
+            self._bridge.snapshot_busy = False
             capture.close()
             if hidden and self._show_ui:
                 try:
@@ -106,11 +110,10 @@ class PreviewPump:
             self._mon = SimpleNamespace(
                 x=mon.x, y=mon.y, width=mon.width, height=mon.height
             )
-        pv = self._bridge.preview
-        pv["pump_status"] = time.strftime(
-            f"Snapshot {image.shape[1]}x{image.shape[0]} %H:%M:%S"
+        log.info("[Area check] Snapshot taken (%dx%d).", image.shape[1], image.shape[0])
+        self._status(
+            time.strftime(f"Snapshot ready {image.shape[1]}x{image.shape[0]} %H:%M:%S")
         )
-        pv["version"] += 1
 
     # -- rendering ----------------------------------------------------------
 
@@ -185,11 +188,14 @@ class PreviewPump:
         pv["version"] += 1
 
     def _active(self) -> bool:
-        return bool(
-            self._bridge.latest_status().is_stopped
-            and self._bridge.preview_active
-            and CFG.tracker_preview_enabled
-        )
+        """The area check works on its own; it does not depend on the live-view toggle."""
+        return bool(self._bridge.latest_status().is_stopped and self._bridge.preview_active)
+
+    def _status(self, text: str) -> None:
+        pv = self._bridge.preview
+        if pv["pump_status"] != text:
+            pv["pump_status"] = text
+            pv["version"] += 1
 
     def _run(self) -> None:
         last_key = None
@@ -201,6 +207,8 @@ class PreviewPump:
                     with self._lock:
                         if not self._bridge.preview_active:
                             self._snapshot = None
+                    if self._bridge.preview_active:
+                        self._status("Waiting: stop the bot to check the areas.")
                     continue
                 if self._bridge.snapshot_request:
                     self._bridge.snapshot_request = False
@@ -216,6 +224,8 @@ class PreviewPump:
                     last_key = key
                 last_error = ""
             except Exception as exc:
+                self._bridge.snapshot_busy = False
+                self._bridge.snapshot_request = False
                 message = f"{type(exc).__name__}: {exc}"
                 if message != last_error:
                     last_error = message

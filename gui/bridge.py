@@ -55,6 +55,7 @@ class BotBridge:
         # True while the user is checking/adjusting the scan areas with the bot stopped.
         self.preview_active = False
         self.snapshot_request = False  # take a new full-screen snapshot for the area check
+        self.snapshot_busy = False  # a snapshot is being taken right now
         # Live previews for the dashboard tracker (RGBA uint8 arrays or None).
         self.preview: dict = {
             "bar": None,

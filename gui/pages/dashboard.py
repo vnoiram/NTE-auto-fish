@@ -264,7 +264,7 @@ def update_dashboard_ui(bridge: BotBridge):
     if not status.is_stopped and bridge.preview_active:
         bridge.preview_active = False  # the running bot takes over the previews
     _refresh_area_check_button()
-    _set_enabled("btn_area_check", status.is_stopped)
+    _set_enabled("btn_area_check", status.is_stopped and not bridge.snapshot_busy)
     _set_enabled("btn_area_retake", status.is_stopped and bridge.preview_active)
 
     # Resize stat cards to fill the row dynamically on window resize.
@@ -488,13 +488,15 @@ def _on_preview_wheel(sender, app_data) -> None:
 
 def _toggle_area_check(sender=None, app_data=None) -> None:
     """Start/stop live previews of the scan areas while the bot is stopped."""
-    if _drag_bridge is None:
-        return
+    if _drag_bridge is None or _drag_bridge.snapshot_busy:
+        return  # a second press while the snapshot is being taken must not switch it off
     _drag_bridge.preview_active = not _drag_bridge.preview_active
     if _drag_bridge.preview_active:
         _drag_bridge.snapshot_request = True  # one screenshot; adjusting then needs no capture
     _drag_bridge.preview["pump_status"] = (
-        "Taking a snapshot..." if _drag_bridge.preview_active else ""
+        "Request sent. Hiding the window and capturing (a few seconds)..."
+        if _drag_bridge.preview_active
+        else ""
     )
     _drag_bridge.preview["version"] += 1
     _refresh_area_check_button()
@@ -502,8 +504,10 @@ def _toggle_area_check(sender=None, app_data=None) -> None:
 
 def _retake_snapshot(sender=None, app_data=None) -> None:
     if _drag_bridge is not None and _drag_bridge.preview_active:
+        if _drag_bridge.snapshot_busy:
+            return
         _drag_bridge.snapshot_request = True
-        _drag_bridge.preview["pump_status"] = "Taking a snapshot..."
+        _drag_bridge.preview["pump_status"] = "Request sent. Capturing again..."
         _drag_bridge.preview["version"] += 1
 
 
@@ -515,6 +519,13 @@ def _refresh_area_check_button() -> None:
     else:
         label = tr("Check and adjust areas")
     dpg.configure_item("btn_area_check", label=label)
+
+
+def _tr_status(text: str) -> str:
+    """Translate the pump's status line (it may end with a size and a time)."""
+    if text.startswith("Snapshot ready"):
+        return tr("Snapshot ready") + text[len("Snapshot ready"):]
+    return tr(text) if text else text
 
 
 def _over_preview(tag: str) -> bool:

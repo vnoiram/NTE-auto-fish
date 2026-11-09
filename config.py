@@ -1,9 +1,11 @@
 """Single source of runtime configuration for NTE Auto-Fish."""
 
 import json
+import locale
 import logging
 import math
 import os
+import sys
 import threading
 from dataclasses import asdict, dataclass, field
 from random import SystemRandom
@@ -14,6 +16,30 @@ from modules.utils import APP_DIR
 
 DEFAULT_SETTINGS_PATH = os.path.join(APP_DIR, scoped_runtime_name("settings.json"))
 SUPPORTED_LANGUAGES = frozenset({"en", "ja"})
+
+_LANGID_PRIMARY_MASK = 0x3FF
+_LANGID_JAPANESE = 0x11
+
+
+def detect_system_language() -> str:
+    """Return the supported UI language that matches the OS ("ja" or "en")."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            lang_id = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+            return "ja" if (lang_id & _LANGID_PRIMARY_MASK) == _LANGID_JAPANESE else "en"
+        except Exception:
+            log.debug("Windows UI language lookup failed.", exc_info=True)
+    for var in ("LC_ALL", "LC_MESSAGES", "LANG"):
+        if os.environ.get(var, "").lower().startswith("ja"):
+            return "ja"
+    try:
+        if (locale.getlocale()[0] or "").lower().startswith("ja"):
+            return "ja"
+    except (ValueError, TypeError):
+        pass
+    return "en"
 log = logging.getLogger("NTEFish")
 _RNG = SystemRandom()
 
@@ -309,6 +335,7 @@ class AppConfig:
 
     def load(self, path=None):
         path = path or DEFAULT_SETTINGS_PATH
+        self.language_from_file = False
         if not os.path.exists(path):
             return
         try:
@@ -342,6 +369,7 @@ class AppConfig:
                     setattr(obj, key, value)
 
             update_obj(self, data)
+            self.language_from_file = data.get("language") in SUPPORTED_LANGUAGES
         except (OSError, ValueError, TypeError) as exc:
             log.error("Failed to load settings from %s: %s", path, exc)
 
@@ -458,4 +486,7 @@ def ensure_settings_loaded() -> None:
     with _settings_lock:
         if not _settings_loaded:
             CFG.load()
+            if not getattr(CFG, "language_from_file", False):
+                # first launch (or no saved language): follow the OS language
+                CFG.language = detect_system_language()
             _settings_loaded = True

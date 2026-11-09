@@ -96,10 +96,8 @@ class FishingGUI:
                     # Scale font size at rasterization for crisp text and correct widget layout
                     scaled_size = max(8, int(size * self._ui_scale))
                     font = dpg.add_font(font_path, scaled_size)
-                    if CFG.language == "ja":
-                        dpg.add_font_range_hint(
-                            dpg.mvFontRangeHint_Japanese, parent=font
-                        )
+                    # always: the language selector shows the Japanese label
+                    dpg.add_font_range_hint(dpg.mvFontRangeHint_Japanese, parent=font)
                     self._fonts[name] = font
                 except Exception:
                     self._fonts[name] = None

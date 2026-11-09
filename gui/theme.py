@@ -131,13 +131,15 @@ FONT_SIZES = {
 }
 
 
-def get_font_path(language: str) -> str:
-    """Return a Windows font with Japanese glyphs when Japanese is active."""
-    if language == "ja":
-        return next(
-            (path for path in _JAPANESE_FONT_PATHS if os.path.exists(path)), _FONT_PATH
-        )
-    return _FONT_PATH
+def get_font_path(language: str = "") -> str:
+    """Return a Windows font that has Japanese glyphs, whatever the UI language.
+
+    The language selector always shows the Japanese label, so an English-only font
+    would render it as garbage. The Japanese fonts also cover Latin text.
+    """
+    return next(
+        (path for path in _JAPANESE_FONT_PATHS if os.path.exists(path)), _FONT_PATH
+    )
 
 
 # ---------------------------------------------------------------------------

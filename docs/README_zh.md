@@ -30,9 +30,13 @@
 - **更好的缺饵/抛竿失败检测**：不再依赖对话框文字或等待时间，而是检查抛竿后动作栏图标是否仍然可见。它不依赖游戏语言，也不依赖时间，因此更稳定。
 - **日间/傍晚/夜间配置（实验性）**：为不同时段提供检测颜色配置，并可自动识别背景来切换配置，从而提高检测率。
 - **更快的区域检查 OCR。**
+- **GUI 与 CLI 合为一个可执行文件**：不再有单独的 CLI 包；同一个 EXE 默认打开 GUI，带参数启动时则作为 CLI 运行。
 - **固定的构建**：默认图标为角色插画，构建名称固定（除非指定，否则不会带随机构建 ID）。
 
-**不向上游提交 PR 的原因：** 上游与此 fork 之间存在“宗教性”分歧（工程师口中的“宗教”，即喜好问题而非对错问题）：使用固定名称而非随机名称、把图标换成另一个角色、使用 Python 3.14 而非 3.11。此 fork 实现了这些，我也偏好这些，因此并不打算让上游加入它们。
+![区域调整示意图（图中文字为英文）](images/area-adjustment.png)
+
+**不向上游提交 PR 的原因：** 上游与此 fork 之间存在“宗教性”分歧（工程师口中的“宗教”，即喜好问题而非对错问题）：使用随机名称而非固定名称、把图标换成另一个角色、使用 Python 3.14 而非 3.11。此 fork 实现了这些，我也偏好这些，因此并不打算让上游加入它们。  
+※ 随机名称功能为实验性功能，未包含在构建中。
 
 **更大的原因：** 自 2026-06 起，上游没有合并过任何外部 PR。截至 2026-11-10，有两个显示“可以无冲突合并”的 PR（[#60](https://github.com/Chizukuo/NTE-auto-fish/pull/60)、[#61](https://github.com/Chizukuo/NTE-auto-fish/pull/61)）已被搁置数月。再提交很可能同样不会被合并，因此我认为这是白费力气。
 
@@ -61,18 +65,15 @@
 
 ## 快速开始
 
-### 方式一：使用预构建程序（GUI）
+### 方式一：使用预构建程序（GUI 与 CLI 合为一个文件）
 
 1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 下载最新的 `NTE-Auto-Fish-v*.*.*-Windows-x64.exe`。
 2. 以管理员身份运行，确保模拟输入可以进入游戏。
+3. 同一个 EXE 在终端中带参数启动时会作为 CLI 运行，例如 `NTE-Auto-Fish.exe start`、`NTE-Auto-Fish.exe --help`
+   （命令：`start`、`calibrate`、`config show/set`、`reset`）。不带参数时打开 GUI。由于 EXE 会请求管理员权限，
+   如需在同一窗口查看输出，请在管理员终端中运行；否则会弹出新的控制台窗口。
 
-### 方式二：CLI 包
-
-1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 下载 `NTE-Auto-Fish-v*.*.*-CLI.zip` 并解压。
-2. 先执行 `python -m pip install -r requirements.txt` 安装依赖。
-3. 更多用法请在终端运行 `python main.py --help`。可用命令：`start`、`calibrate`、`config show/set`、`reset`。
-
-### 方式三：从源码运行
+### 方式二：从源码运行
 
 ```bash
 git clone https://github.com/Chizukuo/NTE-auto-fish.git

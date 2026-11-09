@@ -33,9 +33,13 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 - **Better bait-exhausted / failed-cast detection**: Instead of reading dialog text or relying on waiting times, it checks whether the action-bar icons are still visible after a cast. It does not depend on the game language or on timing, so it is stable.
 - **Day / evening / night profiles (experimental)**: Detection colour profiles for each time of day, plus automatic recognition of the background to switch profiles and raise the detection rate.
 - **Faster area-check OCR.**
+- **One executable for GUI and CLI**: There is no separate CLI package; the same EXE opens the GUI, or runs the CLI when started with arguments.
 - **Stable builds**: The default icon is the character artwork and builds get a plain, fixed name (no random build ID unless you ask for one).
 
-**Why there is no pull request upstream:** there are "religious" differences (in the engineer sense: matters of taste, not of correctness) between upstream and this fork: a fixed name instead of a random one, a different character as the icon, and Python 3.14 instead of 3.11. This fork implements them, I prefer them, and I do not want to push them onto upstream.
+![Area adjustment illustration](docs/images/area-adjustment.png)
+
+**Why there is no pull request upstream:** there are "religious" differences (in the engineer sense: matters of taste, not of correctness) between upstream and this fork: a random name instead of a fixed one, a different character as the icon, and Python 3.14 instead of 3.11. This fork implements them, I prefer them, and I do not want to push them onto upstream.  
+※ The random-name feature is experimental and is not included in the builds.
 
 **The bigger reason:** upstream has not merged any outside pull request since 2026-06. As of 2026-11-10, two open pull requests ([#60](https://github.com/Chizukuo/NTE-auto-fish/pull/60), [#61](https://github.com/Chizukuo/NTE-auto-fish/pull/61)) are marked as mergeable without conflicts and have been left for months. A new one would most likely not be merged either, so I consider it wasted effort.
 
@@ -64,7 +68,7 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 
 ## Getting Started
 
-### Option 1: Prebuilt Executable (GUI)
+### Option 1: Prebuilt Executable (GUI and CLI in one file)
 
 1. Download the latest `NTE-Auto-Fish-v*.*.*-Windows-x64.exe` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases).
 2. Run it as Administrator so simulated input can reach the game.
@@ -72,13 +76,7 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
    (commands: `start`, `calibrate`, `config show/set`, `reset`). With no arguments it opens the GUI. Because the EXE requests
    administrator rights, run it from an elevated terminal to see output in the same window; otherwise a new console window opens.
 
-### Option 2: CLI Package
-
-1. Download `NTE-Auto-Fish-v*.*.*-CLI.zip` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) and extract it.
-2. Install dependencies once with `python -m pip install -r requirements.txt`.
-3. For more options, run `python main.py --help` in a terminal. Available commands: `start`, `calibrate`, `config show/set`, `reset`.
-
-### Option 3: Run From Source
+### Option 2: Run From Source
 
 ```bash
 git clone https://github.com/Chizukuo/NTE-auto-fish.git

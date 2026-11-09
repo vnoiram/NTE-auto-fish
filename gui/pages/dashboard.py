@@ -265,6 +265,7 @@ def update_dashboard_ui(bridge: BotBridge):
         bridge.preview_active = False  # the running bot takes over the previews
     _refresh_area_check_button()
     _set_enabled("btn_area_check", status.is_stopped)
+    _set_enabled("btn_area_retake", status.is_stopped and bridge.preview_active)
 
     # Resize stat cards to fill the row dynamically on window resize.
     _resize_stat_cards()
@@ -357,6 +358,9 @@ def _create_previews():
         label=tr("Check and adjust areas"),
         tag="btn_area_check",
         callback=_toggle_area_check,
+    )
+    dpg.add_button(
+        label=tr("Retake snapshot"), tag="btn_area_retake", callback=_retake_snapshot
     )
     dpg.add_text("", tag="pv_pump_status")
     dpg.add_slider_float(
@@ -480,11 +484,20 @@ def _toggle_area_check(sender=None, app_data=None) -> None:
     if _drag_bridge is None:
         return
     _drag_bridge.preview_active = not _drag_bridge.preview_active
+    if _drag_bridge.preview_active:
+        _drag_bridge.snapshot_request = True  # one screenshot; adjusting then needs no capture
     _drag_bridge.preview["pump_status"] = (
-        "Capturing..." if _drag_bridge.preview_active else ""
+        "Taking a snapshot..." if _drag_bridge.preview_active else ""
     )
     _drag_bridge.preview["version"] += 1
     _refresh_area_check_button()
+
+
+def _retake_snapshot(sender=None, app_data=None) -> None:
+    if _drag_bridge is not None and _drag_bridge.preview_active:
+        _drag_bridge.snapshot_request = True
+        _drag_bridge.preview["pump_status"] = "Taking a snapshot..."
+        _drag_bridge.preview["version"] += 1
 
 
 def _refresh_area_check_button() -> None:

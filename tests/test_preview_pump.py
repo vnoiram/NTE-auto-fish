@@ -4,7 +4,8 @@ from types import SimpleNamespace
 import numpy as np
 
 from config import AppConfig
-from gui.preview_pump import PreviewPump
+from gui.bridge import BotBridge
+from gui.preview_pump import PreviewPump, SnapshotCapture
 from modules.preview import OCR_SIZE, render_ocr_preview
 from modules.roi import compute_icon_roi
 
@@ -46,6 +47,47 @@ class TestIconRoi(unittest.TestCase):
         self.assertGreater(roi["left"] + roi["width"], 1900)
         self.assertLess(roi["top"] + roi["height"], 1080)
         self.assertEqual(roi["width"], 515)
+
+
+class TestSnapshotAdjusting(unittest.TestCase):
+    MON = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+
+    def test_snapshot_capture_crops_screen_coordinates(self):
+        image = np.zeros((1080, 1920, 3), np.uint8)
+        image[100:150, 200:300] = 255
+        snap = SnapshotCapture(image, 0, 0)
+        crop = snap.grab_bgr({"left": 200, "top": 100, "width": 100, "height": 50})
+        self.assertEqual(crop.shape, (50, 100, 3))
+        self.assertTrue((crop == 255).all())
+
+    def test_snapshot_capture_honours_the_monitor_origin_and_clamps(self):
+        image = np.zeros((1080, 1920, 3), np.uint8)
+        snap = SnapshotCapture(image, 1920, 0)
+        crop = snap.grab_bgr({"left": 1920 + 1900, "top": 1070, "width": 500, "height": 500})
+        self.assertEqual(crop.shape[:2], (10, 20))
+
+    def test_render_uses_the_snapshot_without_capturing(self):
+        image = np.full((1080, 1920, 3), 30, np.uint8)
+        pump = PreviewPump(BotBridge())
+        before = pump._bridge.preview["version"]
+        pump._render(SnapshotCapture(image, 0, 0), self.MON)
+        pv = pump._bridge.preview
+        self.assertEqual(pv["version"], before + 1)
+        self.assertIsNotNone(pv["bar"])
+        self.assertIsNotNone(pv["icons"])
+        self.assertTrue(pv["icons_text"].startswith("icons "))
+
+    def test_settings_key_changes_when_an_area_is_moved(self):
+        from config import CFG
+
+        key = PreviewPump._settings_key(self.MON)
+        saved = CFG.roi.bar_offset_x
+        try:
+            CFG.roi.bar_offset_x = saved + 25
+            self.assertNotEqual(key, PreviewPump._settings_key(self.MON))
+        finally:
+            CFG.roi.bar_offset_x = saved
+        self.assertEqual(key, PreviewPump._settings_key(self.MON))
 
 
 if __name__ == "__main__":

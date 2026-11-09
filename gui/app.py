@@ -57,7 +57,11 @@ class FishingGUI:
         self._bot_lock = threading.Lock()
         self._hotkey_handles: list = []
 
-        self.preview_pump = PreviewPump(self.bridge)
+        self.preview_pump = PreviewPump(
+            self.bridge,
+            hide_ui=lambda: dpg.hide_item("PrimaryWindow"),
+            show_ui=lambda: dpg.show_item("PrimaryWindow"),
+        )
         self.preview_pump.start()
 
         self._setup_dpg()

@@ -54,6 +54,7 @@ class BotBridge:
         self.assist_callback = None  # called after each new measurement
         # True while the user is checking/adjusting the scan areas with the bot stopped.
         self.preview_active = False
+        self.snapshot_request = False  # take a new full-screen snapshot for the area check
         # Live previews for the dashboard tracker (RGBA uint8 arrays or None).
         self.preview: dict = {
             "bar": None,

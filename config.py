@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass, field
 from random import SystemRandom
 
 from modules.branding import scoped_runtime_name
+from modules.profiles import default_profiles
 from modules.utils import APP_DIR
 
 DEFAULT_SETTINGS_PATH = os.path.join(APP_DIR, scoped_runtime_name("settings.json"))
@@ -231,6 +232,10 @@ class AppConfig:
     spam_cast_enabled: bool = False
     spam_cast_interval_min: float = 0.4
     spam_cast_interval_max: float = 1.5
+    # Detection profiles chosen by background colour (see modules/profiles.py).
+    profiles: list = field(default_factory=default_profiles)
+    profile_auto_switch: bool = False
+    active_profile: str = ""
     debug_mode: bool = False
     always_on_top: bool = True
     monitor_index: int = 0

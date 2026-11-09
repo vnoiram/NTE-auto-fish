@@ -678,6 +678,78 @@ def _apply_calibration(kind: str) -> None:
     _cal_text(kind, tr("Applied. Remember to press Save Settings."))
 
 
+def _profile_names() -> list[str]:
+    return [
+        p["name"] for p in CFG.profiles if isinstance(p, dict) and "name" in p
+    ]
+
+
+def _profile_msg(msg: str) -> None:
+    try:
+        dpg.set_value("cfg_profile_msg", msg)
+    except Exception:
+        log.debug("Profile message update failed", exc_info=True)
+
+
+def _refresh_profile_combo(select: str | None = None) -> None:
+    names = _profile_names()
+    dpg.configure_item("cfg_profile_combo", items=names)
+    dpg.set_value("cfg_profile_combo", select if select in names else (names or [""])[0])
+
+
+def _sync_detection_widgets() -> None:
+    for prefix, rng in (
+        ("cfg_hsv_sz", CFG.hsv.safe_zone),
+        ("cfg_hsv_cur", CFG.hsv.cursor),
+        ("cfg_hsv_bl", CFG.hsv.blue),
+    ):
+        dpg.set_value(f"{prefix}_lower", list(rng.lower))
+        dpg.set_value(f"{prefix}_upper", list(rng.upper))
+        update_hsv_preview(prefix, rng)
+    dpg.set_value("cfg_min_blue", CFG.min_blue_pixels)
+
+
+def _apply_selected_profile() -> None:
+    from modules.profiles import apply_profile
+
+    name = dpg.get_value("cfg_profile_combo")
+    for profile in CFG.profiles:
+        if isinstance(profile, dict) and profile.get("name") == name:
+            apply_profile(CFG, profile)
+            _sync_detection_widgets()
+            _profile_msg(tr("Applied profile: {name}").format(name=name))
+            return
+    _profile_msg(tr("No profile selected."))
+
+
+def _save_profile(bridge: BotBridge) -> None:
+    from modules.profiles import make_profile, upsert_profile
+
+    name = (dpg.get_value("cfg_profile_name") or "").strip()
+    if not name:
+        _profile_msg(tr("Enter a profile name."))
+        return
+    signature = bridge.background.signature()
+    if signature is None:
+        _profile_msg(tr("No background samples yet. Let the bot wait for a bite first."))
+        return
+    upsert_profile(CFG.profiles, make_profile(name, CFG, signature))
+    CFG.active_profile = name
+    _refresh_profile_combo(name)
+    _profile_msg(tr("Saved profile: {name}. Remember to press Save Settings.").format(name=name))
+
+
+def _delete_selected_profile() -> None:
+    name = dpg.get_value("cfg_profile_combo")
+    CFG.profiles[:] = [
+        p for p in CFG.profiles if not (isinstance(p, dict) and p.get("name") == name)
+    ]
+    if CFG.active_profile == name:
+        CFG.active_profile = ""
+    _refresh_profile_combo()
+    _profile_msg(tr("Deleted profile: {name}").format(name=name))
+
+
 def _build_vision_settings(bridge: BotBridge):
     with dpg.group(tag="settings_group_vision"):
         section_header("Vision & Detection", color=ACCENT)
@@ -761,6 +833,43 @@ def _build_vision_settings(bridge: BotBridge):
             show=False,
             callback=lambda: _apply_calibration("gauge"),
         )
+
+        dpg.add_spacer(height=int(12 * _s))
+        dpg.add_separator()
+        dpg.add_spacer(height=int(8 * _s))
+        dpg.add_text(tr("Detection profiles"), color=TEXT_MUTED)
+        caption_text(
+            "Profiles hold the colors and pixel threshold for a lighting condition "
+            "(day, evening, ...). With auto-switch on, the bot picks the profile "
+            "closest to the background colors seen while waiting."
+        )
+        dpg.add_checkbox(
+            label=tr("Auto-switch profile by background"),
+            tag="cfg_profile_auto",
+            default_value=CFG.profile_auto_switch,
+            callback=lambda s, d: _set(CFG, "profile_auto_switch", d),
+        )
+        dpg.add_combo(
+            label=tr("Profile"),
+            tag="cfg_profile_combo",
+            items=_profile_names(),
+            default_value=CFG.active_profile or (_profile_names() or [""])[0],
+            width=200,
+        )
+        dpg.add_button(
+            label=tr("Apply selected profile"), callback=_apply_selected_profile
+        )
+        dpg.add_input_text(
+            label=tr("Profile name"), tag="cfg_profile_name", width=200, hint="Night"
+        )
+        dpg.add_button(
+            label=tr("Save current settings as profile"),
+            callback=lambda: _save_profile(bridge),
+        )
+        dpg.add_button(
+            label=tr("Delete selected profile"), callback=_delete_selected_profile
+        )
+        dpg.add_text("", tag="cfg_profile_msg", wrap=int(420 * _s))
         dpg.add_spacer(height=int(4 * _s))
         dpg.add_text(tr("Fishing battle detection bars"), color=TEXT_MUTED)
         caption_text(
@@ -1976,6 +2085,8 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_battle_cursor", CFG.battle_detect_cursor)
     dpg.set_value("cfg_battle_safe_zone", CFG.battle_detect_safe_zone)
     dpg.set_value("cfg_spam_cast", CFG.spam_cast_enabled)
+    dpg.set_value("cfg_profile_auto", CFG.profile_auto_switch)
+    _refresh_profile_combo(CFG.active_profile)
     dpg.set_value("cfg_spam_min", CFG.spam_cast_interval_min)
     dpg.set_value("cfg_spam_max", CFG.spam_cast_interval_max)
     dpg.set_value("cfg_fish_logging_enabled", CFG.fish_logging_enabled)

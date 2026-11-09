@@ -178,6 +178,41 @@ class TestSpamCast(unittest.TestCase):
         bot._enter_struggling.assert_called_once_with(press_hook=False)
 
 
+class TestProfileSwitching(unittest.TestCase):
+    def _bot(self, signature, auto=True):
+        from modules.profiles import default_profiles
+
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.profile_auto_switch = auto
+        bot.cfg.profiles = default_profiles()
+        bot.cfg.active_profile = "Day"
+        bot._current_scale = 1.0
+        bot._scaled_blue_pixels = 300
+        bot._log = MagicMock()
+        bot._background = MagicMock(samples=5)
+        bot._background.signature.return_value = signature
+        return bot
+
+    def test_switches_to_closest_profile(self):
+        from modules.profiles import default_profiles
+
+        evening = default_profiles()[1]
+        evening["min_blue_pixels"] = 120
+        bot = self._bot(evening["signature"])
+        bot.cfg.profiles[1]["min_blue_pixels"] = 120
+        bot._maybe_switch_profile()
+        self.assertEqual(bot.cfg.active_profile, "Evening")
+        self.assertEqual(bot._scaled_blue_pixels, 120)
+
+    def test_disabled_does_nothing(self):
+        from modules.profiles import default_profiles
+
+        bot = self._bot(default_profiles()[1]["signature"], auto=False)
+        bot._maybe_switch_profile()
+        self.assertEqual(bot.cfg.active_profile, "Day")
+
+
 class TestDeadbandPlaySelection(unittest.TestCase):
     def test_battle_gate_is_rolled_once_then_uses_existing_tap_chance(self):
         bot = NTEFishingBot.__new__(NTEFishingBot)

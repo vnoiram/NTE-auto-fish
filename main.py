@@ -29,6 +29,7 @@ from modules.branding import scoped_runtime_name
 from modules.calibration import BackgroundSampler
 from modules.logic import FishingState, FishingStateMachine, PIDController
 from modules.ocr import CatchOcr, ratios_to_roi
+from modules.profiles import apply_profile, pick_profile
 from modules.session_manager import SessionManager
 from modules.utils import APP_DIR, bundled_path
 
@@ -53,6 +54,8 @@ if TYPE_CHECKING:
 _RNG = SystemRandom()
 
 _BG_SAMPLE_INTERVAL_SECS = 1.0
+_PROFILE_CHECK_INTERVAL_SECS = 5.0
+_PROFILE_MIN_SAMPLES = 3
 _DEFAULT_SCREEN_W = 3840
 _DEFAULT_SCREEN_H = 2160
 _RESULT_CLOSE_FALLBACK_X = 960
@@ -707,6 +710,28 @@ class NTEFishingBot:
         if cursor_x is None and target_x is None:
             background.add(bar_img)
 
+    def _maybe_switch_profile(self) -> None:
+        """Apply the profile closest to the current background, if enabled."""
+        background = getattr(self, "_background", None)
+        if background is None or not self.cfg.profile_auto_switch:
+            return
+        if not self.cfg.profiles or background.samples < _PROFILE_MIN_SAMPLES:
+            return
+        now = time.perf_counter()
+        if now < getattr(self, "_next_profile_check_at", 0.0):
+            return
+        self._next_profile_check_at = now + _PROFILE_CHECK_INTERVAL_SECS
+        signature = background.signature()
+        if signature is None:
+            return
+        profile = pick_profile(self.cfg.profiles, signature)
+        if profile is None or profile["name"] == self.cfg.active_profile:
+            return
+        apply_profile(self.cfg, profile)
+        scale_sq = self._current_scale * self._current_scale
+        self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 1.0))
+        self._log(f"[Profile] Switched to '{profile['name']}' (background match).")
+
     def _spam_cast_if_due(self) -> bool:
         """Press the cast key at random intervals. Returns True if the bot stopped."""
         if not self.cfg.spam_cast_enabled:
@@ -764,6 +789,7 @@ class NTEFishingBot:
             return
 
         self._sample_background()
+        self._maybe_switch_profile()
 
         if self.cfg.spam_cast_enabled:
             # Spamming may already have hooked the fish without the blue prompt

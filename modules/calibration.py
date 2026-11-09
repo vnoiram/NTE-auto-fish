@@ -67,6 +67,15 @@ class BackgroundSampler:
             )
         self.samples += 1
 
+    def signature(self) -> list[float] | None:
+        """Hue and brightness distribution of the background (53 values)."""
+        if self._fraction is None:
+            return None
+        hue = self._fraction.sum(axis=(1, 2))
+        val = self._fraction.sum(axis=(0, 1))
+        total = float(hue.sum()) or 1.0
+        return [float(x) / total for x in np.concatenate([hue, val])]
+
     def mask(self, hsv: np.ndarray) -> np.ndarray | None:
         """Boolean mask of pixels whose colour is common in the background."""
         if self._fraction is None:

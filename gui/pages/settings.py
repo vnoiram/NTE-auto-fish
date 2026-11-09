@@ -15,7 +15,7 @@ from collections.abc import Callable
 import dearpygui.dearpygui as dpg
 from screeninfo import get_monitors
 
-from config import CFG
+from config import CFG, DEFAULT_BAR_RATIOS, DEFAULT_BUTTON_RATIOS, ratios_are_set
 from gui.bridge import BotBridge
 from gui.components import (
     apply_glass_card_theme,
@@ -1084,6 +1084,15 @@ def _open_scanning_area_editor() -> None:
     _TRANSPARENT = "#000001"
     _NAME_CLR = "#FF4444"
     _WEIGHT_CLR = "#44AAFF"
+    _BAR_CLR = "#44DD66"
+    _BITE_CLR = "#FFCC00"
+    # key, colour, label
+    _AREAS = (
+        ("name", _NAME_CLR, "Fish Name"),
+        ("weight", _WEIGHT_CLR, "Weight (g)"),
+        ("bar", _BAR_CLR, "Bar area"),
+        ("bite", _BITE_CLR, "Bite area"),
+    )
     _HANDLE = 10  # half-size of corner square
     _BORDER = 3
 
@@ -1115,6 +1124,16 @@ def _open_scanning_area_editor() -> None:
         state = {
             "name": r2px(CFG.ocr_name_roi_ratios),
             "weight": r2px(CFG.ocr_weight_roi_ratios),
+            "bar": r2px(
+                CFG.bar_roi_ratios
+                if ratios_are_set(CFG.bar_roi_ratios)
+                else DEFAULT_BAR_RATIOS
+            ),
+            "bite": r2px(
+                CFG.button_roi_ratios
+                if ratios_are_set(CFG.button_roi_ratios)
+                else DEFAULT_BUTTON_RATIOS
+            ),
             "drag_target": None,
             "drag_mode": None,
             "drag_start": (0, 0),
@@ -1124,11 +1143,11 @@ def _open_scanning_area_editor() -> None:
         # ── Drawing ───────────────────────────────────────────────────────
         def redraw():
             canvas.delete("overlay")
-            for which, color in (("name", _NAME_CLR), ("weight", _WEIGHT_CLR)):
+            for which, color, label_key in _AREAS:
                 x1, y1, x2, y2 = state[which]
                 lx, rx = min(x1, x2), max(x1, x2)
                 ty, by = min(y1, y2), max(y1, y2)
-                label = tr("Fish Name") if which == "name" else tr("Weight (g)")
+                label = tr(label_key)
                 # Rectangle border (no fill — game shows through)
                 canvas.create_rectangle(
                     lx, ty, rx, by, outline=color, width=_BORDER, tags="overlay"
@@ -1170,11 +1189,11 @@ def _open_scanning_area_editor() -> None:
         # ── Instruction banner ────────────────────────────────────────────
         banner = tr(
             "Drag to move  •  Drag corner squares to resize  "
-            "•  Red = Fish Name  |  Blue = Weight (g)"
+            "•  Red = Fish Name | Blue = Weight | Green = Bar | Yellow = Bite"
         )
         bx = sw // 2
         canvas.create_rectangle(
-            bx - 370, 10, bx + 370, 40, fill="#1a1a2e", outline="#444444", width=1
+            bx - 470, 10, bx + 470, 40, fill="#1a1a2e", outline="#444444", width=1
         )
         canvas.create_text(bx, 25, text=banner, fill="white", font=("Yu Gothic UI", 12))
 
@@ -1193,11 +1212,15 @@ def _open_scanning_area_editor() -> None:
 
             CFG.ocr_name_roi_ratios = p2r(state["name"])
             CFG.ocr_weight_roi_ratios = p2r(state["weight"])
+            CFG.bar_roi_ratios = p2r(state["bar"])
+            CFG.button_roi_ratios = p2r(state["bite"])
             CFG.save()
             log.info(
-                "OCR scanning areas saved — name=%s  weight=%s",
+                "Scanning areas saved — name=%s  weight=%s  bar=%s  bite=%s",
                 CFG.ocr_name_roi_ratios,
                 CFG.ocr_weight_roi_ratios,
+                CFG.bar_roi_ratios,
+                CFG.button_roi_ratios,
             )
             root.destroy()
 
@@ -1248,7 +1271,7 @@ def _open_scanning_area_editor() -> None:
             return None
 
         def on_press(event):
-            for which in ("name", "weight"):
+            for which in ("bite", "bar", "weight", "name"):
                 mode = hit_test(event.x, event.y, state[which])
                 if mode:
                     state["drag_target"] = which

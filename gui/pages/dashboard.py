@@ -178,54 +178,52 @@ def create_dashboard(
 
     dpg.add_spacer(height=CARD_GAP)
 
-    # ── Row 3: PID plot + Telemetry + Vision tracker ────────────────────
-    # Right column width; PID plot fills remaining space.
-    _right_w = int(300 * _s)
+    # ── Row 3: left = compact PID plot + telemetry, right = Vision tracker ─
+    # The tracker (live previews) gets the remaining width; the PID plot stays small.
+    _left_w = int(320 * _s)
     with dpg.group(horizontal=True):
-        # Left: PID Plot
         with dpg.child_window(
-            width=-(_right_w + int(CARD_GAP * _s) + int(20 * _s)),
+            width=_left_w,
             height=-1,
-            tag="pid_card",
-            border=True,
-            no_scrollbar=True,
-        ):
-            apply_glass_card_theme("pid_card")
-            section_header("PID Output", color=ACCENT)
-            with dpg.plot(
-                no_title=True,
-                no_menus=True,
-                no_box_select=True,
-                height=-1,
-                width=-1,
-                tag="pid_plot",
-            ):
-                dpg.add_plot_axis(dpg.mvXAxis, no_gridlines=True, no_tick_labels=True)
-                with dpg.plot_axis(dpg.mvYAxis, tag="pid_y"):
-                    dpg.add_line_series(
-                        list(range(120)),
-                        list(_pid_history),
-                        label=tr("Output"),
-                        tag="pid_series",
-                    )
-                dpg.set_axis_limits("pid_y", -110, 110)
-
-        dpg.add_spacer(width=int(CARD_GAP * _s))
-
-        # Right column (transparent container)
-        with dpg.child_window(
-            width=_right_w,
-            height=-1,
-            tag="right_col",
+            tag="left_col",
             border=False,
             no_scrollbar=True,
         ):
-            # Telemetry card
             with dpg.child_window(
-                height=int(260 * _s),
-                tag="telemetry_card",
+                height=int(170 * _s),
+                tag="pid_card",
                 border=True,
                 no_scrollbar=True,
+            ):
+                apply_glass_card_theme("pid_card")
+                section_header("PID Output", color=ACCENT)
+                with dpg.plot(
+                    no_title=True,
+                    no_menus=True,
+                    no_box_select=True,
+                    height=-1,
+                    width=-1,
+                    tag="pid_plot",
+                ):
+                    dpg.add_plot_axis(
+                        dpg.mvXAxis, no_gridlines=True, no_tick_labels=True
+                    )
+                    with dpg.plot_axis(dpg.mvYAxis, tag="pid_y"):
+                        dpg.add_line_series(
+                            list(range(120)),
+                            list(_pid_history),
+                            label=tr("Output"),
+                            tag="pid_series",
+                        )
+                    dpg.set_axis_limits("pid_y", -110, 110)
+
+            dpg.add_spacer(height=int(CARD_GAP * _s))
+
+            # Telemetry card
+            with dpg.child_window(
+                height=-1,
+                tag="telemetry_card",
+                border=True,
             ):
                 apply_glass_card_theme("telemetry_card")
                 section_header("Telemetry", color=ACCENT_BLUE)
@@ -240,18 +238,18 @@ def create_dashboard(
                 metric_row("Threshold", "tele_min_area")
                 metric_row("Scale factor", "tele_scale")
 
-            dpg.add_spacer(height=int(CARD_GAP * _s))
+        dpg.add_spacer(width=int(CARD_GAP * _s))
 
-            # Vision tracker card
-            with dpg.child_window(
-                height=-1,
-                tag="vision_card",
-                border=True,
-            ):
-                apply_glass_card_theme("vision_card")
-                section_header("Vision Tracker", color=ACCENT)
-                _create_visualizer()
-                _create_previews()
+        # Right: Vision tracker card
+        with dpg.child_window(
+            height=-1,
+            tag="vision_card",
+            border=True,
+        ):
+            apply_glass_card_theme("vision_card")
+            section_header("Vision Tracker", color=ACCENT)
+            _create_visualizer()
+            _create_previews()
 
 
 # ---------------------------------------------------------------------------

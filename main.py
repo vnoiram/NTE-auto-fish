@@ -20,6 +20,7 @@ from config import (
     CFG,
     AppConfig,
     ensure_settings_loaded,
+    ratios_are_set,
     sample_movement_pulse,
     sample_noise,
     sample_reaction,
@@ -372,14 +373,30 @@ class NTEFishingBot:
 
         return monitors[index]
 
+    def _ratio_roi(self, ratios) -> dict:
+        """Screen-absolute ROI from drag-and-drop (left, top, right, bottom) ratios."""
+        left = round(self._screen_w * ratios[0])
+        top = round(self._screen_h * ratios[1])
+        return self._offset_roi(
+            {
+                "left": left,
+                "top": top,
+                "width": max(8, round(self._screen_w * ratios[2]) - left),
+                "height": max(4, round(self._screen_h * ratios[3]) - top),
+            }
+        )
+
     def _apply_roi_offsets(self) -> None:
-        """Apply the manual area corrections from the settings to the base areas."""
-        base_bar = getattr(self, "_roi_bar_base", None)
-        base_button = getattr(self, "_roi_button_base", None)
-        if base_bar is None or base_button is None:
+        """Apply saved drag-and-drop areas and the manual corrections to the defaults."""
+        default_bar = getattr(self, "_roi_bar_default", None)
+        default_button = getattr(self, "_roi_button_default", None)
+        if default_bar is None or default_button is None:
             return
-        r = self.cfg.roi
+        cfg = self.cfg
+        r = cfg.roi
         key = (
+            tuple(cfg.bar_roi_ratios),
+            tuple(cfg.button_roi_ratios),
             r.bar_offset_x,
             r.bar_offset_y,
             r.bar_width_delta,
@@ -390,6 +407,16 @@ class NTEFishingBot:
         if key == getattr(self, "_roi_offsets_applied", None):
             return
         self._roi_offsets_applied = key
+        base_bar = (
+            self._ratio_roi(cfg.bar_roi_ratios)
+            if ratios_are_set(cfg.bar_roi_ratios)
+            else default_bar
+        )
+        base_button = (
+            self._ratio_roi(cfg.button_roi_ratios)
+            if ratios_are_set(cfg.button_roi_ratios)
+            else default_button
+        )
         self._roi_bar = {
             "left": base_bar["left"] + r.bar_offset_x,
             "top": base_bar["top"] + r.bar_offset_y,
@@ -402,8 +429,9 @@ class NTEFishingBot:
             "width": base_button["width"],
             "height": base_button["height"],
         }
-        if any(key):
-            self._log(f"[Calibration] Area offsets applied: bar={self._roi_bar} button={self._roi_button}")
+        self._log(
+            f"[Calibration] Scan areas: bar={self._roi_bar} button={self._roi_button}"
+        )
 
     def _offset_roi(self, roi: dict) -> dict:
         """Shift a monitor-local ROI to screen-absolute coordinates."""
@@ -494,8 +522,8 @@ class NTEFishingBot:
         )
         self._log(f"[Calibration] Button ROI -> {self._roi_button}")
 
-        self._roi_bar_base = dict(self._roi_bar)
-        self._roi_button_base = dict(self._roi_button)
+        self._roi_bar_default = dict(self._roi_bar)
+        self._roi_button_default = dict(self._roi_button)
         self._roi_offsets_applied = None
         self._apply_roi_offsets()
 

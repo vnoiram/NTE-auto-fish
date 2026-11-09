@@ -300,8 +300,8 @@ class TestRoiOffsets(unittest.TestCase):
         bot = NTEFishingBot.__new__(NTEFishingBot)
         bot.cfg = AppConfig()
         bot._log = MagicMock()
-        bot._roi_bar_base = {"left": 100, "top": 50, "width": 1000, "height": 60}
-        bot._roi_button_base = {"left": 3000, "top": 1700, "width": 400, "height": 300}
+        bot._roi_bar_default = {"left": 100, "top": 50, "width": 1000, "height": 60}
+        bot._roi_button_default = {"left": 3000, "top": 1700, "width": 400, "height": 300}
         bot._roi_offsets_applied = None
         return bot
 
@@ -313,6 +313,20 @@ class TestRoiOffsets(unittest.TestCase):
         bot._apply_roi_offsets()
         self.assertEqual(bot._roi_bar, {"left": 100, "top": 30, "width": 1050, "height": 60})
         self.assertEqual(bot._roi_button["left"], 3015)
+
+    def test_saved_drag_areas_replace_the_defaults(self):
+        bot = self._bot()
+        bot._screen_w, bot._screen_h = 2000, 1000
+        bot._mon_x = bot._mon_y = 0
+        bot.cfg.bar_roi_ratios = (0.25, 0.1, 0.75, 0.2)
+        bot.cfg.button_roi_ratios = (0.9, 0.8, 1.0, 1.0)
+        bot._apply_roi_offsets()
+        self.assertEqual(
+            bot._roi_bar, {"left": 500, "top": 100, "width": 1000, "height": 100}
+        )
+        self.assertEqual(
+            bot._roi_button, {"left": 1800, "top": 800, "width": 200, "height": 200}
+        )
 
     def test_zero_offsets_keep_base_and_negative_values_load(self):
         import json

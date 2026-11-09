@@ -61,6 +61,16 @@ def _coerce_setting(current, value, allow_negative=False):
     return value
 
 
+# Automatic scan areas as (left, top, right, bottom) ratios of the screen.
+DEFAULT_BAR_RATIOS = (0.314844, 0.05463, 0.314844 + 0.37526, 0.05463 + 0.02963)
+DEFAULT_BUTTON_RATIOS = (3400 / 3840, 1760 / 2160, 1.0, 1.0)
+
+
+def ratios_are_set(ratios) -> bool:
+    """True when a drag-and-drop area was saved (not the all-zero placeholder)."""
+    return len(ratios) == 4 and ratios[2] > ratios[0] and ratios[3] > ratios[1]
+
+
 @dataclass
 class HsvRange:
     lower: tuple[int, int, int]
@@ -255,6 +265,10 @@ class AppConfig:
     always_on_top: bool = True
     monitor_index: int = 0
     fish_logging_enabled: bool = False
+    # Drag-and-drop scan areas as (left, top, right, bottom) screen ratios; all zero
+    # means automatic (see DEFAULT_BAR_RATIOS / DEFAULT_BUTTON_RATIOS).
+    bar_roi_ratios: tuple = (0.0, 0.0, 0.0, 0.0)
+    button_roi_ratios: tuple = (0.0, 0.0, 0.0, 0.0)
     ocr_name_roi_ratios: tuple = (0.35, 0.30, 0.65, 0.42)
     ocr_weight_roi_ratios: tuple = (0.45, 0.43, 0.55, 0.52)
 

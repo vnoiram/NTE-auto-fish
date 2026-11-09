@@ -21,6 +21,7 @@ $buildRoot = "C:\Build\NTE-auto-fish"
 $artifactNames = @()
 $errorText = $null
 $transcriptStarted = $false
+$completed = $false
 
 try {
     Start-Transcript -LiteralPath $logPath -Force | Out-Null
@@ -104,19 +105,24 @@ try {
         throw "The build completed without producing an EXE."
     }
     $artifactNames = @($artifacts.Name)
+    $completed = $true
 }
 catch {
     $errorText = ($_ | Out-String)
 }
 finally {
-    Remove-Item -LiteralPath $RequestPath -Force -ErrorAction SilentlyContinue
+    # Keep the request after a failure or interruption so the script can be run again in the same Sandbox.
+    if ($completed) {
+        Remove-Item -LiteralPath $RequestPath -Force -ErrorAction SilentlyContinue
+    }
     if ($transcriptStarted) {
         Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
     }
-    if ($null -eq $errorText) {
+    if ($completed) {
         ($artifactNames -join [Environment]::NewLine) | Set-Content -LiteralPath $successMarker -Encoding UTF8
     }
     else {
+        if ($null -eq $errorText) { $errorText = "The build was interrupted before it finished." }
         $errorText | Set-Content -LiteralPath $errorMarker -Encoding UTF8
     }
     Start-Process -FilePath "shutdown.exe" -ArgumentList "/s", "/t", "3", "/f" -WindowStyle Hidden

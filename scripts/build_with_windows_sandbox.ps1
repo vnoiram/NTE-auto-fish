@@ -43,6 +43,7 @@ if ($Manual) {
 $keepTemporary = $false
 $cacheDirectory = Join-Path $env:LOCALAPPDATA "NTEAutoFish\SandboxCache"
 $configurationPath = Join-Path $temporaryRoot "build.wsb"
+$guestScriptName = "build_in_windows_sandbox.ps1"
 $sandboxProcess = $null
 
 
@@ -59,6 +60,9 @@ try {
         throw "Failed to stage the project (robocopy exit code $LASTEXITCODE)."
     }
 
+    # Place the guest build script next to the .wsb file; the folder is mapped read-only as C:\Scripts.
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $guestScriptName) -Destination (Join-Path $temporaryRoot $guestScriptName) -Force
+
     if ($Manual) {
         Remove-Item -LiteralPath (Join-Path $stagedOutput "build-success.txt"), (Join-Path $stagedOutput "build-error.txt"), (Join-Path $stagedOutput "sandbox-build.log") -Force -ErrorAction SilentlyContinue
     }
@@ -73,7 +77,8 @@ try {
     $escapedSource = [Security.SecurityElement]::Escape($stagedSource)
     $escapedOutput = [Security.SecurityElement]::Escape($stagedOutput)
     $escapedCache = [Security.SecurityElement]::Escape($cacheDirectory)
-    $guestBuildCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Project\scripts\build_in_windows_sandbox.ps1"
+    $escapedScripts = [Security.SecurityElement]::Escape($temporaryRoot)
+    $guestBuildCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Scripts\build_in_windows_sandbox.ps1"
     if ($Manual) {
         $clipboardRedirection = "Enable"
         $logonCommand = ""
@@ -95,6 +100,11 @@ try {
     <MappedFolder>
       <HostFolder>$escapedSource</HostFolder>
       <SandboxFolder>C:\Project</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>$escapedScripts</HostFolder>
+      <SandboxFolder>C:\Scripts</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
     <MappedFolder>

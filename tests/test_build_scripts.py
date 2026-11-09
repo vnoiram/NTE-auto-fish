@@ -69,6 +69,8 @@ class TestWindowsBuildScript(unittest.TestCase):
         host_source = host_script.read_text(encoding="utf-8")
         self.assertIn("<ReadOnly>true</ReadOnly>", host_source)
         self.assertIn("[switch]$Manual", host_source)
+        self.assertIn("<SandboxFolder>C:\\Scripts</SandboxFolder>", host_source)
+        self.assertIn("C:\\Scripts\\build_in_windows_sandbox.ps1", host_source)
         self.assertIn("Write-Host $guestBuildCommand", host_source)
         self.assertIn("is NOT started and this script does not wait", host_source)
         self.assertIn("build_windows.py", guest_script.read_text(encoding="utf-8"))

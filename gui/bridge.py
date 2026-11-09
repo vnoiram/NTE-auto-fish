@@ -31,6 +31,7 @@ class BotStatus:
     current_scale: float = 1.0
     last_fish_name: str | None = None
     last_fish_weight_g: str | None = None
+    stop_reason: str = ""
 
 
 from modules.calibration import BackgroundSampler, GaugeAssist  # noqa: E402

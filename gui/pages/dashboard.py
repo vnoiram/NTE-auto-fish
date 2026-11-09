@@ -564,6 +564,8 @@ def _state_label(state: FishingState) -> str:
 
 def _status_message(status: BotStatus) -> str:
     if status.is_stopped:
+        if status.stop_reason:
+            return tr("Stopped: {reason}").format(reason=tr(status.stop_reason))
         return tr("Ready")
     if not status.is_running:
         return tr("Paused")

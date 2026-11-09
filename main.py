@@ -271,7 +271,8 @@ class NTEFishingBot:
         if not paused and self.cfg.fish_logging_enabled:
             self._session_manager.start_session()
 
-    def request_stop(self) -> None:
+    def request_stop(self, reason: str = "") -> None:
+        self._stop_reason = reason
         self._stop_flag = True
         self._stop_event.set()
         self._is_paused = True
@@ -314,6 +315,7 @@ class NTEFishingBot:
                 current_scale=self._current_scale,
                 last_fish_name=self._last_fish_name,
                 last_fish_weight_g=self._last_fish_weight_g,
+                stop_reason=getattr(self, "_stop_reason", ""),
             )
         )
 
@@ -429,7 +431,7 @@ class NTEFishingBot:
                 f"[Calibration] Failed to capture screen: {e}. Is the game fullscreen and minimized?",
                 logging.ERROR,
             )
-            self.request_stop()
+            self.request_stop("Screen capture failed at calibration")
             return
 
         self._screen_w, self._screen_h = mon.width, mon.height
@@ -530,6 +532,7 @@ class NTEFishingBot:
             return
 
         self._is_stopped = False
+        self._stop_reason = ""
         self._log("Main loop started.")
         self._session_start = time.time()
         self._last_time = time.time()
@@ -562,6 +565,7 @@ class NTEFishingBot:
                             f"Screen capture failed {capture_failures} times in a row: {exc}",
                             logging.ERROR,
                         )
+                        self._stop_reason = "Screen capture failed repeatedly"
                         break
                     self._log(
                         f"Screen capture failed ({capture_failures}/{_MAX_CAPTURE_FAILURES}): {exc}",
@@ -570,8 +574,9 @@ class NTEFishingBot:
                     self._stop_event.wait(timeout=0.5)
         except KeyboardInterrupt:
             self._log("Ctrl+C received.")
-        except Exception:
+        except Exception as exc:
             log.exception("Bot crashed")
+            self._stop_reason = f"Crashed: {type(exc).__name__}"
         finally:
             self._is_paused = True
             self._is_stopped = True
@@ -764,7 +769,7 @@ class NTEFishingBot:
                 self._stop_event.wait(timeout=err_wait)
                 if self._bait_error_count >= self.cfg.timing.bait_error_threshold:
                     self._log("[ERROR] Bait likely exhausted, stopping bot.")
-                    self.request_stop()
+                    self.request_stop("Bait error limit reached")
                     self._push_status()
                     return
                 self.sm.transition(FishingState.IDLE)
@@ -934,7 +939,7 @@ class NTEFishingBot:
             ):
                 self._log("[WAITING] Cast error while spamming, bait likely exhausted; stopping bot.")
                 self.input.release_all()
-                self.request_stop()
+                self.request_stop("Bait exhausted while spamming")
                 self._push_status()
                 return True
         return False

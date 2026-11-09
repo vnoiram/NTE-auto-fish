@@ -210,7 +210,7 @@ class TestSpamCast(unittest.TestCase):
     def test_stops_when_bait_is_exhausted(self):
         bot = self._make_bot(True)
         self.assertTrue(bot._spam_cast_if_due())
-        bot.request_stop.assert_called_once_with()
+        bot.request_stop.assert_called_once()
 
 
 class TestProfileSwitching(unittest.TestCase):

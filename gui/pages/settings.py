@@ -682,6 +682,9 @@ def _apply_assist(bridge: BotBridge) -> None:
     safe, cursor = bridge.gauge_assist.summary()
     if safe is None and cursor is None:
         return
+    if any(s is not None and not _plausible(s) for s in (safe, cursor)):
+        dpg.set_value("cal_assist_text", tr("Suggestion is too wide to be safe; not applied."))
+        return
     if safe is not None:
         _apply_hsv("cfg_hsv_sz", CFG.hsv.safe_zone, safe)
     if cursor is not None:
@@ -694,6 +697,27 @@ def _reset_assist(bridge: BotBridge) -> None:
     _update_assist_text(bridge)
 
 
+_MAX_HUE_SPAN = 30
+_MIN_SAT_LOWER = 30
+
+
+def _plausible(sug) -> bool:
+    """Reject suggestions so wide or washed-out that they would match background."""
+    return (sug.upper[0] - sug.lower[0]) <= _MAX_HUE_SPAN and sug.lower[1] >= _MIN_SAT_LOWER
+
+
+def _reset_detection_colors() -> None:
+    from config import HsvConfig
+
+    defaults = HsvConfig()
+    for key in ("safe_zone", "cursor", "blue"):
+        target = getattr(CFG.hsv, key)
+        source = getattr(defaults, key)
+        target.lower, target.upper = source.lower, source.upper
+    _sync_detection_widgets()
+    _profile_msg(tr("Detection colors reset to default. Press Save Settings to keep them."))
+
+
 def _apply_hsv(prefix: str, target, sug) -> None:
     target.lower = tuple(sug.lower)
     target.upper = tuple(sug.upper)
@@ -703,9 +727,14 @@ def _apply_hsv(prefix: str, target, sug) -> None:
 
 
 def _apply_calibration(kind: str) -> None:
-    pending = _cal_pending.pop(kind, None)
+    pending = _cal_pending.get(kind)
     if pending is None:
         return
+    suggestions = [pending[0]] if kind == "bite" else list(pending)
+    if any(s is not None and not _plausible(s) for s in suggestions):
+        _cal_text(kind, tr("Suggestion is too wide to be safe; not applied."))
+        return
+    _cal_pending.pop(kind, None)
     if kind == "bite":
         sug, min_px = pending
         _apply_hsv("cfg_hsv_bl", CFG.hsv.blue, sug)
@@ -820,6 +849,10 @@ def _build_vision_settings(bridge: BotBridge):
         hsv_editor("cfg_hsv_cur", CFG.hsv.cursor, label="Cursor HSV", default_open=True)
         hsv_editor(
             "cfg_hsv_bl", CFG.hsv.blue, label="Bite Trigger HSV", default_open=False
+        )
+        dpg.add_button(
+            label=tr("Reset detection colors to default"),
+            callback=_reset_detection_colors,
         )
 
         dpg.add_spacer(height=4)

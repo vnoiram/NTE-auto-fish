@@ -184,7 +184,7 @@ def create_dashboard(
     ):
         apply_glass_card_theme("limit_bar")
         with dpg.group(horizontal=True):
-            dpg.add_text(tr("Auto stop (counted from the moment you press Set)"))
+            dpg.add_text(tr("Auto stop (0 = no limit; counted from when you press Set)"))
             dpg.add_spacer(width=int(8 * _s))
             dpg.add_input_int(
                 tag="limit_fish_input",

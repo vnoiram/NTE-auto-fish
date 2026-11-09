@@ -127,7 +127,7 @@ _JA = {
     "Stopped: {reason}": "停止: {reason}",
     "Screen capture failed at calibration": "キャリブレーション時の画面キャプチャに失敗",
     "Bait error limit reached": "エサ切れエラーの上限に到達",
-    "Auto stop (counted from the moment you press Set)": "自動停止(「設定」を押した時点から数えます)",
+    "Auto stop (0 = no limit; counted from when you press Set)": "自動停止(0 = 無制限。「設定」を押した時点から数えます)",
     "fish": "匹",
     "min": "分",
     "Set": "設定",

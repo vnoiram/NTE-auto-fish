@@ -22,6 +22,7 @@ from gui.pages.settings import (
 )
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import FONT_SIZES, build_global_theme, get_font_path, set_ui_scale
+from gui.preview_pump import PreviewPump
 from main import NTEFishingBot, log
 from modules.branding import APP_NAME, BUILD_ID, app_icon_path
 from modules.utils import VERSION
@@ -55,6 +56,9 @@ class FishingGUI:
         self.bot_thread: threading.Thread | None = None
         self._bot_lock = threading.Lock()
         self._hotkey_handles: list = []
+
+        self.preview_pump = PreviewPump(self.bridge)
+        self.preview_pump.start()
 
         self._setup_dpg()
         self._setup_hotkeys()
@@ -314,6 +318,7 @@ class FishingGUI:
                 log.error("Bot thread did not stop within 5 seconds.")
 
     def _shutdown(self):
+        self.preview_pump.stop()
         self._stop_bot(join=True)
         self._clear_hotkeys()
 

@@ -63,7 +63,7 @@ def _coerce_setting(current, value, allow_negative=False):
 
 # Automatic scan areas as (left, top, right, bottom) ratios of the screen.
 DEFAULT_BAR_RATIOS = (0.314844, 0.05463, 0.314844 + 0.37526, 0.05463 + 0.02963)
-DEFAULT_BUTTON_RATIOS = (3400 / 3840, 1760 / 2160, 1.0, 1.0)
+DEFAULT_BUTTON_RATIOS = (3400 / 3840, 1760 / 2160, (3400 + 440) / 3840, (1760 + 360) / 2160)
 
 
 def ratios_are_set(ratios) -> bool:

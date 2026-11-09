@@ -127,6 +127,22 @@ class VisionModule:
         return center_white / max(white_pixels, 1) >= _ERROR_CENTER_SHARE_MIN
 
     @staticmethod
+    def error_region_stats(bgr_img: np.ndarray) -> dict:
+        """Numbers behind check_error_region, for the log and the tracker preview."""
+        gray = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2GRAY)
+        white = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]
+        white_pixels = int(cv2.countNonZero(white))
+        width = white.shape[1]
+        lo = int(width * _ERROR_CENTER_BAND[0])
+        hi = int(width * _ERROR_CENTER_BAND[1])
+        center = int(cv2.countNonZero(white[:, lo:hi]))
+        return {
+            "brightness": float(np.mean(gray)),
+            "white": white_pixels,
+            "center_share": center / max(white_pixels, 1),
+        }
+
+    @staticmethod
     def check_blue_trigger(
         bgr_img: np.ndarray,
         hsv_range: HsvRange | None = None,

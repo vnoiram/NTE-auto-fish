@@ -35,7 +35,7 @@ class TestPreviewDrag(unittest.TestCase):
 
     def _drag(self, tag, dx, dy):
         with (
-            patch.object(dpg, "is_item_hovered", side_effect=lambda t: t == tag),
+            patch.object(dashboard, "_over_preview", side_effect=lambda t: t == tag),
             patch.object(dpg, "does_item_exist", return_value=True),
             patch.object(dpg, "set_value"),
         ):
@@ -50,6 +50,29 @@ class TestPreviewDrag(unittest.TestCase):
         self._drag("pv_button", 0, -17.6)  # 360/144 = 2.5 px per shown px
         self.assertEqual(CFG.roi.button_offset_y, 44)
         self.assertEqual(CFG.roi.bar_offset_x, before)
+
+    def test_drag_uses_the_pump_geometry_before_the_bot_was_calibrated(self):
+        self.bridge._current_status = BotStatus()  # no ROI known yet
+        self.bridge.preview["bar_roi"] = (100, 50, 1441, 64)
+        self._drag("pv_bar", 51.2, 0)
+        self.assertEqual(CFG.roi.bar_offset_x, -144)
+        self.bridge.preview["bar_roi"] = None
+
+    def test_mouse_inside_the_image_rect_counts_even_without_hover(self):
+        with (
+            patch.object(dpg, "is_item_hovered", return_value=False),
+            patch.object(dpg, "get_item_rect_min", return_value=(100, 200)),
+            patch.object(dpg, "get_item_rect_size", return_value=(512, 48)),
+            patch.object(dpg, "get_mouse_pos", return_value=(300, 220)),
+        ):
+            self.assertTrue(dashboard._over_preview("pv_bar"))
+        with (
+            patch.object(dpg, "is_item_hovered", return_value=False),
+            patch.object(dpg, "get_item_rect_min", return_value=(100, 200)),
+            patch.object(dpg, "get_item_rect_size", return_value=(512, 48)),
+            patch.object(dpg, "get_mouse_pos", return_value=(50, 220)),
+        ):
+            self.assertFalse(dashboard._over_preview("pv_bar"))
 
     def test_drag_outside_a_preview_does_nothing(self):
         before = CFG.roi.bar_offset_x

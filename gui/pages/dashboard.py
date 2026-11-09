@@ -19,7 +19,7 @@ from gui.components import (
     styled_button,
 )
 from gui.i18n import tr
-from modules.preview import BAR_SIZE, BUTTON_SIZE, OCR_SIZE
+from modules.preview import BAR_SIZE, BUTTON_SIZE, ERROR_SIZE, OCR_SIZE
 from gui.theme import (
     ACCENT,
     ACCENT_BLUE,
@@ -336,6 +336,7 @@ def _resize_stat_cards():
 _PREVIEW_TEXTURES = {
     "pv_bar": BAR_SIZE,
     "pv_button": BUTTON_SIZE,
+    "pv_error": ERROR_SIZE,
     "pv_ocr_name": OCR_SIZE,
     "pv_ocr_weight": OCR_SIZE,
 }
@@ -365,6 +366,11 @@ def _create_previews():
             "pv_button_tex", tag="pv_button", width=BUTTON_SIZE[0], height=BUTTON_SIZE[1]
         )
         dpg.add_text("", tag="pv_blue_text")
+    dpg.add_text(tr("Bait error check area"), color=TEXT_MUTED)
+    dpg.add_image(
+        "pv_error_tex", tag="pv_error", width=ERROR_SIZE[0], height=ERROR_SIZE[1]
+    )
+    dpg.add_text("", tag="pv_error_text")
     dpg.add_text(tr("OCR source (top: crop, bottom: binarized)"), color=TEXT_MUTED)
     with dpg.group(horizontal=True):
         with dpg.group():
@@ -409,6 +415,19 @@ def _create_drag_handlers() -> None:
         dpg.add_mouse_release_handler(button=0, callback=_on_preview_release)
 
 
+def _over_preview(tag: str) -> bool:
+    """Hovered, or the mouse is inside the image rectangle (images may not report hover)."""
+    try:
+        if dpg.is_item_hovered(tag):
+            return True
+        x0, y0 = dpg.get_item_rect_min(tag)
+        w, h = dpg.get_item_rect_size(tag)
+        mx, my = dpg.get_mouse_pos(local=False)
+        return x0 <= mx <= x0 + w and y0 <= my <= y0 + h
+    except Exception:
+        return False
+
+
 def _on_preview_release(sender=None, app_data=None) -> None:
     _drag_state["target"] = None
     _drag_state["start"] = None
@@ -420,7 +439,7 @@ def _on_preview_drag(sender, app_data) -> None:
     _, dx, dy = app_data
     if _drag_state["target"] is None:
         for tag in _DRAG_AREAS:
-            if dpg.does_item_exist(tag) and dpg.is_item_hovered(tag):
+            if dpg.does_item_exist(tag) and _over_preview(tag):
                 x_attr, y_attr = _DRAG_AREAS[tag][:2]
                 _drag_state["target"] = tag
                 _drag_state["start"] = (
@@ -435,7 +454,10 @@ def _on_preview_drag(sender, app_data) -> None:
     status = _drag_bridge.latest_status()
     roi = status.bar_roi if tag == "pv_bar" else status.button_roi
     if roi[2] <= 0 or roi[3] <= 0:
-        return
+        # the bot has not been calibrated yet: use the preview pump's geometry
+        roi = _drag_bridge.preview["bar_roi" if tag == "pv_bar" else "button_roi"]
+        if roi is None or roi[2] <= 0 or roi[3] <= 0:
+            return
     # displayed pixels -> screen pixels; the area moves opposite to the content
     shift_x = dx * roi[2] / size[0]
     shift_y = dy * roi[3] / size[1]
@@ -469,6 +491,7 @@ def _update_previews(bridge: BotBridge) -> None:
         for tag, key in (
             ("pv_bar", "bar"),
             ("pv_button", "button"),
+            ("pv_error", "error"),
             ("pv_ocr_name", "ocr_name"),
             ("pv_ocr_weight", "ocr_weight"),
         ):
@@ -476,6 +499,7 @@ def _update_previews(bridge: BotBridge) -> None:
         dpg.set_value(
             "pv_blue_text", f"blue {pv['blue_pixels']} / {pv['blue_threshold']}"
         )
+        dpg.set_value("pv_error_text", pv["error_text"])
         dpg.set_value("pv_ocr_name_text", pv["ocr_name_text"])
         dpg.set_value("pv_ocr_weight_text", pv["ocr_weight_text"])
     except Exception:

@@ -9,6 +9,10 @@ _ERROR_BRIGHTNESS_THRESHOLD = 50
 _ERROR_WHITE_PIXEL_MIN = 1200
 _ERROR_WHITE_RATIO_MIN = 0.004
 _ERROR_WHITE_RATIO_MAX = 0.35
+# The cast-error text sits in the middle of a full-width band. White UI text near
+# the screen edges (hints, key prompts) in a dark scene must not count.
+_ERROR_CENTER_BAND = (0.25, 0.75)
+_ERROR_CENTER_SHARE_MIN = 0.85
 
 _DEFAULT_MIN_AREA = 40.0
 _KERNEL_3x3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
@@ -113,7 +117,14 @@ class VisionModule:
         if white_pixels < white_pixel_min:
             return False
         ratio = white_pixels / max(total_pixels, 1)
-        return _ERROR_WHITE_RATIO_MIN <= ratio <= _ERROR_WHITE_RATIO_MAX
+        if not (_ERROR_WHITE_RATIO_MIN <= ratio <= _ERROR_WHITE_RATIO_MAX):
+            return False
+        white = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]
+        width = white.shape[1]
+        lo = int(width * _ERROR_CENTER_BAND[0])
+        hi = int(width * _ERROR_CENTER_BAND[1])
+        center_white = int(cv2.countNonZero(white[:, lo:hi]))
+        return center_white / max(white_pixels, 1) >= _ERROR_CENTER_SHARE_MIN
 
     @staticmethod
     def check_blue_trigger(

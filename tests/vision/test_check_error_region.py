@@ -86,6 +86,22 @@ class TestCheckErrorRegion(unittest.TestCase):
                     f"Did not expect error detection for image: {image_path.name} with params={kwargs}",
                 )
 
+    def test_edge_text_in_a_dark_scene_is_not_an_error(self):
+        img = np.full((170, 3840, 3), 20, np.uint8)
+        cv2.rectangle(img, (3300, 60), (3700, 110), (255, 255, 255), -1)  # corner hint
+        self.assertFalse(VisionModule.check_error_region(img, white_pixel_min=1200))
+
+    def test_centered_text_in_a_dark_band_is_an_error(self):
+        img = np.full((170, 3840, 3), 20, np.uint8)
+        cv2.rectangle(img, (1500, 60), (2300, 110), (255, 255, 255), -1)
+        self.assertTrue(VisionModule.check_error_region(img, white_pixel_min=1200))
+
+    def test_mixed_edge_and_center_text_is_rejected(self):
+        img = np.full((170, 3840, 3), 20, np.uint8)
+        cv2.rectangle(img, (1700, 60), (2100, 110), (255, 255, 255), -1)
+        cv2.rectangle(img, (3300, 60), (3700, 110), (255, 255, 255), -1)
+        self.assertFalse(VisionModule.check_error_region(img, white_pixel_min=1200))
+
 
 if __name__ == "__main__":
     unittest.main()

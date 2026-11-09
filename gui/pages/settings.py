@@ -1428,6 +1428,12 @@ def _build_input_settings(
             callback=lambda s, d: _on_top_changed(d),
         )
         dpg.add_checkbox(
+            label=tr("Show live capture in tracker"),
+            tag="cfg_tracker_preview",
+            default_value=CFG.tracker_preview_enabled,
+            callback=lambda s, d: _set(CFG, "tracker_preview_enabled", d),
+        )
+        dpg.add_checkbox(
             label=tr("Debug logging"),
             tag="cfg_debug_mode",
             default_value=CFG.debug_mode,
@@ -2210,6 +2216,7 @@ def update_settings_ui(bridge: BotBridge):
     )
     dpg.set_value("cfg_always_on_top", CFG.always_on_top)
     dpg.set_value("cfg_debug_mode", CFG.debug_mode)
+    dpg.set_value("cfg_tracker_preview", CFG.tracker_preview_enabled)
 
     if dpg.does_item_exist("cfg_language"):
         dpg.set_value("cfg_language", language_label(CFG.language))

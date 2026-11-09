@@ -49,6 +49,18 @@ class BotBridge:
         # Gauge measurements taken automatically at the start of each fight.
         self.gauge_assist = GaugeAssist()
         self.assist_callback = None  # called after each new measurement
+        # Live previews for the dashboard tracker (RGBA uint8 arrays or None).
+        self.preview: dict = {
+            "bar": None,
+            "button": None,
+            "ocr_name": None,
+            "ocr_weight": None,
+            "ocr_name_text": "",
+            "ocr_weight_text": "",
+            "blue_pixels": 0,
+            "blue_threshold": 0,
+            "version": 0,
+        }
 
     def push_status(self, status: BotStatus) -> None:
         """Push a status frame. Older frames are dropped when the GUI lags."""

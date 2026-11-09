@@ -29,6 +29,7 @@ from modules.branding import scoped_runtime_name
 from modules.calibration import BackgroundSampler, GaugeAssist, suggest_gauge_at_start
 from modules.logic import FishingState, FishingStateMachine, PIDController
 from modules.ocr import CatchOcr, ratios_to_roi
+from modules.preview import render_bar_preview, render_button_preview, render_ocr_preview
 from modules.profiles import apply_profile, pick_profile
 from modules.session_manager import SessionManager
 from modules.utils import APP_DIR, bundled_path
@@ -55,6 +56,7 @@ _RNG = SystemRandom()
 
 _BG_SAMPLE_INTERVAL_SECS = 1.0
 _PROFILE_CHECK_INTERVAL_SECS = 5.0
+_PREVIEW_INTERVAL_SECS = 0.2
 _ASSIST_WINDOW_SECS = 2.0
 _PROFILE_MIN_SAMPLES = 3
 _DEFAULT_SCREEN_W = 3840
@@ -183,6 +185,7 @@ class NTEFishingBot:
         self._battle_absent_frames = 0
         self._next_spam_at = 0.0
         self._next_bg_sample_at = 0.0
+        self._next_preview_at = 0.0
         self._assist_done = True
         self._assist = bridge.gauge_assist if bridge is not None else GaugeAssist()
         self._background = (
@@ -574,6 +577,7 @@ class NTEFishingBot:
             hsv_img = self.vision.to_hsv(bar_img)
             cursor_x, _ = self._find_cursor(bar_img, hsv_img)
             target_x, _ = self._find_target(bar_img, hsv_img)
+            self._publish_bar_preview(bar_img, cursor_x, target_x)
             if self._battle_bars_all_visible(cursor_x, target_x):
                 self._log(f"[{state.value}] Battle bars detected -> STRUGGLING.")
                 self._enter_struggling(press_hook=False)
@@ -754,6 +758,66 @@ class NTEFishingBot:
             except Exception:
                 log.debug("Gauge assist callback failed", exc_info=True)
 
+    def _preview_due(self):
+        """Return the bridge when a new tracker preview should be published."""
+        bridge = getattr(self, "bridge", None)
+        if bridge is None or not self.cfg.tracker_preview_enabled:
+            return None
+        now = time.perf_counter()
+        if now < getattr(self, "_next_preview_at", 0.0):
+            return None
+        self._next_preview_at = now + _PREVIEW_INTERVAL_SECS
+        return bridge
+
+    def _publish_bar_preview(self, bar_img, cursor_x, target_x) -> None:
+        bridge = self._preview_due()
+        if bridge is None:
+            return
+        try:
+            bridge.preview["bar"] = render_bar_preview(
+                bar_img,
+                cursor_x,
+                target_x,
+                self.cfg.hsv.safe_zone,
+                self.cfg.hsv.cursor,
+            )
+            bridge.preview["version"] += 1
+        except Exception:
+            log.debug("Bar preview failed.", exc_info=True)
+
+    def _publish_button_preview(self, btn_img) -> None:
+        bridge = getattr(self, "bridge", None)
+        if bridge is None or not self.cfg.tracker_preview_enabled:
+            return
+        now = time.perf_counter()
+        if now < getattr(self, "_next_button_preview_at", 0.0):
+            return
+        self._next_button_preview_at = now + _PREVIEW_INTERVAL_SECS
+        try:
+            rgba, count = render_button_preview(btn_img, self.cfg.hsv.blue)
+            bridge.preview["button"] = rgba
+            bridge.preview["blue_pixels"] = count
+            bridge.preview["blue_threshold"] = int(self._scaled_blue_pixels)
+            bridge.preview["version"] += 1
+        except Exception:
+            log.debug("Button preview failed.", exc_info=True)
+
+    def _publish_ocr_preview(self) -> None:
+        bridge = getattr(self, "bridge", None)
+        if bridge is None or not self.cfg.tracker_preview_enabled:
+            return
+        try:
+            for key in ("name", "weight"):
+                region = self._ocr.last_regions.get(key)
+                if region is None:
+                    continue
+                raw, binary, text = region
+                bridge.preview[f"ocr_{key}"] = render_ocr_preview(raw, binary)
+                bridge.preview[f"ocr_{key}_text"] = text
+            bridge.preview["version"] += 1
+        except Exception:
+            log.debug("OCR preview failed.", exc_info=True)
+
     def _sample_background(self, bar_img, cursor_x, target_x) -> None:
         """While waiting the gauge is hidden: learn the colours behind it."""
         background = getattr(self, "_background", None)
@@ -834,6 +898,7 @@ class NTEFishingBot:
             return
 
         btn_img = self._grab(self._roi_button)
+        self._publish_button_preview(btn_img)
         if self.vision.check_blue_trigger(
             btn_img,
             self.cfg.hsv.blue,
@@ -875,6 +940,7 @@ class NTEFishingBot:
         self._cursor_x_rel = cursor_x
         self._target_x_rel = target_x
         self._gauge_assist_step(bar_img, cursor_x, target_x)
+        self._publish_bar_preview(bar_img, cursor_x, target_x)
 
         output = 0.0
         action = "NONE"
@@ -1252,6 +1318,7 @@ class NTEFishingBot:
             return
 
         fish_name, weight_g = self._ocr_catch_screen()
+        self._publish_ocr_preview()
         self._fish_count += 1
         catch_info = f" ({fish_name}, {weight_g} g)" if fish_name or weight_g else ""
         self._log(f"[RESULT] Fish #{self._fish_count}{catch_info}.")

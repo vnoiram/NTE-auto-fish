@@ -234,6 +234,8 @@ class AppConfig:
     spam_cast_interval_max: float = 1.5
     # Measure the gauge colours at the start of every fight (assist only, never auto-applied).
     gauge_assist_enabled: bool = True
+    # Show live capture previews (bar, bite prompt, OCR source) in the dashboard tracker.
+    tracker_preview_enabled: bool = True
     # Detection profiles chosen by background colour (see modules/profiles.py).
     profiles: list = field(default_factory=default_profiles)
     profile_auto_switch: bool = False

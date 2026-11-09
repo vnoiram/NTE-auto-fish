@@ -7,15 +7,18 @@ from collections import deque
 from collections.abc import Callable
 
 import dearpygui.dearpygui as dpg
+import numpy as np
 
 from gui.bridge import BotBridge, BotStatus
 from gui.components import (
     apply_glass_card_theme,
+    caption_text,
     metric_row,
     section_header,
     styled_button,
 )
 from gui.i18n import tr
+from modules.preview import BAR_SIZE, BUTTON_SIZE, OCR_SIZE
 from gui.theme import (
     ACCENT,
     ACCENT_BLUE,
@@ -244,11 +247,11 @@ def create_dashboard(
                 height=-1,
                 tag="vision_card",
                 border=True,
-                no_scrollbar=True,
             ):
                 apply_glass_card_theme("vision_card")
                 section_header("Vision Tracker", color=ACCENT)
                 _create_visualizer()
+                _create_previews()
 
 
 # ---------------------------------------------------------------------------
@@ -297,6 +300,7 @@ def update_dashboard_ui(bridge: BotBridge):
 
     # Visualizer
     _update_visualizer(status)
+    _update_previews(bridge)
 
 
 _last_container_w = 0
@@ -327,6 +331,83 @@ def _resize_stat_cards():
 # ---------------------------------------------------------------------------
 # Visualizer
 # ---------------------------------------------------------------------------
+
+
+_PREVIEW_TEXTURES = {
+    "pv_bar": BAR_SIZE,
+    "pv_button": BUTTON_SIZE,
+    "pv_ocr_name": OCR_SIZE,
+    "pv_ocr_weight": OCR_SIZE,
+}
+_last_preview_version = -1
+
+
+def _create_previews():
+    """Live capture previews: bar, bite prompt and the OCR source images."""
+    with dpg.texture_registry():
+        for tag, (w, h) in _PREVIEW_TEXTURES.items():
+            dpg.add_dynamic_texture(w, h, [0.0] * (w * h * 4), tag=f"{tag}_tex")
+    dpg.add_spacer(height=int(6 * _s))
+    caption_text(
+        "Live capture: green = safe zone color match, yellow = cursor color match, "
+        "magenta = bite color match. Red line = cursor, green box = safe zone."
+    )
+    dpg.add_text(tr("Bar area"), color=TEXT_MUTED)
+    dpg.add_image("pv_bar_tex", tag="pv_bar", width=BAR_SIZE[0], height=BAR_SIZE[1])
+    dpg.add_text(tr("Bite prompt area"), color=TEXT_MUTED)
+    with dpg.group(horizontal=True):
+        dpg.add_image(
+            "pv_button_tex", tag="pv_button", width=BUTTON_SIZE[0], height=BUTTON_SIZE[1]
+        )
+        dpg.add_text("", tag="pv_blue_text")
+    dpg.add_text(tr("OCR source (top: crop, bottom: binarized)"), color=TEXT_MUTED)
+    with dpg.group(horizontal=True):
+        with dpg.group():
+            dpg.add_image(
+                "pv_ocr_name_tex", tag="pv_ocr_name", width=OCR_SIZE[0], height=OCR_SIZE[1]
+            )
+            dpg.add_text("", tag="pv_ocr_name_text")
+        with dpg.group():
+            dpg.add_image(
+                "pv_ocr_weight_tex",
+                tag="pv_ocr_weight",
+                width=OCR_SIZE[0],
+                height=OCR_SIZE[1],
+            )
+            dpg.add_text("", tag="pv_ocr_weight_text")
+
+
+def _set_texture(tag: str, rgba) -> None:
+    if rgba is None:
+        return
+    data = (np.asarray(rgba, dtype=np.float32) / 255.0).ravel()
+    try:
+        dpg.set_value(f"{tag}_tex", data)
+    except Exception:
+        dpg.set_value(f"{tag}_tex", data.tolist())
+
+
+def _update_previews(bridge: BotBridge) -> None:
+    global _last_preview_version
+    pv = bridge.preview
+    if pv["version"] == _last_preview_version:
+        return
+    _last_preview_version = pv["version"]
+    try:
+        for tag, key in (
+            ("pv_bar", "bar"),
+            ("pv_button", "button"),
+            ("pv_ocr_name", "ocr_name"),
+            ("pv_ocr_weight", "ocr_weight"),
+        ):
+            _set_texture(tag, pv[key])
+        dpg.set_value(
+            "pv_blue_text", f"blue {pv['blue_pixels']} / {pv['blue_threshold']}"
+        )
+        dpg.set_value("pv_ocr_name_text", pv["ocr_name_text"])
+        dpg.set_value("pv_ocr_weight_text", pv["ocr_weight_text"])
+    except Exception:
+        log.debug("Failed to update tracker previews.", exc_info=True)
 
 
 def _create_visualizer():

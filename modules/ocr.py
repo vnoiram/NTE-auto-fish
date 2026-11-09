@@ -44,6 +44,8 @@ class CatchOcr:
     def __init__(self) -> None:
         self._engine = None
         self.available = OCR_IMPORTABLE
+        # Last (raw crop, binarised image, text) per region, for the dashboard preview.
+        self.last_regions: dict[str, tuple] = {}
 
     def _ensure_engine(self) -> bool:
         if not self.available:
@@ -60,7 +62,7 @@ class CatchOcr:
                 return False
         return True
 
-    def _read_region(self, capture, roi: dict) -> str:
+    def _read_region(self, capture, roi: dict, key: str = "") -> str:
         try:
             import cv2  # imported lazily: only needed when OCR actually runs
 
@@ -78,9 +80,10 @@ class CatchOcr:
                 thresh = cv2.bitwise_not(thresh)
             bgr = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
             result = self._engine(bgr)
-            if not result.txts:
-                return ""
-            return " ".join(result.txts).strip()
+            text = " ".join(result.txts).strip() if result.txts else ""
+            if key:
+                self.last_regions[key] = (img, thresh, text)
+            return text
         except Exception:
             log.debug("OCR region failed.", exc_info=True)
             return ""
@@ -105,8 +108,8 @@ class CatchOcr:
             except Exception:
                 log.debug("Failed to hide UI for OCR capture.", exc_info=True)
         try:
-            name = clean_fish_name(self._read_region(capture, name_roi))
-            weight = parse_weight(self._read_region(capture, weight_roi))
+            name = clean_fish_name(self._read_region(capture, name_roi, "name"))
+            weight = parse_weight(self._read_region(capture, weight_roi, "weight"))
         finally:
             if show_ui:
                 try:

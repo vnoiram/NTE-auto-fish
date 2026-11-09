@@ -67,7 +67,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $guestScriptName) -Destination (Join-Path $temporaryRoot $guestScriptName) -Force
 
     if ($directOutput) {
-        Remove-Item -LiteralPath (Join-Path $stagedOutput "build-success.txt"), (Join-Path $stagedOutput "build-error.txt"), (Join-Path $stagedOutput "sandbox-build.log") -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $stagedOutput "build-success.txt"), (Join-Path $stagedOutput "build-error.txt"), (Join-Path $stagedOutput "sandbox-build.log"), (Join-Path $stagedOutput "sandbox-progress.log") -Force -ErrorAction SilentlyContinue
     }
 
     [ordered]@{
@@ -159,7 +159,7 @@ $logonCommand
     $deadline = [DateTime]::UtcNow.AddMinutes($TimeoutMinutes)
     $startedAt = [DateTime]::UtcNow
     $sessionSeen = $false
-    $liveLog = Join-Path $stagedOutput "sandbox-build.log"
+    $liveLog = Join-Path $stagedOutput "sandbox-progress.log"
     $logOffset = 0L
     $lastNotice = [DateTime]::UtcNow
     $logSeen = $false

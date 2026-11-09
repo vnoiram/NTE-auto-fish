@@ -64,14 +64,18 @@ class TestFishingDetection(unittest.TestCase):
         bot._tick()
         bot._enter_struggling.assert_not_called()
 
-    def test_bite_prompt_wins_over_bar_scan_while_waiting(self):
+    def test_battle_bars_take_priority_over_the_bite_prompt(self):
         bot = self._make_tick_bot(FishingState.WAITING, 100, 150)
-        bot._handle_waiting = MagicMock(
-            side_effect=lambda: setattr(bot.sm, "state", FishingState.STRUGGLING)
-        )
+        bot.vision.check_blue_trigger.return_value = True
+        for _ in range(3):
+            bot._tick()
+        bot._enter_struggling.assert_called_once_with(press_hook=False)
+
+    def test_bite_prompt_still_hooks_when_no_bars_are_visible(self):
+        bot = self._make_tick_bot(FishingState.WAITING, None, None)
+        bot._handle_waiting = MagicMock()
         bot._tick()
-        bot._enter_struggling.assert_not_called()
-        bot.vision.get_hsv_centroid_x.assert_not_called()
+        bot._handle_waiting.assert_called_once_with()
 
     def test_tick_needs_every_selected_bar_to_enter(self):
         bot = self._make_tick_bot(FishingState.WAITING, 100, None)

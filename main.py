@@ -617,21 +617,16 @@ class NTEFishingBot:
         self._apply_roi_offsets()
         state = self.sm.state
 
-        # Battle bars on screen mean a fight is running even if the bite prompt was
-        # missed. IDLE/RESULT are scanned before their handlers; WAITING after its
-        # handler so the bite prompt always wins and a false bar match cannot
-        # pre-empt the normal hook.
-        if state in (FishingState.IDLE, FishingState.RESULT) and self._scan_battle_bars(
-            state
-        ):
+        # Priority: battle (bars on screen) > bite in progress (prompt, handled in
+        # the WAITING handler) > waiting/casting. The bars are checked first in
+        # every non-fight state, on consecutive frames to ignore one-off matches.
+        if state is not FishingState.STRUGGLING and self._scan_battle_bars(state):
             return
 
         if state is FishingState.IDLE:
             self._handle_idle()
         elif state is FishingState.WAITING:
             self._handle_waiting()
-            if self.sm.state is FishingState.WAITING:
-                self._scan_battle_bars(state)
         elif state is FishingState.STRUGGLING:
             self._handle_struggling()
         elif state is FishingState.RESULT:

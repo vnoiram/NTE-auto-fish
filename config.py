@@ -127,10 +127,10 @@ class HumanizationConfig:
     enabled: bool = True
 
     # Key hold pulse modulation (STRUGGLING)
-    pulse_hold_min: float = 0.030
-    pulse_hold_max: float = 0.080
-    pulse_release_min: float = 0.008
-    pulse_release_max: float = 0.025
+    pulse_hold_min: float = 0.040
+    pulse_hold_max: float = 0.180
+    pulse_release_min: float = 0.040
+    pulse_release_max: float = 0.250
 
     # Deadband micro-corrections (STRUGGLING)
     deadband_tap_enabled: bool = True
@@ -139,8 +139,8 @@ class HumanizationConfig:
     deadband_tap_duration_max: float = 0.035
 
     # Reaction latency (STRUGGLING)
-    reaction_latency_min: float = 0.04
-    reaction_latency_max: float = 0.12
+    reaction_latency_min: float = 0.06
+    reaction_latency_max: float = 0.25
     reaction_latency_dist: str = "uniform"  # "uniform" / "gaussian" / "exponential"
 
     # PID output noise overlay (STRUGGLING)
@@ -169,12 +169,14 @@ class HumanizationConfig:
     adaptive_pulse_gap_min_scale: float = 0.2
     adaptive_pulse_hold_max_scale: float = 1.5
 
-    # Timing jitter spreads (+/- on base values)
-    cast_hold_jitter: float = 0.015
-    cast_animation_jitter: float = 0.20
-    result_wait_jitter: float = 0.25
-    post_close_jitter: float = 0.12
-    error_dialog_jitter: float = 0.40
+    # Shared timing formula:
+    # base * uniform(scale_min, scale_max)
+    # + optional uniform(extra_min, extra_max)
+    timing_scale_min: float = 0.85
+    timing_scale_max: float = 1.15
+    timing_extra_chance: float = 0.08
+    timing_extra_min: float = 0.05
+    timing_extra_max: float = 0.35
 
     # Mouse Trajectory (RESULT stage)
     mouse_move_curve_amplitude: int = 150
@@ -184,8 +186,9 @@ class HumanizationConfig:
     mouse_offset_y: int = 50
     
     # Hook Reaction Latency (WAITING stage)
-    hook_reaction_min: float = 0.1
-    hook_reaction_max: float = 0.25
+    hook_reaction_min: float = 0.12
+    hook_reaction_max: float = 0.45
+    hook_reaction_dist: str = "gaussian"
 
 
 @dataclass
@@ -297,6 +300,23 @@ def sample_reaction(min_val: float, max_val: float, dist: str = "uniform") -> fl
         # mean = span/3, so most values cluster toward the low end
         return min(max_val, min_val + _RNG.expovariate(3.0 / span))
     return _RNG.uniform(min_val, max_val)
+
+
+def sample_timing(
+    base: float,
+    cfg: HumanizationConfig,
+    minimum: float = 0.0,
+) -> float:
+    """Apply the shared human timing formula to a base duration."""
+    scale_min, scale_max = sorted((cfg.timing_scale_min, cfg.timing_scale_max))
+    value = base * _RNG.uniform(max(0.0, scale_min), max(0.0, scale_max))
+
+    chance = max(0.0, min(1.0, cfg.timing_extra_chance))
+    if chance > 0.0 and _RNG.random() < chance:
+        extra_min, extra_max = sorted((cfg.timing_extra_min, cfg.timing_extra_max))
+        value += _RNG.uniform(max(0.0, extra_min), max(0.0, extra_max))
+
+    return max(minimum, value)
 
 
 def sample_noise(amplitude: float, dist: str = "gaussian") -> float:

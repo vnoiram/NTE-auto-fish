@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from config import AppConfig, HumanizationConfig, sample_movement_pulse
+from config import AppConfig, HumanizationConfig, sample_movement_pulse, sample_timing
 
 
 class TestAppConfig(unittest.TestCase):
@@ -101,6 +101,38 @@ class TestAppConfig(unittest.TestCase):
         self.assertEqual(pulse.profile, "slow")
         self.assertTrue(pulse.random_action)
         self.assertEqual(pulse.random_direction, 1)
+
+    def test_timing_formula_multiplies_base_and_optionally_adds_delay(self):
+        cfg = HumanizationConfig(
+            timing_scale_min=0.8,
+            timing_scale_max=1.2,
+            timing_extra_chance=0.5,
+            timing_extra_min=0.1,
+            timing_extra_max=0.4,
+        )
+        rng = Mock()
+        rng.uniform.side_effect = [1.1, 0.3]
+        rng.random.return_value = 0.25
+
+        with patch("config._RNG", rng):
+            duration = sample_timing(2.0, cfg)
+
+        self.assertAlmostEqual(duration, 2.5)
+
+    def test_timing_formula_can_skip_the_optional_delay(self):
+        cfg = HumanizationConfig(
+            timing_scale_min=0.8,
+            timing_scale_max=1.2,
+            timing_extra_chance=0.1,
+        )
+        rng = Mock()
+        rng.uniform.return_value = 0.9
+        rng.random.return_value = 0.5
+
+        with patch("config._RNG", rng):
+            duration = sample_timing(2.0, cfg)
+
+        self.assertAlmostEqual(duration, 1.8)
 
 
 if __name__ == "__main__":

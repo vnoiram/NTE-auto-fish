@@ -69,14 +69,18 @@ Introduces randomness and imperfect reactions to make the bot look more like a h
     *   **Reaction dist:** The distribution pattern of random delays (uniform, gaussian, exponential).
 *   **PID Noise:** 
     *   Overlays random noise onto the perfect PID output, making the movement path less mechanical.
-*   **Timing Jitter:** 
-    *   Adds random fluctuation to fixed timings like cast animation and result wait.
+*   **Timing Variation Formula:**
+    *   Every humanized duration uses `base × random scale + optional extra delay`.
+    *   **Timing scale min/max:** Random multiplier range applied to the base duration.
+    *   **Extra delay chance:** Probability of adding a second random delay.
+    *   **Extra delay min/max:** Range used for that optional added delay.
 *   **Mouse Trajectory (RESULT Stage):**
     *   **Curve amp (px):** The curve amplitude of mouse movements. Controls how curved/natural the mouse path looks. Setting this to 0 results in straight lines, while higher values create more organic, curved trajectories.
     *   **Move dur min/max (s):** The random duration range (in seconds) for mouse movement transitions.
     *   **Click jitter X/Y (px):** Random offset range (in pixels) applied to the click location relative to the button center. Mimics a human clicking slightly off-center on UI buttons.
 *   **Hook Reaction (WAITING Stage):**
     *   **Hook reaction min/max (s):** Simulates human reaction lag before pulling/reeling in the fish when a bite is detected. Mimics the brief moment a player takes to react to the visual prompt.
+    *   **Hook reaction dist:** Selects uniform, gaussian, or exponential sampling before the shared timing formula is applied.
 *   **Adaptive Focus (Dynamic Speedup):**
     *   **High-level:** Simulates real player behavior: When the fish is far away and about to escape, a player's focus increases and reactions become faster. When enabled, larger errors automatically reduce the bot's latency and increase input frequency to pull the fish back quickly.
     *   **How it works:** The bot calculates an `intensity` factor based on how far the cursor is from the center of the safe zone. The larger the distance, the higher the intensity. This intensity then dynamically scales three key humanization parameters:

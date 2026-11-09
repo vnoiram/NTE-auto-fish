@@ -75,6 +75,7 @@ _TOOLTIPS = {
     "Edge ignore ratio": "Fraction of bar edges to ignore when detecting cursor/target.",
     "Blue pixel trigger": "Minimum blue pixels in button ROI to detect a fish bite.",
     "Cast animation (s)": "Wait time after pressing cast key before checking for bite.",
+    "Key press base (s)": "Base hold time for cast, hook, and exit key presses before timing variation.",
     "Bite timeout (s)": "Max seconds to wait for a bite before recasting.",
     "Lost frame limit": "Frames of lost tracking before ending the struggle phase.",
     "Result wait (s)": "Wait time after fish caught before closing the result dialog.",
@@ -108,8 +109,11 @@ _TOOLTIPS = {
     "Flick hold scale": "Multiplier applied to button hold time during a flick.",
     "Flick gap scale": "Multiplier applied to button released time after a flick.",
     "Random action chance": "Chance of inserting one very short left or right tap.",
-    "Cast jitter": "Random variation on cast timing (+/- seconds).",
-    "Result jitter": "Random variation on result wait (+/- seconds).",
+    "Timing scale min": "Lowest multiplier applied to every humanized duration.",
+    "Timing scale max": "Highest multiplier applied to every humanized duration.",
+    "Extra delay chance": "Probability of adding an extra random delay to a humanized duration.",
+    "Extra delay min (s)": "Minimum extra delay when the random addition occurs.",
+    "Extra delay max (s)": "Maximum extra delay when the random addition occurs.",
     "Adaptive focus": "Speed up response and shorten pulse gaps when the fish is far away.",
     "Latency focus min": "Minimum latency multiplier when fish is at max distance (e.g. 0.3 = 70% reduction).",
     "Pulse gap focus min": "Minimum gap multiplier when fish is at max distance (e.g. 0.2 = 80% reduction).",
@@ -121,6 +125,7 @@ _TOOLTIPS = {
     "Click jitter Y (px)": "Random vertical offset for result screen clicks.",
     "Hook reaction min": "Minimum reaction delay when a fish bites (seconds).",
     "Hook reaction max": "Maximum reaction delay when a fish bites (seconds).",
+    "Hook reaction dist": "Distribution used to sample the initial hook reaction.",
 }
 
 # ---------------------------------------------------------------------------
@@ -741,13 +746,13 @@ def _build_timing_settings():
 
         _slider_with_tooltip(
             "Cast animation (s)", tag="cfg_timing_cast",
-            min_val=0.5, max_val=5.0, fmt="%.2f",
+            min_val=0.5, max_val=10.0, fmt="%.2f",
             default=CFG.timing.cast_animation_secs,
             cb=lambda s, d: _set(CFG.timing, "cast_animation_secs", d),
         )
         _slider_with_tooltip(
             "Bite timeout (s)", tag="cfg_timing_bite",
-            min_val=10.0, max_val=120.0, fmt="%.1f",
+            min_val=5.0, max_val=300.0, fmt="%.1f",
             default=CFG.timing.bite_timeout_secs,
             cb=lambda s, d: _set(CFG.timing, "bite_timeout_secs", d),
         )
@@ -760,19 +765,25 @@ def _build_timing_settings():
         )
         _slider_with_tooltip(
             "Result wait (s)", tag="cfg_timing_result",
-            min_val=0.5, max_val=5.0, fmt="%.2f",
+            min_val=0.5, max_val=15.0, fmt="%.2f",
             default=CFG.timing.result_wait_secs,
             cb=lambda s, d: _set(CFG.timing, "result_wait_secs", d),
         )
         _slider_with_tooltip(
+            "Key press base (s)", tag="cfg_timing_key_press",
+            min_val=0.01, max_val=1.0, fmt="%.3f",
+            default=CFG.timing.key_press_duration,
+            cb=lambda s, d: _set(CFG.timing, "key_press_duration", d),
+        )
+        _slider_with_tooltip(
             "Waiting poll (s)", tag="cfg_timing_wait_poll",
-            min_val=0.02, max_val=0.20, fmt="%.3f",
+            min_val=0.005, max_val=1.0, fmt="%.3f",
             default=CFG.timing.waiting_poll_interval,
             cb=lambda s, d: _set(CFG.timing, "waiting_poll_interval", d),
         )
         _slider_with_tooltip(
             "Tracking poll (s)", tag="cfg_timing_track_poll",
-            min_val=0.005, max_val=0.050, fmt="%.3f",
+            min_val=0.005, max_val=0.500, fmt="%.3f",
             default=CFG.timing.struggling_poll_interval,
             cb=lambda s, d: _set(CFG.timing, "struggling_poll_interval", d),
         )
@@ -785,7 +796,7 @@ def _build_timing_settings():
         )
         _slider_with_tooltip(
             "Max struggle (s)", tag="cfg_timing_max_struggle",
-            min_val=30.0, max_val=300.0, fmt="%.0f",
+            min_val=30.0, max_val=600.0, fmt="%.0f",
             default=CFG.timing.max_struggle_secs,
             cb=lambda s, d: _set(CFG.timing, "max_struggle_secs", d),
         )
@@ -868,25 +879,25 @@ def _build_humanization_settings():
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
             "Button hold min (s)", tag="cfg_hum_pulse_hold_min",
-            min_val=0.010, max_val=0.150, fmt="%.3f",
+            min_val=0.010, max_val=0.500, fmt="%.3f",
             default=CFG.humanization.pulse_hold_min,
             cb=lambda s, d: _set(CFG.humanization, "pulse_hold_min", d),
         )
         _slider_with_tooltip(
             "Button hold max (s)", tag="cfg_hum_pulse_hold_max",
-            min_val=0.020, max_val=0.200, fmt="%.3f",
+            min_val=0.020, max_val=1.000, fmt="%.3f",
             default=CFG.humanization.pulse_hold_max,
             cb=lambda s, d: _set(CFG.humanization, "pulse_hold_max", d),
         )
         _slider_with_tooltip(
             "Button released min (s)", tag="cfg_hum_pulse_release_min",
-            min_val=0.002, max_val=0.050, fmt="%.3f",
+            min_val=0.005, max_val=0.500, fmt="%.3f",
             default=CFG.humanization.pulse_release_min,
             cb=lambda s, d: _set(CFG.humanization, "pulse_release_min", d),
         )
         _slider_with_tooltip(
             "Button released max (s)", tag="cfg_hum_pulse_release_max",
-            min_val=0.005, max_val=0.080, fmt="%.3f",
+            min_val=0.010, max_val=1.000, fmt="%.3f",
             default=CFG.humanization.pulse_release_max,
             cb=lambda s, d: _set(CFG.humanization, "pulse_release_max", d),
         )
@@ -911,13 +922,13 @@ def _build_humanization_settings():
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
             "Reaction min (s)", tag="cfg_hum_react_min",
-            min_val=0.0, max_val=0.200, fmt="%.3f",
+            min_val=0.0, max_val=0.750, fmt="%.3f",
             default=CFG.humanization.reaction_latency_min,
             cb=lambda s, d: _set(CFG.humanization, "reaction_latency_min", d),
         )
         _slider_with_tooltip(
             "Reaction max (s)", tag="cfg_hum_react_max",
-            min_val=0.0, max_val=0.300, fmt="%.3f",
+            min_val=0.0, max_val=1.500, fmt="%.3f",
             default=CFG.humanization.reaction_latency_max,
             cb=lambda s, d: _set(CFG.humanization, "reaction_latency_max", d),
         )
@@ -1011,20 +1022,40 @@ def _build_humanization_settings():
         )
 
         dpg.add_spacer(height=8)
-        dpg.add_text(tr("Timing Jitter"), color=TEXT_MUTED)
+        dpg.add_text(tr("Timing Variation Formula"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
+        with dpg.group(horizontal=True):
+            _slider_with_tooltip(
+                "Timing scale min", tag="cfg_hum_timing_scale_min",
+                min_val=0.25, max_val=1.5, fmt="%.2f",
+                default=CFG.humanization.timing_scale_min,
+                cb=lambda s, d: _set(CFG.humanization, "timing_scale_min", d),
+            )
+            _slider_with_tooltip(
+                "Timing scale max", tag="cfg_hum_timing_scale_max",
+                min_val=0.5, max_val=3.0, fmt="%.2f",
+                default=CFG.humanization.timing_scale_max,
+                cb=lambda s, d: _set(CFG.humanization, "timing_scale_max", d),
+            )
         _slider_with_tooltip(
-            "Cast jitter (s)", tag="cfg_hum_cast_jitter",
-            min_val=0.0, max_val=0.50, fmt="%.2f",
-            default=CFG.humanization.cast_animation_jitter,
-            cb=lambda s, d: _set(CFG.humanization, "cast_animation_jitter", d),
+            "Extra delay chance", tag="cfg_hum_timing_extra_chance",
+            min_val=0.0, max_val=1.0, fmt="%.2f",
+            default=CFG.humanization.timing_extra_chance,
+            cb=lambda s, d: _set(CFG.humanization, "timing_extra_chance", d),
         )
-        _slider_with_tooltip(
-            "Result jitter (s)", tag="cfg_hum_result_jitter",
-            min_val=0.0, max_val=0.50, fmt="%.2f",
-            default=CFG.humanization.result_wait_jitter,
-            cb=lambda s, d: _set(CFG.humanization, "result_wait_jitter", d),
-        )
+        with dpg.group(horizontal=True):
+            _slider_with_tooltip(
+                "Extra delay min (s)", tag="cfg_hum_timing_extra_min",
+                min_val=0.0, max_val=1.0, fmt="%.3f",
+                default=CFG.humanization.timing_extra_min,
+                cb=lambda s, d: _set(CFG.humanization, "timing_extra_min", d),
+            )
+            _slider_with_tooltip(
+                "Extra delay max (s)", tag="cfg_hum_timing_extra_max",
+                min_val=0.0, max_val=3.0, fmt="%.3f",
+                default=CFG.humanization.timing_extra_max,
+                cb=lambda s, d: _set(CFG.humanization, "timing_extra_max", d),
+            )
 
         dpg.add_spacer(height=8)
         dpg.add_text(tr("Mouse Trajectory (RESULT Stage)"), color=TEXT_MUTED)
@@ -1066,16 +1097,22 @@ def _build_humanization_settings():
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
                 "Hook reaction min", tag="cfg_hum_hook_min",
-                min_val=0.0, max_val=0.5, fmt="%.2f",
+                min_val=0.0, max_val=1.0, fmt="%.2f",
                 default=CFG.humanization.hook_reaction_min,
                 cb=lambda s, d: _set(CFG.humanization, "hook_reaction_min", d),
             )
             _slider_with_tooltip(
                 "Hook reaction max", tag="cfg_hum_hook_max",
-                min_val=0.05, max_val=1.0, fmt="%.2f",
+                min_val=0.05, max_val=2.0, fmt="%.2f",
                 default=CFG.humanization.hook_reaction_max,
                 cb=lambda s, d: _set(CFG.humanization, "hook_reaction_max", d),
             )
+        _combo_with_tooltip(
+            "Hook reaction dist", tag="cfg_hum_hook_dist",
+            items=["uniform", "gaussian", "exponential"],
+            default=CFG.humanization.hook_reaction_dist,
+            cb=lambda s, d: _set(CFG.humanization, "hook_reaction_dist", d),
+        )
         
         dpg.add_spacer(height=8)
         dpg.add_text(tr("Adaptive Focus (Dynamic Speedup)"), color=TEXT_MUTED)
@@ -1156,6 +1193,11 @@ def _apply_pending_update_check_results():
             dpg.show_item("cfg_system_update_open")
         else:
             dpg.hide_item("cfg_system_update_open")
+
+
+def apply_pending_settings_actions() -> None:
+    """Apply UI results produced by explicit settings-page actions."""
+    _apply_pending_update_check_results()
 
 
 def _build_system_settings():
@@ -1304,13 +1346,13 @@ def _on_reset(
     on_hotkeys_changed: Callable[[], None] | None = None,
 ):
     CFG.reset()
-    update_settings_ui(bridge, force=True)
+    update_settings_ui(bridge)
     if on_hotkeys_changed:
         on_hotkeys_changed()
     log.info("Settings reset to defaults.")
 
 
-def update_settings_ui(bridge: BotBridge, *, force: bool = False):
+def update_settings_ui(bridge: BotBridge):
     if not dpg.does_item_exist("page_settings") or not dpg.is_item_shown("page_settings"):
         return
 
@@ -1332,12 +1374,6 @@ def update_settings_ui(bridge: BotBridge, *, force: bool = False):
             start = _session_manager.active_session_start()
             label = f"● {start[:16]} · {tr('{count} fish', count=count)}"
             dpg.set_value(f"session_text_{active_id}", label)
-
-    # Widget defaults and callbacks already keep CFG and the controls in sync.
-    # Rewriting every control every frame is expensive and can interrupt edits.
-    # A forced refresh is only needed after reset or when opening this page.
-    if not force:
-        return
 
     dpg.set_value("cfg_pid_kp", CFG.pid.kp)
     dpg.set_value("cfg_pid_ki", CFG.pid.ki)
@@ -1363,6 +1399,7 @@ def update_settings_ui(bridge: BotBridge, *, force: bool = False):
     dpg.set_value("cfg_timing_bite", CFG.timing.bite_timeout_secs)
     dpg.set_value("cfg_timing_lost", CFG.timing.lost_frames_threshold)
     dpg.set_value("cfg_timing_result", CFG.timing.result_wait_secs)
+    dpg.set_value("cfg_timing_key_press", CFG.timing.key_press_duration)
     dpg.set_value("cfg_timing_wait_poll", CFG.timing.waiting_poll_interval)
     dpg.set_value("cfg_timing_track_poll", CFG.timing.struggling_poll_interval)
     dpg.set_value("cfg_timing_bait_err", CFG.timing.bait_error_threshold)
@@ -1409,8 +1446,11 @@ def update_settings_ui(bridge: BotBridge, *, force: bool = False):
     dpg.set_value("cfg_hum_flick_hold_scale", CFG.humanization.flick_hold_scale_max)
     dpg.set_value("cfg_hum_flick_gap_scale", CFG.humanization.flick_gap_scale)
     dpg.set_value("cfg_hum_random_action_chance", CFG.humanization.random_action_chance)
-    dpg.set_value("cfg_hum_cast_jitter", CFG.humanization.cast_animation_jitter)
-    dpg.set_value("cfg_hum_result_jitter", CFG.humanization.result_wait_jitter)
+    dpg.set_value("cfg_hum_timing_scale_min", CFG.humanization.timing_scale_min)
+    dpg.set_value("cfg_hum_timing_scale_max", CFG.humanization.timing_scale_max)
+    dpg.set_value("cfg_hum_timing_extra_chance", CFG.humanization.timing_extra_chance)
+    dpg.set_value("cfg_hum_timing_extra_min", CFG.humanization.timing_extra_min)
+    dpg.set_value("cfg_hum_timing_extra_max", CFG.humanization.timing_extra_max)
     dpg.set_value("cfg_hum_adaptive_enabled", CFG.humanization.adaptive_enabled)
     dpg.set_value("cfg_hum_latency_focus_min", CFG.humanization.adaptive_latency_min_scale)
     dpg.set_value("cfg_hum_gap_focus_min", CFG.humanization.adaptive_pulse_gap_min_scale)
@@ -1423,6 +1463,7 @@ def update_settings_ui(bridge: BotBridge, *, force: bool = False):
     dpg.set_value("cfg_hum_mouse_offset_y", CFG.humanization.mouse_offset_y)
     dpg.set_value("cfg_hum_hook_min", CFG.humanization.hook_reaction_min)
     dpg.set_value("cfg_hum_hook_max", CFG.humanization.hook_reaction_max)
+    dpg.set_value("cfg_hum_hook_dist", CFG.humanization.hook_reaction_dist)
 
 
 def _set_scaled_min_area(val, bridge: BotBridge):

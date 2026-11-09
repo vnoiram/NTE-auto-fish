@@ -39,8 +39,13 @@ class TestDearPyGuiCompatibility(unittest.TestCase):
             self.assertTrue(dpg.does_item_exist("PrimaryWindow"))
             self.assertTrue(dpg.does_item_exist("pid_plot"))
             self.assertTrue(dpg.does_item_exist("btn_save"))
+            self.assertTrue(dpg.does_item_exist("cfg_timing_key_press"))
             self.assertTrue(dpg.does_item_exist("cfg_hum_flick_chance"))
             self.assertTrue(dpg.does_item_exist("cfg_hum_random_action_chance"))
+            self.assertTrue(dpg.does_item_exist("cfg_hum_timing_scale_min"))
+            self.assertTrue(dpg.does_item_exist("cfg_hum_timing_extra_chance"))
+            self.assertTrue(dpg.does_item_exist("cfg_hum_timing_extra_max"))
+            self.assertTrue(dpg.does_item_exist("cfg_hum_hook_dist"))
             self.assertTrue(dpg.does_item_exist("log_container"))
             self.assertEqual(
                 dpg.get_item_configuration("btn_save")["label"],

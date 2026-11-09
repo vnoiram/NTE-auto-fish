@@ -12,7 +12,12 @@ from gui.bridge import BotBridge
 from gui.i18n import set_language
 from gui.pages.dashboard import create_dashboard, update_dashboard_ui
 from gui.pages.logs import create_logs, update_logs_ui
-from gui.pages.settings import create_settings, update_settings_ui, init_session_manager
+from gui.pages.settings import (
+    apply_pending_settings_actions,
+    create_settings,
+    init_session_manager,
+    update_settings_ui,
+)
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import FONT_SIZES, build_global_theme, get_font_path, set_ui_scale
 from main import NTEFishingBot, log
@@ -178,7 +183,7 @@ class FishingGUI:
             dpg.configure_item(tag, show=(key == page_name))
         set_active_page(page_name)
         if page_name == "settings":
-            update_settings_ui(self.bridge, force=True)
+            update_settings_ui(self.bridge)
 
     # ── Hotkeys ─────────────────────────────────────────────────────────
 
@@ -303,7 +308,7 @@ class FishingGUI:
         import time
         target_fps = 60
         frame_time = 1.0 / target_fps
-        next_settings_refresh = 0.0
+        next_settings_action_poll = 0.0
         try:
             dpg.show_viewport()
             self._position_viewport_away_from_roi()
@@ -313,9 +318,9 @@ class FishingGUI:
                 
                 update_dashboard_ui(self.bridge)
                 update_logs_ui(self.bridge)
-                if start_t >= next_settings_refresh:
-                    update_settings_ui(self.bridge)
-                    next_settings_refresh = start_t + _SETTINGS_REFRESH_INTERVAL
+                if start_t >= next_settings_action_poll:
+                    apply_pending_settings_actions()
+                    next_settings_action_poll = start_t + _SETTINGS_REFRESH_INTERVAL
                 dpg.render_dearpygui_frame()
                 
                 elapsed = time.perf_counter() - start_t

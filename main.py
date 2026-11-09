@@ -16,8 +16,8 @@ from random import SystemRandom
 from typing import TYPE_CHECKING, Optional
 
 from config import (
-    CFG, AppConfig, ensure_settings_loaded, jitter as cfg_jitter,
-    sample_movement_pulse, sample_noise, sample_reaction,
+    CFG, AppConfig, ensure_settings_loaded,
+    sample_movement_pulse, sample_noise, sample_reaction, sample_timing,
 )
 
 from modules.ocr import CatchOcr, ratios_to_roi
@@ -163,6 +163,7 @@ class NTEFishingBot:
         self._last_time = time.time()
         self._last_action = "NONE"
         self._consecutive_waiting_timeouts = 0
+        self._waiting_timeout_secs = cfg.timing.bite_timeout_secs
 
         self._last_fish_name: str = ""
         self._last_fish_weight_g: str = ""
@@ -214,6 +215,7 @@ class NTEFishingBot:
         self._last_time = time.time()
         self._last_action = "NONE"
         self._consecutive_waiting_timeouts = 0
+        self._waiting_timeout_secs = self.cfg.timing.bite_timeout_secs
         self._last_fish_name = ""
         self._last_fish_weight_g = ""
         self._bar_detected_in_struggle = False
@@ -501,35 +503,6 @@ class NTEFishingBot:
     def _tick(self) -> None:
         """Run one iteration of the control loop."""
         state = self.sm.state
-
-        # --- Priority 1: complete bar detection → immediate STRUGGLING ---
-        if state is not FishingState.STRUGGLING and self._roi_bar:
-            bar_img = self._grab(self._roi_bar)
-            hsv_img = self.vision.to_hsv(bar_img)
-            cur_x, _ = self.vision.get_hsv_centroid_x(
-                bar_img,
-                self.cfg.hsv.cursor.lower,
-                self.cfg.hsv.cursor.upper,
-                min_area=self._scaled_min_area,
-                ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
-                hsv_img=hsv_img,
-            )
-            tgt_x, _ = self.vision.get_hsv_centroid_x(
-                bar_img,
-                self.cfg.hsv.safe_zone.lower,
-                self.cfg.hsv.safe_zone.upper,
-                min_area=self._scaled_min_area,
-                ignore_margin_ratio=0.0,
-                hsv_img=hsv_img,
-            )
-            if cur_x is not None and tgt_x is not None:
-                self._log(f"[{state.value}] Bar detected → STRUGGLING.")
-                self._enter_struggling()
-                self._push_status()
-                return
-
-        # --- State handlers ---
-        state = self.sm.state
         if state is FishingState.IDLE:
             self._handle_idle()
         elif state is FishingState.WAITING:
@@ -548,15 +521,17 @@ class NTEFishingBot:
 
         # Humanized hook reaction latency
         if self.cfg.humanization.enabled:
-            react = _RNG.uniform(
+            react = sample_reaction(
                 self.cfg.humanization.hook_reaction_min,
-                self.cfg.humanization.hook_reaction_max
+                self.cfg.humanization.hook_reaction_max,
+                self.cfg.humanization.hook_reaction_dist,
             )
+            react = sample_timing(react, self.cfg.humanization)
             if react > 0:
                 self._stop_event.wait(timeout=react)
         hook_dur = self.cfg.timing.key_press_duration
         if self.cfg.humanization.enabled:
-            hook_dur = cfg_jitter(hook_dur, self.cfg.humanization.cast_hold_jitter, minimum=0.02)
+            hook_dur = sample_timing(hook_dur, self.cfg.humanization, minimum=0.02)
         self.input.press(self.cfg.keys.cast, hook_dur)
         self.pid.reset()
         self._lost_frames = 0
@@ -570,10 +545,17 @@ class NTEFishingBot:
         self._log("[IDLE] Casting...")
         cast_dur = self.cfg.timing.key_press_duration
         if self.cfg.humanization.enabled:
-            cast_dur = cfg_jitter(cast_dur, self.cfg.humanization.cast_hold_jitter, minimum=0.02)
+            cast_dur = sample_timing(cast_dur, self.cfg.humanization, minimum=0.02)
         self.input.press(self.cfg.keys.cast, cast_dur)
         # Check for error dialog shortly after cast (dialog appears immediately)
-        self._stop_event.wait(timeout=0.3)
+        error_check_delay = 0.3
+        if self.cfg.humanization.enabled:
+            error_check_delay = sample_timing(
+                error_check_delay,
+                self.cfg.humanization,
+                minimum=0.1,
+            )
+        self._stop_event.wait(timeout=error_check_delay)
         if self._roi_error:
             err_img = self._grab(self._roi_error)
             if self.vision.check_error_region(err_img, white_pixel_min=self._scaled_error_white_min):
@@ -585,7 +567,7 @@ class NTEFishingBot:
                 self.input.release_all()
                 err_wait = 5.0
                 if self.cfg.humanization.enabled:
-                    err_wait = cfg_jitter(err_wait, self.cfg.humanization.error_dialog_jitter, minimum=3.0)
+                    err_wait = sample_timing(err_wait, self.cfg.humanization, minimum=3.0)
                 self._stop_event.wait(timeout=err_wait)
                 if self._bait_error_count >= self.cfg.timing.bait_error_threshold:
                     self._log("[ERROR] Bait likely exhausted, stopping bot.")
@@ -598,16 +580,23 @@ class NTEFishingBot:
         # No error, wait out the rest of the cast animation
         anim_secs = self.cfg.timing.cast_animation_secs
         if self.cfg.humanization.enabled:
-            anim_secs = cfg_jitter(anim_secs, self.cfg.humanization.cast_animation_jitter, minimum=0.8)
-        remaining = anim_secs - 0.3
+            anim_secs = sample_timing(anim_secs, self.cfg.humanization, minimum=0.8)
+        remaining = anim_secs - error_check_delay
         if remaining > 0:
             self._stop_event.wait(timeout=remaining)
         if self._stop_flag:
             return
+        self._enter_waiting()
+
+    def _enter_waiting(self) -> None:
+        timeout = self.cfg.timing.bite_timeout_secs
+        if self.cfg.humanization.enabled:
+            timeout = sample_timing(timeout, self.cfg.humanization, minimum=5.0)
+        self._waiting_timeout_secs = timeout
         self.sm.transition(FishingState.WAITING)
 
     def _handle_waiting(self) -> None:
-        if self.sm.time_in_state > self.cfg.timing.bite_timeout_secs:
+        if self.sm.time_in_state > self._waiting_timeout_secs:
             self._consecutive_waiting_timeouts += 1
             if self._consecutive_waiting_timeouts >= 2:
                 self._log(
@@ -632,7 +621,10 @@ class NTEFishingBot:
             self._log("[WAITING] Fish hooked (blue trigger).")
             self._enter_struggling()
         else:
-            self._stop_event.wait(timeout=self.cfg.timing.waiting_poll_interval)
+            poll = self.cfg.timing.waiting_poll_interval
+            if self.cfg.humanization.enabled:
+                poll = sample_timing(poll, self.cfg.humanization, minimum=0.005)
+            self._stop_event.wait(timeout=poll)
 
     def _handle_struggling(self) -> None:
         if self.sm.time_in_state > self.cfg.timing.max_struggle_secs:
@@ -783,7 +775,11 @@ class NTEFishingBot:
                                 )
                                 self.input.pulse_hold(
                                     random_key,
-                                    pulse.random_duration,
+                                    sample_timing(
+                                        pulse.random_duration,
+                                        hcfg,
+                                        minimum=0.005,
+                                    ),
                                     0.0,
                                     self._stop_event,
                                 )
@@ -796,6 +792,7 @@ class NTEFishingBot:
                                 hcfg.pulse_hold_min * hold_factor,
                                 hcfg.pulse_hold_max * hold_factor,
                             ) * pulse.hold_scale
+                            hold_t = sample_timing(hold_t, hcfg, minimum=0.005)
                             self._hum_gap_scale = pulse.gap_scale
                             self._hum_pulse_end = now + hold_t
                             self._hum_pulse_state = "HOLD"
@@ -810,6 +807,7 @@ class NTEFishingBot:
                                 hcfg.pulse_release_min * gap_factor,
                                 hcfg.pulse_release_max * gap_factor,
                             ) * self._hum_gap_scale
+                            gap_t = sample_timing(gap_t, hcfg, minimum=0.005)
                             self._hum_pulse_end = now + gap_t
                             self._hum_pulse_state = "GAP"
                             self.input.release(target_key)
@@ -824,6 +822,7 @@ class NTEFishingBot:
                     if hcfg.deadband_tap_enabled and _RNG.random() < hcfg.deadband_tap_chance:
                         tap_dir = self.cfg.keys.right if error > 0 else self.cfg.keys.left
                         tap_dur = _RNG.uniform(hcfg.deadband_tap_duration_min, hcfg.deadband_tap_duration_max)
+                        tap_dur = sample_timing(tap_dur, hcfg, minimum=0.005)
                         # We use pulse_hold here safely since deadband taps are tiny and rare, 
                         # but ideally this should also be non-blocking. Let's just use pulse_hold as it's quick.
                         # Wait, tap_dur is ~0.02s, which is a tiny block, acceptable in deadband.
@@ -916,11 +915,11 @@ class NTEFishingBot:
                     logging.WARNING,
                 )
                 self.input.release_all()
-                self.sm.transition(FishingState.WAITING)
+                self._enter_waiting()
 
         poll = self.cfg.timing.struggling_poll_interval
         if self.cfg.humanization.enabled:
-            poll = cfg_jitter(poll, poll * 0.3, minimum=0.005)
+            poll = sample_timing(poll, self.cfg.humanization, minimum=0.005)
         self._stop_event.wait(timeout=poll)
 
     def _append_catch(self, name: str, weight_g: str) -> None:
@@ -966,7 +965,7 @@ class NTEFishingBot:
 
         result_w = self.cfg.timing.result_wait_secs
         if self.cfg.humanization.enabled:
-            result_w = cfg_jitter(result_w, self.cfg.humanization.result_wait_jitter, minimum=1.0)
+            result_w = sample_timing(result_w, self.cfg.humanization, minimum=1.0)
         self._stop_event.wait(timeout=result_w)
         if self._stop_flag:
             return
@@ -1035,12 +1034,12 @@ class NTEFishingBot:
         else:
             exit_dur = self.cfg.timing.key_press_duration
             if self.cfg.humanization.enabled:
-                exit_dur = cfg_jitter(exit_dur, self.cfg.humanization.cast_hold_jitter, minimum=0.02)
+                exit_dur = sample_timing(exit_dur, self.cfg.humanization, minimum=0.02)
             self.input.press(self.cfg.keys.exit, exit_dur)
 
         close_delay = 0.5
         if self.cfg.humanization.enabled:
-            close_delay = cfg_jitter(close_delay, self.cfg.humanization.post_close_jitter, minimum=0.2)
+            close_delay = sample_timing(close_delay, self.cfg.humanization, minimum=0.2)
         self._stop_event.wait(timeout=close_delay)
 
 

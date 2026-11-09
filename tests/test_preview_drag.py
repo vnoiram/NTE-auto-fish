@@ -16,6 +16,7 @@ class TestPreviewDrag(unittest.TestCase):
         self.bridge._current_status = BotStatus(
             bar_roi=(100, 50, 1441, 64), button_roi=(3400, 1760, 440, 360)
         )
+        self.bridge.preview_active = True
         dashboard.bind_preview_drag(self.bridge)
         self._saved = (
             CFG.roi.bar_offset_x,
@@ -73,6 +74,17 @@ class TestPreviewDrag(unittest.TestCase):
             patch.object(dpg, "get_mouse_pos", return_value=(50, 220)),
         ):
             self.assertFalse(dashboard._over_preview("pv_bar"))
+
+    def test_drag_is_ignored_while_stopped_unless_the_area_check_is_on(self):
+        self.bridge.preview_active = False
+        before = CFG.roi.bar_offset_x
+        self._drag("pv_bar", 51.2, 0)
+        self.assertEqual(CFG.roi.bar_offset_x, before)
+        self.bridge._current_status = BotStatus(
+            is_stopped=False, bar_roi=(100, 50, 1441, 64)
+        )
+        self._drag("pv_bar", 51.2, 0)  # running bot: always adjustable
+        self.assertEqual(CFG.roi.bar_offset_x, -144)
 
     def test_drag_outside_a_preview_does_nothing(self):
         before = CFG.roi.bar_offset_x

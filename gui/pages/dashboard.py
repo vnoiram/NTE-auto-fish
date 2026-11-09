@@ -261,6 +261,10 @@ def create_dashboard(
 def update_dashboard_ui(bridge: BotBridge):
     status = bridge.latest_status()
     bind_preview_drag(bridge)
+    if not status.is_stopped and bridge.preview_active:
+        bridge.preview_active = False  # the running bot takes over the previews
+    _refresh_area_check_button()
+    _set_enabled("btn_area_check", status.is_stopped)
 
     # Resize stat cards to fill the row dynamically on window resize.
     _resize_stat_cards()
@@ -349,9 +353,15 @@ def _create_previews():
         for tag, (w, h) in _PREVIEW_TEXTURES.items():
             dpg.add_dynamic_texture(w, h, [0.0] * (w * h * 4), tag=f"{tag}_tex")
     _create_drag_handlers()
+    dpg.add_button(
+        label=tr("Check and adjust areas"),
+        tag="btn_area_check",
+        callback=_toggle_area_check,
+    )
     dpg.add_spacer(height=int(6 * _s))
     caption_text(
-        "Drag a preview image to shift its scan area (the area follows your drag). "
+        "Press \"Check and adjust areas\" while the bot is stopped, then drag a preview "
+        "image to shift its scan area (the area follows your drag). "
         "Fine tuning and resizing: Settings > Vision & Detection."
     )
     caption_text(
@@ -415,6 +425,24 @@ def _create_drag_handlers() -> None:
         dpg.add_mouse_release_handler(button=0, callback=_on_preview_release)
 
 
+def _toggle_area_check(sender=None, app_data=None) -> None:
+    """Start/stop live previews of the scan areas while the bot is stopped."""
+    if _drag_bridge is None:
+        return
+    _drag_bridge.preview_active = not _drag_bridge.preview_active
+    _refresh_area_check_button()
+
+
+def _refresh_area_check_button() -> None:
+    if _drag_bridge is None or not dpg.does_item_exist("btn_area_check"):
+        return
+    if _drag_bridge.preview_active:
+        label = tr("Stop checking areas")
+    else:
+        label = tr("Check and adjust areas")
+    dpg.configure_item("btn_area_check", label=label)
+
+
 def _over_preview(tag: str) -> bool:
     """Hovered, or the mouse is inside the image rectangle (images may not report hover)."""
     try:
@@ -436,6 +464,8 @@ def _on_preview_release(sender=None, app_data=None) -> None:
 def _on_preview_drag(sender, app_data) -> None:
     if _drag_bridge is None:
         return
+    if _drag_bridge.latest_status().is_stopped and not _drag_bridge.preview_active:
+        return  # adjusting needs the area check (or a running bot)
     _, dx, dy = app_data
     if _drag_state["target"] is None:
         for tag in _DRAG_AREAS:

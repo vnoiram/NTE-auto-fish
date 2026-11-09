@@ -1,7 +1,7 @@
-"""Keeps the tracker previews alive while the bot is stopped.
+"""Keeps the tracker previews alive while the bot is stopped and the user checks the areas.
 
-Without this the previews (and dragging them to adjust the scan areas) would
-only work after the bot had been started once.
+Started with the "Check and adjust areas" button, so the screen is only captured on
+request. Without it the previews (and dragging them) would need a running bot.
 """
 
 import logging
@@ -42,6 +42,8 @@ class PreviewPump:
                 try:
                     if not self._bridge.latest_status().is_stopped:
                         continue  # the running bot publishes its own previews
+                    if not self._bridge.preview_active:
+                        continue  # only while the user checks the areas
                     if not CFG.tracker_preview_enabled:
                         continue
                     monitors = get_monitors()

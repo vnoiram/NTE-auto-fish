@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.0](https://github.com/vnoiram/NTE-auto-fish/compare/v0.13.0...v0.14.0) (2026-11-09)
+
+
+### Features
+
+* **build:** use a random build ID in names by default, with 'none' for a plain name ([09c3f19](https://github.com/vnoiram/NTE-auto-fish/commit/09c3f19cd420e716052b17067ec06007f569ba72))
+
+
+### Bug Fixes
+
+* point the in-app update check and links at this fork's releases and issues ([d626bdc](https://github.com/vnoiram/NTE-auto-fish/commit/d626bdc7379768a3295f52b05a2ce4e7ded4d7ca))
+
 ## [0.13.0](https://github.com/vnoiram/NTE-auto-fish/compare/v0.12.0...v0.13.0) (2026-11-09)
 
 

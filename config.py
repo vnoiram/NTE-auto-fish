@@ -88,7 +88,13 @@ def _coerce_setting(current, value, allow_negative=False):
 
 
 # Automatic scan areas as (left, top, right, bottom) ratios of the screen.
-DEFAULT_BAR_RATIOS = (0.314844, 0.05463, 0.314844 + 0.37526, 0.05463 + 0.02963)
+_BAR_WIDEN = 20 / 3840  # 20 px per side on a 4K screen, kept as a screen ratio
+DEFAULT_BAR_RATIOS = (
+    0.314844 - _BAR_WIDEN,
+    0.05463,
+    0.314844 + 0.37526 + _BAR_WIDEN,
+    0.05463 + 0.02963,
+)
 # Lower-right action bar with the R/Q/E/F icons (they vanish once the line is cast).
 _ICON_MARGIN = (10 / 1920, 10 / 1080)  # small gap to the screen's right and bottom edges
 DEFAULT_ICON_RATIOS = (

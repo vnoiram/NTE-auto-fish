@@ -9,10 +9,11 @@ class TestComputeRois(unittest.TestCase):
     def test_default_4k_matches_the_calibrated_areas(self):
         mon = SimpleNamespace(x=0, y=0, width=3840, height=2160)
         bar, button = compute_rois(AppConfig(), mon)
-        # the bot's automatic areas at 4K: bar 1209,118 1441x64; bite 3400,1760 440x360
-        self.assertLessEqual(abs(bar["left"] - 1209), 1)
+        # automatic areas at 4K: bar 1209,118 1441x64 widened by 20 px per side
+        # (same centre); bite 3400,1760 440x360
+        self.assertLessEqual(abs(bar["left"] - 1189), 1)
         self.assertLessEqual(abs(bar["top"] - 118), 1)
-        self.assertLessEqual(abs(bar["width"] - 1441), 1)
+        self.assertLessEqual(abs(bar["width"] - 1481), 1)
         self.assertLessEqual(abs(bar["height"] - 64), 1)
         self.assertEqual(
             button, {"left": 3400, "top": 1760, "width": 440, "height": 360}

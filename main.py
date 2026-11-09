@@ -502,7 +502,7 @@ class NTEFishingBot:
         """Run one iteration of the control loop."""
         state = self.sm.state
 
-        # --- Priority 1: bar element detection → immediate STRUGGLING ---
+        # --- Priority 1: complete bar detection → immediate STRUGGLING ---
         if state is not FishingState.STRUGGLING and self._roi_bar:
             bar_img = self._grab(self._roi_bar)
             hsv_img = self.vision.to_hsv(bar_img)
@@ -522,7 +522,7 @@ class NTEFishingBot:
                 ignore_margin_ratio=0.0,
                 hsv_img=hsv_img,
             )
-            if cur_x is not None or tgt_x is not None:
+            if cur_x is not None and tgt_x is not None:
                 self._log(f"[{state.value}] Bar detected → STRUGGLING.")
                 self._enter_struggling()
                 self._push_status()
@@ -673,7 +673,7 @@ class NTEFishingBot:
         action = "NONE"
         error = 0.0
 
-        if cursor_x is not None or target_x is not None:
+        if cursor_x is not None and target_x is not None:
             self._bar_detected_in_struggle = True
 
         if cursor_x is not None and target_x is not None:
@@ -857,10 +857,7 @@ class NTEFishingBot:
                 self._lost_target_frames += 1
             else:
                 self._lost_target_frames = 0
-            self._lost_frames = max(
-                self._lost_cursor_frames,
-                self._lost_target_frames,
-            )
+            self._lost_frames += 1
             action = "LOST"
 
             if self._lost_frames % 10 == 0:
@@ -899,10 +896,7 @@ class NTEFishingBot:
             except Exception:
                 log.debug("Failed to append debug CSV row.", exc_info=True)
 
-        if (
-            self._lost_cursor_frames >= self.cfg.timing.lost_frames_threshold
-            and self._lost_target_frames >= self.cfg.timing.lost_frames_threshold
-        ):
+        if self._lost_frames >= self.cfg.timing.lost_frames_threshold:
             missing = []
             if cursor_x is None:
                 missing.append("Cursor")
@@ -917,11 +911,12 @@ class NTEFishingBot:
                 self.sm.transition(FishingState.RESULT)
             else:
                 self._log(
-                    "[STRUGGLING] Never saw bar elements — assuming false hook, recasting.",
+                    "[STRUGGLING] Never saw both bar elements — "
+                    "assuming false hook, returning to hit wait.",
                     logging.WARNING,
                 )
                 self.input.release_all()
-                self.sm.transition(FishingState.IDLE)
+                self.sm.transition(FishingState.WAITING)
 
         poll = self.cfg.timing.struggling_poll_interval
         if self.cfg.humanization.enabled:

@@ -134,6 +134,7 @@ class HumanizationConfig:
 
     # Deadband micro-corrections (STRUGGLING)
     deadband_tap_enabled: bool = True
+    deadband_play_battle_chance: float = 0.50
     deadband_tap_chance: float = 0.30
     deadband_tap_duration_min: float = 0.015
     deadband_tap_duration_max: float = 0.035

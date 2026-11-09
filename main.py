@@ -190,6 +190,24 @@ class NTEFishingBot:
         self._hum_target_action = "NONE"
         self._hum_gap_scale = 1.0
         self._hum_flick_pending = False
+        self._hum_deadband_play_enabled = False
+
+    def _roll_deadband_play_for_battle(self) -> None:
+        hcfg = self.cfg.humanization
+        chance = max(0.0, min(1.0, hcfg.deadband_play_battle_chance))
+        self._hum_deadband_play_enabled = (
+            hcfg.enabled
+            and hcfg.deadband_tap_enabled
+            and _RNG.random() < chance
+        )
+
+    def _should_send_deadband_tap(self) -> bool:
+        hcfg = self.cfg.humanization
+        return (
+            self._hum_deadband_play_enabled
+            and hcfg.deadband_tap_enabled
+            and _RNG.random() < hcfg.deadband_tap_chance
+        )
 
     @property
     def is_stopped(self) -> bool:
@@ -220,6 +238,7 @@ class NTEFishingBot:
         self._last_fish_weight_g = ""
         self._bar_detected_in_struggle = False
         self._reset_humanization_state()
+        self._roll_deadband_play_for_battle()
         if not paused and self.cfg.fish_logging_enabled:
             self._session_manager.start_session()
 
@@ -819,7 +838,7 @@ class NTEFishingBot:
                     self.input.release(self.cfg.keys.right)
                     self._hum_pulse_state = "IDLE"
                     
-                    if hcfg.deadband_tap_enabled and _RNG.random() < hcfg.deadband_tap_chance:
+                    if self._should_send_deadband_tap():
                         tap_dir = self.cfg.keys.right if error > 0 else self.cfg.keys.left
                         tap_dur = _RNG.uniform(hcfg.deadband_tap_duration_min, hcfg.deadband_tap_duration_max)
                         tap_dur = sample_timing(tap_dur, hcfg, minimum=0.005)

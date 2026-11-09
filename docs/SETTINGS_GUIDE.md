@@ -63,6 +63,7 @@ Introduces randomness and imperfect reactions to make the bot look more like a h
     *   **Pulse gap min/max:** Random delay range between key presses.
 *   **Deadband Micro-corrections:**
     *   **Deadband taps:** When the cursor is in the deadband (perfectly aligned), occasionally send very short "micro-tap" inputs to mimic human hand jitter and subconscious adjustments.
+    *   **Per-battle play chance:** Rolled once when a fish battle starts. If it misses, center play stays disabled for that whole battle.
     *   **Tap chance:** Probability of triggering a deadband tap per loop.
 *   **Reaction Latency:**
     *   **Reaction min/max:** Simulates human visual reaction time. The bot waits this long before pressing a key after seeing a movement.

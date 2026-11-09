@@ -1,6 +1,6 @@
 import sys
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from config import AppConfig
 from modules.logic import FishingState
@@ -88,6 +88,39 @@ class TestFishingDetection(unittest.TestCase):
         self.assertEqual(bot._lost_frames, 2)
         bot.input.release_all.assert_called()
         bot.sm.transition.assert_called_once_with(FishingState.WAITING)
+
+
+class TestDeadbandPlaySelection(unittest.TestCase):
+    def test_battle_gate_is_rolled_once_then_uses_existing_tap_chance(self):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.humanization.enabled = True
+        bot.cfg.humanization.deadband_tap_enabled = True
+        bot.cfg.humanization.deadband_play_battle_chance = 0.5
+        bot.cfg.humanization.deadband_tap_chance = 0.3
+
+        with patch("main._RNG.random", side_effect=[0.4, 0.2, 0.4]) as random:
+            bot._roll_deadband_play_for_battle()
+
+            self.assertTrue(bot._hum_deadband_play_enabled)
+            self.assertTrue(bot._should_send_deadband_tap())
+            self.assertFalse(bot._should_send_deadband_tap())
+            self.assertEqual(random.call_count, 3)
+
+    def test_failed_battle_gate_disables_taps_for_the_whole_battle(self):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.humanization.enabled = True
+        bot.cfg.humanization.deadband_tap_enabled = True
+        bot.cfg.humanization.deadband_play_battle_chance = 0.5
+
+        with patch("main._RNG.random", return_value=0.8) as random:
+            bot._roll_deadband_play_for_battle()
+
+            self.assertFalse(bot._hum_deadband_play_enabled)
+            self.assertFalse(bot._should_send_deadband_tap())
+            self.assertFalse(bot._should_send_deadband_tap())
+            random.assert_called_once_with()
 
 
 if __name__ == "__main__":

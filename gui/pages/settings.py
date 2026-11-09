@@ -91,6 +91,7 @@ _TOOLTIPS = {
     "Button released min (s)": "Minimum released time between W/A pulses.",
     "Button released max (s)": "Maximum released time between W/A pulses.",
     "Deadband taps": "Send micro-corrections when cursor is near center.",
+    "Per-battle play chance": "At battle start, chance to enable center play for that entire fish battle.",
     "Tap chance": "Probability of a micro-tap per cycle in the deadband.",
     "Reaction min": "Minimum reaction delay before responding (seconds).",
     "Reaction max": "Maximum reaction delay before responding (seconds).",
@@ -911,6 +912,14 @@ def _build_humanization_settings():
             cb=lambda s, d: _set(CFG.humanization, "deadband_tap_enabled", d),
         )
         _slider_with_tooltip(
+            "Per-battle play chance", tag="cfg_hum_db_battle_chance",
+            min_val=0.0, max_val=1.0, fmt="%.2f",
+            default=CFG.humanization.deadband_play_battle_chance,
+            cb=lambda s, d: _set(
+                CFG.humanization, "deadband_play_battle_chance", d,
+            ),
+        )
+        _slider_with_tooltip(
             "Tap chance", tag="cfg_hum_db_chance",
             min_val=0.0, max_val=1.0, fmt="%.2f",
             default=CFG.humanization.deadband_tap_chance,
@@ -1430,6 +1439,10 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_hum_pulse_release_min", CFG.humanization.pulse_release_min)
     dpg.set_value("cfg_hum_pulse_release_max", CFG.humanization.pulse_release_max)
     dpg.set_value("cfg_hum_db_tap", CFG.humanization.deadband_tap_enabled)
+    dpg.set_value(
+        "cfg_hum_db_battle_chance",
+        CFG.humanization.deadband_play_battle_chance,
+    )
     dpg.set_value("cfg_hum_db_chance", CFG.humanization.deadband_tap_chance)
     dpg.set_value("cfg_hum_react_min", CFG.humanization.reaction_latency_min)
     dpg.set_value("cfg_hum_react_max", CFG.humanization.reaction_latency_max)

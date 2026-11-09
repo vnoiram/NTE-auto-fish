@@ -41,6 +41,7 @@ class TestDearPyGuiCompatibility(unittest.TestCase):
             self.assertTrue(dpg.does_item_exist("btn_save"))
             self.assertTrue(dpg.does_item_exist("cfg_timing_key_press"))
             self.assertTrue(dpg.does_item_exist("cfg_hum_flick_chance"))
+            self.assertTrue(dpg.does_item_exist("cfg_hum_db_battle_chance"))
             self.assertTrue(dpg.does_item_exist("cfg_hum_random_action_chance"))
             self.assertTrue(dpg.does_item_exist("cfg_hum_timing_scale_min"))
             self.assertTrue(dpg.does_item_exist("cfg_hum_timing_extra_chance"))

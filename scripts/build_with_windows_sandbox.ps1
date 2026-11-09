@@ -13,7 +13,9 @@ param(
     [string]$PythonVersion = "3.14.10",
 
     [ValidateRange(5, 120)]
-    [int]$TimeoutMinutes = 45
+    [int]$TimeoutMinutes = 45,
+
+    [switch]$Manual
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,11 +63,24 @@ try {
     $escapedSource = [Security.SecurityElement]::Escape($stagedSource)
     $escapedOutput = [Security.SecurityElement]::Escape($stagedOutput)
     $escapedCache = [Security.SecurityElement]::Escape($cacheDirectory)
+    $guestBuildCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Project\scripts\build_in_windows_sandbox.ps1"
+    if ($Manual) {
+        $clipboardRedirection = "Enable"
+        $logonCommand = ""
+    }
+    else {
+        $clipboardRedirection = "Disable"
+        $logonCommand = @"
+  <LogonCommand>
+    <Command>$guestBuildCommand</Command>
+  </LogonCommand>
+"@
+    }
     $configuration = @"
 <Configuration>
   <VGpu>Disable</VGpu>
   <Networking>Enable</Networking>
-  <ClipboardRedirection>Disable</ClipboardRedirection>
+  <ClipboardRedirection>$clipboardRedirection</ClipboardRedirection>
   <MappedFolders>
     <MappedFolder>
       <HostFolder>$escapedSource</HostFolder>
@@ -83,15 +98,26 @@ try {
       <ReadOnly>false</ReadOnly>
     </MappedFolder>
   </MappedFolders>
-  <LogonCommand>
-    <Command>powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Project\scripts\build_in_windows_sandbox.ps1</Command>
-  </LogonCommand>
+$logonCommand
 </Configuration>
 "@
     $configuration | Set-Content -LiteralPath $configurationPath -Encoding UTF8
 
     Write-Host "Starting Windows Sandbox build..."
     Write-Host "The first build downloads Python and dependencies; later builds reuse the local download cache."
+    if ($Manual) {
+        Write-Host ""
+        Write-Host "Manual mode: open PowerShell inside Windows Sandbox and run this command:"
+        Write-Host $guestBuildCommand -ForegroundColor Cyan
+        try {
+            Set-Clipboard -Value $guestBuildCommand
+            Write-Host "(Copied to the clipboard; paste it with Ctrl+V inside the Sandbox.)"
+        }
+        catch {
+            # Clipboard access is a convenience only.
+        }
+        Write-Host ""
+    }
     $sandboxProcess = Start-Process -FilePath $sandboxCommand.Source -ArgumentList "`"$configurationPath`"" -PassThru
     $successMarker = Join-Path $stagedOutput "build-success.txt"
     $errorMarker = Join-Path $stagedOutput "build-error.txt"

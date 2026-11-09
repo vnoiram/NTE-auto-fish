@@ -112,6 +112,16 @@ WSLから起動する場合も、GitHubを経由せず次のコマンドで同�
 ./scripts/build-with-windows-sandbox.sh -AppName "Fishing Tools" -Icon random
 ```
 
+Sandboxの自動ログオンコマンド実行時に落ちる環境では、手動モードで起動します。
+
+```bash
+./scripts/build-with-windows-sandbox.sh -Manual -AppName "Fishing Tools" -Icon random
+```
+
+手動モードでは`.wsb`のログオンコマンドを省略し、Sandbox内のPowerShellで実行する正確なコマンドを
+ホスト側へ表示し、ホストのクリップボードにもコピーします。表示されたコマンドを貼り付けられるよう、このモードに限りクリップボード共有を有効にします。
+コマンド実行後のビルド、成果物回収、ログ保存、Sandbox終了は通常どおり自動で進みます。
+
 ソースの一時コピーはSandboxへ読み取り専用で共有され、Python・依存関係・PyInstallerはSandbox内へ導入されます。
 完成したEXEだけが `dist\sandbox` に戻り、Sandboxと一時コピーはビルド後に破棄されます。2回目以降を速くするため、
 Pythonインストーラーとpipのダウンロードだけはユーザーのローカルアプリデータへキャッシュします。

@@ -62,7 +62,10 @@ class TestWindowsBuildScript(unittest.TestCase):
         self.assertTrue(host_script.is_file())
         self.assertTrue(guest_script.is_file())
         self.assertTrue(wsl_script.is_file())
-        self.assertIn("<ReadOnly>true</ReadOnly>", host_script.read_text(encoding="utf-8"))
+        host_source = host_script.read_text(encoding="utf-8")
+        self.assertIn("<ReadOnly>true</ReadOnly>", host_source)
+        self.assertIn("[switch]$Manual", host_source)
+        self.assertIn('Write-Host $guestBuildCommand', host_source)
         self.assertIn("build_windows.py", guest_script.read_text(encoding="utf-8"))
 
     def test_app_name_validation_rejects_control_characters(self):

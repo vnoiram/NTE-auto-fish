@@ -115,6 +115,16 @@ From WSL, the equivalent local command is:
 ./scripts/build-with-windows-sandbox.sh -AppName "Fishing Tools" -Icon random
 ```
 
+If Windows Sandbox crashes while executing its automatic logon command, start it in manual mode:
+
+```bash
+./scripts/build-with-windows-sandbox.sh -Manual -AppName "Fishing Tools" -Icon random
+```
+
+Manual mode omits the `.wsb` logon command and prints the exact command to run in PowerShell inside the Sandbox.
+The command is also copied to the host clipboard, and clipboard redirection is enabled only for this mode so it can be pasted. After that command starts,
+the build, artifact collection, logging, and Sandbox shutdown proceed normally.
+
 The script stages a temporary read-only copy of the source, starts Windows Sandbox, installs Python and the build
 dependencies inside it, and copies only the resulting EXE to `dist\sandbox`. Python installers and pip downloads are
 cached under the current user's local application data to make later builds faster. The temporary Sandbox and staged

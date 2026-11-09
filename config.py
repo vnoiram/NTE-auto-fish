@@ -222,6 +222,15 @@ class AppConfig:
     detection_min_area: float = 30.0
     min_blue_pixels: int = 300
     result_close_method: str = "click"
+    # Fishing-battle detection: while any selected bar is visible, the bot stays in
+    # the battle (STRUGGLING) state and never transitions elsewhere.
+    battle_detect_cursor: bool = True
+    battle_detect_safe_zone: bool = True
+    # Press the cast key at random intervals while waiting for a bite. This also
+    # closes the result screen and forces the bot into the fight if a bite is missed.
+    spam_cast_enabled: bool = False
+    spam_cast_interval_min: float = 0.4
+    spam_cast_interval_max: float = 1.5
     debug_mode: bool = False
     always_on_top: bool = True
     monitor_index: int = 0

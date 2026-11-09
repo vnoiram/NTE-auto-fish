@@ -599,6 +599,23 @@ def _build_vision_settings(bridge: BotBridge):
             default=CFG.min_blue_pixels,
             cb=lambda s, d: _set_int(CFG, "min_blue_pixels", d, "cfg_min_blue", 1),
         )
+        dpg.add_spacer(height=int(4 * _s))
+        dpg.add_text(tr("Fishing battle detection bars"), color=TEXT_MUTED)
+        caption_text(
+            "While a checked bar is visible the bot stays in the fishing battle."
+        )
+        dpg.add_checkbox(
+            label=tr("Cursor bar"),
+            tag="cfg_battle_cursor",
+            default_value=CFG.battle_detect_cursor,
+            callback=lambda s, d: _set(CFG, "battle_detect_cursor", d),
+        )
+        dpg.add_checkbox(
+            label=tr("Safe zone bar"),
+            tag="cfg_battle_safe_zone",
+            default_value=CFG.battle_detect_safe_zone,
+            callback=lambda s, d: _set(CFG, "battle_detect_safe_zone", d),
+        )
 
         dpg.add_spacer(height=int(12 * _s))
         dpg.add_separator()
@@ -1005,6 +1022,34 @@ def _build_input_settings(
             width=160,
             tag="cfg_result_close_method",
             callback=lambda s, d: _set_result_method(d),
+        )
+        dpg.add_checkbox(
+            label=tr("Spam cast key while waiting"),
+            tag="cfg_spam_cast",
+            default_value=CFG.spam_cast_enabled,
+            callback=lambda s, d: _set(CFG, "spam_cast_enabled", d),
+        )
+        caption_text(
+            "Presses the cast key at random intervals; closes the result screen "
+            "and forces the fight if a bite is missed. Stops when bait runs out."
+        )
+        _slider_with_tooltip(
+            "Spam interval min (s)",
+            tag="cfg_spam_min",
+            min_val=0.1,
+            max_val=5.0,
+            fmt="%.2f",
+            default=CFG.spam_cast_interval_min,
+            cb=lambda s, d: _set(CFG, "spam_cast_interval_min", d),
+        )
+        _slider_with_tooltip(
+            "Spam interval max (s)",
+            tag="cfg_spam_max",
+            min_val=0.1,
+            max_val=5.0,
+            fmt="%.2f",
+            default=CFG.spam_cast_interval_max,
+            cb=lambda s, d: _set(CFG, "spam_cast_interval_max", d),
         )
         dpg.add_checkbox(
             label=tr("Always on top"),
@@ -1766,6 +1811,11 @@ def update_settings_ui(bridge: BotBridge):
     update_hsv_preview("cfg_hsv_bl", CFG.hsv.blue)
     dpg.set_value("cfg_roi_ignore_margin", CFG.roi.ignore_margin_ratio)
     dpg.set_value("cfg_min_blue", CFG.min_blue_pixels)
+    dpg.set_value("cfg_battle_cursor", CFG.battle_detect_cursor)
+    dpg.set_value("cfg_battle_safe_zone", CFG.battle_detect_safe_zone)
+    dpg.set_value("cfg_spam_cast", CFG.spam_cast_enabled)
+    dpg.set_value("cfg_spam_min", CFG.spam_cast_interval_min)
+    dpg.set_value("cfg_spam_max", CFG.spam_cast_interval_max)
     dpg.set_value("cfg_fish_logging_enabled", CFG.fish_logging_enabled)
 
     dpg.set_value("cfg_timing_cast", CFG.timing.cast_animation_secs)

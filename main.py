@@ -173,6 +173,9 @@ class NTEFishingBot:
         self._last_action = "NONE"
         self._consecutive_waiting_timeouts = 0
         self._waiting_timeout_secs = cfg.timing.bite_timeout_secs
+        self._battle_visible = False
+        self._battle_absent_frames = 0
+        self._next_spam_at = 0.0
 
         self._last_fish_name: str = ""
         self._last_fish_weight_g: str = ""
@@ -241,6 +244,9 @@ class NTEFishingBot:
         self._last_action = "NONE"
         self._consecutive_waiting_timeouts = 0
         self._waiting_timeout_secs = self.cfg.timing.bite_timeout_secs
+        self._battle_visible = False
+        self._battle_absent_frames = 0
+        self._next_spam_at = 0.0
         self._last_fish_name = ""
         self._last_fish_weight_g = ""
         self._bar_detected_in_struggle = False
@@ -557,27 +563,62 @@ class NTEFishingBot:
         elif state is FishingState.RESULT:
             self._handle_result()
 
-    def _enter_struggling(self) -> None:
+    def _find_cursor(self, bar_img, hsv_img=None, last_x=None):
+        return self.vision.get_hsv_centroid_x(
+            bar_img,
+            self.cfg.hsv.cursor.lower,
+            self.cfg.hsv.cursor.upper,
+            min_area=self._scaled_min_area,
+            ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
+            last_known_x=last_x,
+            hsv_img=hsv_img,
+        )
+
+    def _find_target(self, bar_img, hsv_img=None, last_x=None):
+        return self.vision.get_hsv_centroid_x(
+            bar_img,
+            self.cfg.hsv.safe_zone.lower,
+            self.cfg.hsv.safe_zone.upper,
+            min_area=self._scaled_min_area,
+            ignore_margin_ratio=0.0,
+            last_known_x=last_x,
+            hsv_img=hsv_img,
+        )
+
+    def _battle_bars_visible(self, cursor_x, target_x) -> bool:
+        """True when any bar selected for battle detection is on screen."""
+        use_cursor = self.cfg.battle_detect_cursor
+        use_target = self.cfg.battle_detect_safe_zone
+        if not use_cursor and not use_target:
+            use_cursor = use_target = True  # never let detection be fully disabled
+        return (use_cursor and cursor_x is not None) or (
+            use_target and target_x is not None
+        )
+
+    def _enter_struggling(self, press_hook: bool = True) -> None:
         """Common setup when transitioning into STRUGGLING from any state."""
         self._bait_error_count = 0
         self._consecutive_waiting_timeouts = 0
         self._bar_detected_in_struggle = False
+        self._battle_visible = False
+        self._battle_absent_frames = 0
         self._reset_humanization_state()
 
-        # Humanized hook reaction latency
-        if self.cfg.humanization.enabled:
-            react = sample_reaction(
-                self.cfg.humanization.hook_reaction_min,
-                self.cfg.humanization.hook_reaction_max,
-                self.cfg.humanization.hook_reaction_dist,
-            )
-            react = sample_timing(react, self.cfg.humanization)
-            if react > 0:
-                self._stop_event.wait(timeout=react)
-        hook_dur = self.cfg.timing.key_press_duration
-        if self.cfg.humanization.enabled:
-            hook_dur = sample_timing(hook_dur, self.cfg.humanization, minimum=0.02)
-        self.input.press(self.cfg.keys.cast, hook_dur)
+        if press_hook:
+            # Humanized hook reaction latency
+            if self.cfg.humanization.enabled:
+                react = sample_reaction(
+                    self.cfg.humanization.hook_reaction_min,
+                    self.cfg.humanization.hook_reaction_max,
+                    self.cfg.humanization.hook_reaction_dist,
+                )
+                react = sample_timing(react, self.cfg.humanization)
+                if react > 0:
+                    self._stop_event.wait(timeout=react)
+            hook_dur = self.cfg.timing.key_press_duration
+            if self.cfg.humanization.enabled:
+                hook_dur = sample_timing(hook_dur, self.cfg.humanization, minimum=0.02)
+            self.input.press(self.cfg.keys.cast, hook_dur)
         self.pid.reset()
         self._lost_frames = 0
         self._lost_cursor_frames = 0
@@ -642,7 +683,37 @@ class NTEFishingBot:
         if self.cfg.humanization.enabled:
             timeout = sample_timing(timeout, self.cfg.humanization, minimum=5.0)
         self._waiting_timeout_secs = timeout
+        self._next_spam_at = 0.0
         self.sm.transition(FishingState.WAITING)
+
+    def _spam_cast_if_due(self) -> bool:
+        """Press the cast key at random intervals. Returns True if the bot stopped."""
+        if not self.cfg.spam_cast_enabled:
+            return False
+        now = time.perf_counter()
+        if now < self._next_spam_at:
+            return False
+        lo, hi = sorted((self.cfg.spam_cast_interval_min, self.cfg.spam_cast_interval_max))
+        lo = max(lo, 0.1)
+        self._next_spam_at = now + _RNG.uniform(lo, max(hi, lo))
+        dur = self.cfg.timing.key_press_duration
+        if self.cfg.humanization.enabled:
+            dur = sample_timing(dur, self.cfg.humanization, minimum=0.02)
+        self.input.press(self.cfg.keys.cast, dur)
+
+        # Bait exhausted: the cast error dialog appears right after the press.
+        if self._roi_error:
+            self._stop_event.wait(timeout=0.3)
+            err_img = self._grab(self._roi_error)
+            if self.vision.check_error_region(
+                err_img, white_pixel_min=self._scaled_error_white_min
+            ):
+                self._log("[WAITING] Cast error while spamming, bait likely exhausted; stopping bot.")
+                self.input.release_all()
+                self.request_stop()
+                self._push_status()
+                return True
+        return False
 
     def _handle_waiting(self) -> None:
         if self.sm.time_in_state > self._waiting_timeout_secs:
@@ -669,14 +740,32 @@ class NTEFishingBot:
         ):
             self._log("[WAITING] Fish hooked (blue trigger).")
             self._enter_struggling()
-        else:
-            poll = self.cfg.timing.waiting_poll_interval
-            if self.cfg.humanization.enabled:
-                poll = sample_timing(poll, self.cfg.humanization, minimum=0.005)
-            self._stop_event.wait(timeout=poll)
+            return
+
+        if self.cfg.spam_cast_enabled:
+            # Spamming may already have hooked the fish without the blue prompt
+            # being seen; the battle bars on screen mean the fight has started.
+            bar_img = self._grab(self._roi_bar)
+            hsv_img = self.vision.to_hsv(bar_img)
+            cursor_x, _ = self._find_cursor(bar_img, hsv_img)
+            target_x, _ = self._find_target(bar_img, hsv_img)
+            if self._battle_bars_visible(cursor_x, target_x):
+                self._log("[WAITING] Battle bars visible, entering fight.")
+                self._enter_struggling(press_hook=False)
+                return
+            if self._spam_cast_if_due():
+                return
+
+        poll = self.cfg.timing.waiting_poll_interval
+        if self.cfg.humanization.enabled:
+            poll = sample_timing(poll, self.cfg.humanization, minimum=0.005)
+        self._stop_event.wait(timeout=poll)
 
     def _handle_struggling(self) -> None:
-        if self.sm.time_in_state > self.cfg.timing.max_struggle_secs:
+        if (
+            self.sm.time_in_state > self.cfg.timing.max_struggle_secs
+            and not self._battle_visible
+        ):
             self._log(
                 f"[STRUGGLING] Max duration ({self.cfg.timing.max_struggle_secs}s) reached, ending.",
                 logging.WARNING,
@@ -688,24 +777,8 @@ class NTEFishingBot:
         bar_img = self._grab(self._roi_bar)
         hsv_img = self.vision.to_hsv(bar_img)
 
-        cursor_x, _ = self.vision.get_hsv_centroid_x(
-            bar_img,
-            self.cfg.hsv.cursor.lower,
-            self.cfg.hsv.cursor.upper,
-            min_area=self._scaled_min_area,
-            ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
-            last_known_x=self._cursor_x_rel,
-            hsv_img=hsv_img,
-        )
-        target_x, _ = self.vision.get_hsv_centroid_x(
-            bar_img,
-            self.cfg.hsv.safe_zone.lower,
-            self.cfg.hsv.safe_zone.upper,
-            min_area=self._scaled_min_area,
-            ignore_margin_ratio=0.0,
-            last_known_x=self._target_x_rel,
-            hsv_img=hsv_img,
-        )
+        cursor_x, _ = self._find_cursor(bar_img, hsv_img, self._cursor_x_rel)
+        target_x, _ = self._find_target(bar_img, hsv_img, self._target_x_rel)
 
         self._cursor_x_rel = cursor_x
         self._target_x_rel = target_x
@@ -714,8 +787,12 @@ class NTEFishingBot:
         action = "NONE"
         error = 0.0
 
-        if cursor_x is not None and target_x is not None:
+        self._battle_visible = self._battle_bars_visible(cursor_x, target_x)
+        if self._battle_visible:
             self._bar_detected_in_struggle = True
+            self._battle_absent_frames = 0
+        else:
+            self._battle_absent_frames += 1
 
         if cursor_x is not None and target_x is not None:
             self.pid.update_params(
@@ -985,22 +1062,17 @@ class NTEFishingBot:
             except Exception:
                 log.debug("Failed to append debug CSV row.", exc_info=True)
 
-        if self._lost_frames >= self.cfg.timing.lost_frames_threshold:
-            missing = []
-            if cursor_x is None:
-                missing.append("Cursor")
-            if target_x is None:
-                missing.append("Safe zone")
+        if self._battle_absent_frames >= self.cfg.timing.lost_frames_threshold:
             self._log(
-                f"[STRUGGLING] Lost track of {', '.join(missing)} "
-                f"for too long ({self._lost_frames} frames)."
+                "[STRUGGLING] Battle bars gone "
+                f"for {self._battle_absent_frames} frames."
             )
             self.input.release_all()
             if self._bar_detected_in_struggle:
                 self.sm.transition(FishingState.RESULT)
             else:
                 self._log(
-                    "[STRUGGLING] Never saw both bar elements — "
+                    "[STRUGGLING] Never saw the battle bars — "
                     "assuming false hook, returning to hit wait.",
                     logging.WARNING,
                 )
@@ -1074,21 +1146,9 @@ class NTEFishingBot:
         # STRUGGLING → RESULT transition was premature (tracking was
         # temporarily lost). Release keys and go back to IDLE to recast.
         bar_img = self._grab(self._roi_bar)
-        cur_x, _ = self.vision.get_hsv_centroid_x(
-            bar_img,
-            self.cfg.hsv.cursor.lower,
-            self.cfg.hsv.cursor.upper,
-            min_area=self._scaled_min_area,
-            ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
-        )
-        tgt_x, _ = self.vision.get_hsv_centroid_x(
-            bar_img,
-            self.cfg.hsv.safe_zone.lower,
-            self.cfg.hsv.safe_zone.upper,
-            min_area=self._scaled_min_area,
-            ignore_margin_ratio=0.0,
-        )
-        if cur_x is not None or tgt_x is not None:
+        cur_x, _ = self._find_cursor(bar_img)
+        tgt_x, _ = self._find_target(bar_img)
+        if self._battle_bars_visible(cur_x, tgt_x):
             self._log(
                 "[RESULT] Mini-game still active (bar elements detected) — "
                 "recovering to IDLE.",
@@ -1109,6 +1169,10 @@ class NTEFishingBot:
     def _dismiss_result(self) -> None:
         """Dismiss the result screen by clicking or pressing the exit key."""
         if self._stop_flag:
+            return
+
+        if self.cfg.spam_cast_enabled:
+            # The cast-key spam while waiting closes the result screen.
             return
 
         if self.cfg.result_close_method == "click":

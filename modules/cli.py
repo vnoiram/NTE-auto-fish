@@ -265,6 +265,11 @@ def _interactive_edit_config() -> None:
             "Other",
             [
                 ("min_blue_pixels", "Min blue pixels"),
+                ("battle_detect_cursor", "Battle detect: cursor bar (true/false)"),
+                ("battle_detect_safe_zone", "Battle detect: safe zone bar (true/false)"),
+                ("spam_cast_enabled", "Spam cast key while waiting (true/false)"),
+                ("spam_cast_interval_min", "Spam interval min (s)"),
+                ("spam_cast_interval_max", "Spam interval max (s)"),
                 ("result_close_method", "Result close (click/esc)"),
                 ("debug_mode", "Debug mode (true/false)"),
             ],

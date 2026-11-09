@@ -49,12 +49,12 @@ class TestFishingDetection(unittest.TestCase):
         bot.vision.get_hsv_centroid_x.assert_not_called()
         bot._enter_struggling.assert_not_called()
 
-    def test_struggling_returns_to_waiting_without_a_complete_bar(self):
+    def _make_struggling_bot(self, detections, threshold=2):
         bot = NTEFishingBot.__new__(NTEFishingBot)
         bot.cfg = AppConfig()
         bot.cfg.humanization.enabled = False
         bot.cfg.debug_mode = False
-        bot.cfg.timing.lost_frames_threshold = 2
+        bot.cfg.timing.lost_frames_threshold = threshold
         bot.sm = MagicMock()
         bot.sm.time_in_state = 0.0
         bot._roi_bar = {"width": 400, "height": 100}
@@ -62,15 +62,16 @@ class TestFishingDetection(unittest.TestCase):
         bot._grab = MagicMock(return_value=object())
         bot.vision = MagicMock()
         bot.vision.to_hsv.return_value = object()
-        bot.vision.get_hsv_centroid_x.side_effect = [
-            (100, None),
-            (None, None),
-            (None, None),
-            (200, None),
-        ]
+        # one (cursor, target) pair per frame; cursor is queried first
+        flat = []
+        for cursor, target in detections:
+            flat += [(cursor, None), (target, None)]
+        bot.vision.get_hsv_centroid_x.side_effect = flat
         bot.input = MagicMock()
         bot._stop_event = MagicMock()
         bot._bar_detected_in_struggle = False
+        bot._battle_visible = False
+        bot._battle_absent_frames = 0
         bot._lost_frames = 0
         bot._lost_cursor_frames = 0
         bot._lost_target_frames = 0
@@ -78,16 +79,103 @@ class TestFishingDetection(unittest.TestCase):
         bot._target_x_rel = None
         bot._last_pid_out = 0.0
         bot._log = MagicMock()
+        bot.pid = MagicMock()
+        bot.pid.update.return_value = 0.0
+        bot._hum_target_action = "NONE"
+        bot._hum_reaction_end = 0.0
+        bot._last_action = "NONE"
+        bot._hum_pulse_state = "IDLE"
+        return bot
+
+    def test_struggling_returns_to_waiting_if_no_bar_was_ever_seen(self):
+        bot = self._make_struggling_bot([(None, None), (None, None)])
+        bot._enter_waiting = MagicMock()
 
         bot._handle_struggling()
-        bot.sm.transition.assert_not_called()
-
+        bot._enter_waiting.assert_not_called()
         bot._handle_struggling()
 
         self.assertFalse(bot._bar_detected_in_struggle)
-        self.assertEqual(bot._lost_frames, 2)
-        bot.input.release_all.assert_called()
-        bot.sm.transition.assert_called_once_with(FishingState.WAITING)
+        bot._enter_waiting.assert_called_once_with()
+
+    def test_struggling_stays_while_any_selected_bar_is_visible(self):
+        # only the cursor is visible for many frames: no transition at all
+        bot = self._make_struggling_bot([(100, None)] * 5)
+        for _ in range(5):
+            bot._handle_struggling()
+        bot.sm.transition.assert_not_called()
+        self.assertTrue(bot._bar_detected_in_struggle)
+
+    def test_struggling_ignores_bar_that_is_not_selected(self):
+        bot = self._make_struggling_bot([(100, None), (100, None)])
+        bot.cfg.battle_detect_cursor = False
+        bot.cfg.battle_detect_safe_zone = True
+        bot._enter_waiting = MagicMock()
+        bot._handle_struggling()
+        bot._handle_struggling()
+        bot._enter_waiting.assert_called_once_with()
+
+    def test_struggling_goes_to_result_after_bars_disappear(self):
+        bot = self._make_struggling_bot([(100, 150), (None, None), (None, None)])
+        bot._handle_struggling()
+        bot._handle_struggling()
+        bot.sm.transition.assert_not_called()
+        bot._handle_struggling()
+        bot.sm.transition.assert_called_once_with(FishingState.RESULT)
+
+    def test_max_struggle_does_not_end_battle_while_bars_visible(self):
+        bot = self._make_struggling_bot([(100, 150), (100, 150)])
+        bot._handle_struggling()
+        bot.sm.time_in_state = bot.cfg.timing.max_struggle_secs + 1
+        bot._handle_struggling()
+        bot.sm.transition.assert_not_called()
+
+
+class TestSpamCast(unittest.TestCase):
+    def _make_bot(self, error):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.humanization.enabled = False
+        bot.cfg.spam_cast_enabled = True
+        bot._next_spam_at = 0.0
+        bot._roi_error = {"width": 1}
+        bot._scaled_error_white_min = 1
+        bot._grab = MagicMock(return_value=object())
+        bot.vision = MagicMock()
+        bot.vision.check_error_region.return_value = error
+        bot.input = MagicMock()
+        bot._stop_event = MagicMock()
+        bot._log = MagicMock()
+        bot.request_stop = MagicMock()
+        bot._push_status = MagicMock()
+        return bot
+
+    def test_disabled_does_not_press(self):
+        bot = self._make_bot(False)
+        bot.cfg.spam_cast_enabled = False
+        self.assertFalse(bot._spam_cast_if_due())
+        bot.input.press.assert_not_called()
+
+    def test_presses_then_waits_for_next_interval(self):
+        bot = self._make_bot(False)
+        self.assertFalse(bot._spam_cast_if_due())
+        self.assertEqual(bot.input.press.call_count, 1)
+        self.assertFalse(bot._spam_cast_if_due())
+        self.assertEqual(bot.input.press.call_count, 1)
+
+    def test_stops_when_bait_is_exhausted(self):
+        bot = self._make_bot(True)
+        self.assertTrue(bot._spam_cast_if_due())
+        bot.request_stop.assert_called_once_with()
+
+    def test_waiting_enters_fight_when_bars_visible_while_spamming(self):
+        bot = TestFishingDetection()._make_waiting_bot(False)
+        bot.cfg.spam_cast_enabled = True
+        bot._roi_bar = {"width": 100, "height": 100}
+        bot._scaled_min_area = 1
+        bot.vision.get_hsv_centroid_x.return_value = (50, 0.0)
+        bot._handle_waiting()
+        bot._enter_struggling.assert_called_once_with(press_hook=False)
 
 
 class TestDeadbandPlaySelection(unittest.TestCase):

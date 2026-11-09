@@ -54,6 +54,17 @@ class TestBranding(unittest.TestCase):
 
 
 class TestWindowsBuildScript(unittest.TestCase):
+    def test_windows_sandbox_build_scripts_are_present(self):
+        host_script = ROOT / "scripts" / "build_with_windows_sandbox.ps1"
+        guest_script = ROOT / "scripts" / "build_in_windows_sandbox.ps1"
+        wsl_script = ROOT / "scripts" / "build-with-windows-sandbox.sh"
+
+        self.assertTrue(host_script.is_file())
+        self.assertTrue(guest_script.is_file())
+        self.assertTrue(wsl_script.is_file())
+        self.assertIn("<ReadOnly>true</ReadOnly>", host_script.read_text(encoding="utf-8"))
+        self.assertIn("build_windows.py", guest_script.read_text(encoding="utf-8"))
+
     def test_app_name_validation_rejects_control_characters(self):
         with self.assertRaises(ValueError):
             validate_app_name("Bad\nName")

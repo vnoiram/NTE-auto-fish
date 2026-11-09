@@ -207,7 +207,7 @@ def main() -> int:
     if os.name != "nt":
         print(
             "error: the application is Windows-only and PyInstaller is not a cross-compiler; "
-            "run scripts/build-from-linux.sh from Linux instead",
+            "use scripts/build-from-linux.sh or scripts/build_with_windows_sandbox.ps1 instead",
             file=sys.stderr,
         )
         return 2

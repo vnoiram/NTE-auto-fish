@@ -97,6 +97,30 @@ Branded builds also namespace their settings, log, debug CSV, and session direct
 so multiple builds can run from the same directory without overwriting each other's runtime data. Unbranded source
 runs retain the legacy filenames.
 
+### Build locally in Windows Sandbox
+
+For a fully local build without GitHub Actions, enable Windows Sandbox and run this from Windows PowerShell:
+
+```powershell
+# Run once as Administrator, then restart Windows if prompted.
+Enable-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClientVM" -All
+
+# Run from the repository on subsequent builds.
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_with_windows_sandbox.ps1 -AppName "Fishing Tools" -Icon random
+```
+
+From WSL, the equivalent local command is:
+
+```bash
+./scripts/build-with-windows-sandbox.sh -AppName "Fishing Tools" -Icon random
+```
+
+The script stages a temporary read-only copy of the source, starts Windows Sandbox, installs Python and the build
+dependencies inside it, and copies only the resulting EXE to `dist\sandbox`. Python installers and pip downloads are
+cached under the current user's local application data to make later builds faster. The temporary Sandbox and staged
+source are discarded after each build. A custom output directory, stable build ID, or named built-in icon can be set
+with `-OutputDirectory`, `-BuildId`, and `-Icon`. Build details and failures are retained in `sandbox-build.log`.
+
 ## Notes
 
 - Run from an elevated terminal on Windows.

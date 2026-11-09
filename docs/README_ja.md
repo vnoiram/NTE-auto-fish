@@ -94,6 +94,30 @@ Windows 上で直接ビルドする場合は
 ブランド付きビルドでは設定・ログ・デバッグCSV・セッション保存先にもアプリ名とビルドIDを付けるため、
 同じフォルダに複数のビルドを置いても実行時データが上書きされません。ソースからの通常実行は従来名を維持します。
 
+### Windows Sandboxでローカルビルド
+
+GitHub Actionsを使わず手元だけでビルドする場合は、Windows Sandboxを有効にしてWindows PowerShellから実行します。
+
+```powershell
+# 初回のみ管理者PowerShellで実行し、求められた場合はWindowsを再起動します。
+Enable-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClientVM" -All
+
+# 以降はリポジトリから実行します。
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_with_windows_sandbox.ps1 -AppName "Fishing Tools" -Icon random
+```
+
+WSLから起動する場合も、GitHubを経由せず次のコマンドで同じローカルビルドを実行できます。
+
+```bash
+./scripts/build-with-windows-sandbox.sh -AppName "Fishing Tools" -Icon random
+```
+
+ソースの一時コピーはSandboxへ読み取り専用で共有され、Python・依存関係・PyInstallerはSandbox内へ導入されます。
+完成したEXEだけが `dist\sandbox` に戻り、Sandboxと一時コピーはビルド後に破棄されます。2回目以降を速くするため、
+Pythonインストーラーとpipのダウンロードだけはユーザーのローカルアプリデータへキャッシュします。
+`-OutputDirectory`、`-BuildId`、`-Icon` で出力先、固定ID、アイコンを指定できます。ビルド詳細や失敗内容は
+`sandbox-build.log` に残ります。
+
 ## 注意
 
 - Windows では管理者権限のターミナルから実行することを推奨します。

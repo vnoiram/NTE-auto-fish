@@ -36,14 +36,14 @@ def _validate_hsv_triplet(key: str, value):
     return tuple(out)
 
 
-def _coerce_setting(current, value):
+def _coerce_setting(current, value, allow_negative=False):
     """Validate a loaded value against the type of the current default; _INVALID if unusable."""
     if isinstance(current, bool):
         return value if isinstance(value, bool) else _INVALID
     if isinstance(current, (int, float)):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return _INVALID
-        if not math.isfinite(value) or value < 0:
+        if not math.isfinite(value) or (value < 0 and not allow_negative):
             return _INVALID
         return int(value) if isinstance(current, int) else float(value)
     if isinstance(current, str):
@@ -111,6 +111,14 @@ class RoiConfig:
         }
     )
     ignore_margin_ratio: float = 0.02
+    # Manual corrections (pixels at the current resolution) when the game UI does not
+    # sit where the ratio-based areas expect (windowed mode, other aspect ratios).
+    bar_offset_x: int = 0
+    bar_offset_y: int = 0
+    bar_width_delta: int = 0
+    bar_height_delta: int = 0
+    button_offset_x: int = 0
+    button_offset_y: int = 0
 
 
 @dataclass
@@ -293,7 +301,11 @@ class AppConfig:
                     elif obj is self and key == "language":
                         value = value if value in SUPPORTED_LANGUAGES else _INVALID
                     else:
-                        value = _coerce_setting(attr, value)
+                        value = _coerce_setting(
+                            attr,
+                            value,
+                            allow_negative=key.endswith(("_offset_x", "_offset_y", "_delta")),
+                        )
                     if value is _INVALID:
                         log.warning("Ignoring invalid setting %s=%r", name, values[key])
                         continue

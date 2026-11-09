@@ -865,6 +865,29 @@ def _build_vision_settings(bridge: BotBridge):
             default=CFG.roi.ignore_margin_ratio,
             cb=lambda s, d: _set(CFG.roi, "ignore_margin_ratio", d),
         )
+        dpg.add_spacer(height=int(8 * _s))
+        dpg.add_text(tr("Scan area adjustment"), color=TEXT_MUTED)
+        caption_text(
+            "Shift the bar and bite areas (pixels) if the tracker preview shows "
+            "the wrong place, e.g. windowed mode or a different aspect ratio."
+        )
+        for label, tag, attr, lim in (
+            ("Bar area X offset", "cfg_roi_bar_x", "bar_offset_x", 600),
+            ("Bar area Y offset", "cfg_roi_bar_y", "bar_offset_y", 600),
+            ("Bar area width change", "cfg_roi_bar_w", "bar_width_delta", 800),
+            ("Bar area height change", "cfg_roi_bar_h", "bar_height_delta", 200),
+            ("Bite area X offset", "cfg_roi_btn_x", "button_offset_x", 600),
+            ("Bite area Y offset", "cfg_roi_btn_y", "button_offset_y", 600),
+        ):
+            dpg.add_slider_int(
+                label=tr(label),
+                tag=tag,
+                min_value=-lim,
+                max_value=lim,
+                width=-int(180 * _s),
+                default_value=getattr(CFG.roi, attr),
+                callback=lambda s, d, a=attr: setattr(CFG.roi, a, int(d)),
+            )
         _input_with_tooltip(
             "Blue pixel trigger",
             tag="cfg_min_blue",
@@ -2187,6 +2210,15 @@ def update_settings_ui(bridge: BotBridge):
     update_hsv_preview("cfg_hsv_bl", CFG.hsv.blue)
     dpg.set_value("cfg_roi_ignore_margin", CFG.roi.ignore_margin_ratio)
     dpg.set_value("cfg_min_blue", CFG.min_blue_pixels)
+    for _tag, _attr in (
+        ("cfg_roi_bar_x", "bar_offset_x"),
+        ("cfg_roi_bar_y", "bar_offset_y"),
+        ("cfg_roi_bar_w", "bar_width_delta"),
+        ("cfg_roi_bar_h", "bar_height_delta"),
+        ("cfg_roi_btn_x", "button_offset_x"),
+        ("cfg_roi_btn_y", "button_offset_y"),
+    ):
+        dpg.set_value(_tag, getattr(CFG.roi, _attr))
     dpg.set_value("cfg_battle_cursor", CFG.battle_detect_cursor)
     dpg.set_value("cfg_battle_safe_zone", CFG.battle_detect_safe_zone)
     dpg.set_value("cfg_spam_cast", CFG.spam_cast_enabled)

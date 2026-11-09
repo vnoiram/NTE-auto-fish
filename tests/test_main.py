@@ -44,7 +44,7 @@ class TestFishingDetection(unittest.TestCase):
         bot.sm.state = state
         bot._roi_bar = {"width": 100, "height": 100}
         bot._scaled_min_area = 1
-        bot.vision.get_hsv_centroid_x.side_effect = [(cursor, 0.0), (target, 0.0)]
+        bot.vision.get_hsv_centroid_x.side_effect = [(cursor, 0.0), (target, 0.0)] * 3
         bot._push_status = MagicMock()
         bot._handle_waiting = MagicMock()
         bot._handle_idle = MagicMock()
@@ -54,20 +54,36 @@ class TestFishingDetection(unittest.TestCase):
     def test_tick_enters_struggling_when_all_selected_bars_are_visible(self):
         for state in (FishingState.IDLE, FishingState.WAITING, FishingState.RESULT):
             bot = self._make_tick_bot(state, 100, 150)
-            bot._tick()
+            for _ in range(3):
+                bot._tick()
             bot._enter_struggling.assert_called_once_with(press_hook=False)
-            bot._handle_waiting.assert_not_called()
+
+    def test_tick_needs_consecutive_frames_before_entering(self):
+        bot = self._make_tick_bot(FishingState.IDLE, 100, 150)
+        bot._tick()
+        bot._tick()
+        bot._enter_struggling.assert_not_called()
+
+    def test_bite_prompt_wins_over_bar_scan_while_waiting(self):
+        bot = self._make_tick_bot(FishingState.WAITING, 100, 150)
+        bot._handle_waiting = MagicMock(
+            side_effect=lambda: setattr(bot.sm, "state", FishingState.STRUGGLING)
+        )
+        bot._tick()
+        bot._enter_struggling.assert_not_called()
+        bot.vision.get_hsv_centroid_x.assert_not_called()
 
     def test_tick_needs_every_selected_bar_to_enter(self):
         bot = self._make_tick_bot(FishingState.WAITING, 100, None)
-        bot._tick()
+        for _ in range(3):
+            bot._tick()
         bot._enter_struggling.assert_not_called()
-        bot._handle_waiting.assert_called_once_with()
 
     def test_tick_enters_with_only_the_selected_bar(self):
         bot = self._make_tick_bot(FishingState.WAITING, 100, None)
         bot.cfg.battle_detect_safe_zone = False
-        bot._tick()
+        for _ in range(3):
+            bot._tick()
         bot._enter_struggling.assert_called_once_with(press_hook=False)
 
     def _make_struggling_bot(self, detections, threshold=2):
@@ -150,6 +166,13 @@ class TestFishingDetection(unittest.TestCase):
         bot.sm.time_in_state = bot.cfg.timing.max_struggle_secs + 1
         bot._handle_struggling()
         bot.sm.transition.assert_not_called()
+
+    def test_max_struggle_still_ends_a_never_ending_false_match(self):
+        bot = self._make_struggling_bot([(100, 150)])
+        bot.sm.time_in_state = bot.cfg.timing.max_struggle_secs * 2 + 1
+        bot._battle_visible = True
+        bot._handle_struggling()
+        bot.sm.transition.assert_called_once_with(FishingState.RESULT)
 
 
 class TestSpamCast(unittest.TestCase):
@@ -266,6 +289,43 @@ class TestGaugeAssistStep(unittest.TestCase):
         bot.cfg.gauge_assist_enabled = False
         bot._gauge_assist_step(np.zeros((10, 10, 3), np.uint8), None, None)
         self.assertEqual(bot._assist.samples, 0)
+
+
+class TestRoiOffsets(unittest.TestCase):
+    def _bot(self):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot._log = MagicMock()
+        bot._roi_bar_base = {"left": 100, "top": 50, "width": 1000, "height": 60}
+        bot._roi_button_base = {"left": 3000, "top": 1700, "width": 400, "height": 300}
+        bot._roi_offsets_applied = None
+        return bot
+
+    def test_offsets_shift_and_resize_areas(self):
+        bot = self._bot()
+        bot.cfg.roi.bar_offset_y = -20
+        bot.cfg.roi.bar_width_delta = 50
+        bot.cfg.roi.button_offset_x = 15
+        bot._apply_roi_offsets()
+        self.assertEqual(bot._roi_bar, {"left": 100, "top": 30, "width": 1050, "height": 60})
+        self.assertEqual(bot._roi_button["left"], 3015)
+
+    def test_zero_offsets_keep_base_and_negative_values_load(self):
+        import json
+        import os
+        import tempfile
+
+        bot = self._bot()
+        bot._apply_roi_offsets()
+        self.assertEqual(bot._roi_bar["top"], 50)
+        cfg = AppConfig()
+        cfg.roi.bar_offset_y = -35
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "s.json")
+            cfg.save(path)
+            loaded = AppConfig()
+            loaded.load(path)
+        self.assertEqual(loaded.roi.bar_offset_y, -35)
 
 
 class TestDeadbandPlaySelection(unittest.TestCase):

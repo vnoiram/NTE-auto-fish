@@ -57,6 +57,7 @@ _RNG = SystemRandom()
 _BG_SAMPLE_INTERVAL_SECS = 1.0
 _PROFILE_CHECK_INTERVAL_SECS = 5.0
 _PREVIEW_INTERVAL_SECS = 0.2
+_BAR_ENTER_FRAMES = 3  # consecutive frames with all selected bars before a fight starts
 _ASSIST_WINDOW_SECS = 2.0
 _PROFILE_MIN_SAMPLES = 3
 _DEFAULT_SCREEN_W = 3840
@@ -367,6 +368,39 @@ class NTEFishingBot:
 
         return monitors[index]
 
+    def _apply_roi_offsets(self) -> None:
+        """Apply the manual area corrections from the settings to the base areas."""
+        base_bar = getattr(self, "_roi_bar_base", None)
+        base_button = getattr(self, "_roi_button_base", None)
+        if base_bar is None or base_button is None:
+            return
+        r = self.cfg.roi
+        key = (
+            r.bar_offset_x,
+            r.bar_offset_y,
+            r.bar_width_delta,
+            r.bar_height_delta,
+            r.button_offset_x,
+            r.button_offset_y,
+        )
+        if key == getattr(self, "_roi_offsets_applied", None):
+            return
+        self._roi_offsets_applied = key
+        self._roi_bar = {
+            "left": base_bar["left"] + r.bar_offset_x,
+            "top": base_bar["top"] + r.bar_offset_y,
+            "width": max(8, base_bar["width"] + r.bar_width_delta),
+            "height": max(4, base_bar["height"] + r.bar_height_delta),
+        }
+        self._roi_button = {
+            "left": base_button["left"] + r.button_offset_x,
+            "top": base_button["top"] + r.button_offset_y,
+            "width": base_button["width"],
+            "height": base_button["height"],
+        }
+        if any(key):
+            self._log(f"[Calibration] Area offsets applied: bar={self._roi_bar} button={self._roi_button}")
+
     def _offset_roi(self, roi: dict) -> dict:
         """Shift a monitor-local ROI to screen-absolute coordinates."""
         return {
@@ -455,6 +489,11 @@ class NTEFishingBot:
             }
         )
         self._log(f"[Calibration] Button ROI -> {self._roi_button}")
+
+        self._roi_bar_base = dict(self._roi_bar)
+        self._roi_button_base = dict(self._roi_button)
+        self._roi_offsets_applied = None
+        self._apply_roi_offsets()
 
         self._load_error_roi()
 
@@ -568,32 +607,51 @@ class NTEFishingBot:
 
     def _tick(self) -> None:
         """Run one iteration of the control loop."""
+        self._apply_roi_offsets()
         state = self.sm.state
 
-        # Priority 1: the battle bars are on screen in any non-fight state, so
-        # a fight is running (even if the bite prompt was missed).
-        if state is not FishingState.STRUGGLING and self._roi_bar:
-            bar_img = self._grab(self._roi_bar)
-            hsv_img = self.vision.to_hsv(bar_img)
-            cursor_x, _ = self._find_cursor(bar_img, hsv_img)
-            target_x, _ = self._find_target(bar_img, hsv_img)
-            self._publish_bar_preview(bar_img, cursor_x, target_x)
-            if self._battle_bars_all_visible(cursor_x, target_x):
-                self._log(f"[{state.value}] Battle bars detected -> STRUGGLING.")
-                self._enter_struggling(press_hook=False)
-                self._push_status()
-                return
-            if state is FishingState.WAITING:
-                self._sample_background(bar_img, cursor_x, target_x)
+        # Battle bars on screen mean a fight is running even if the bite prompt was
+        # missed. IDLE/RESULT are scanned before their handlers; WAITING after its
+        # handler so the bite prompt always wins and a false bar match cannot
+        # pre-empt the normal hook.
+        if state in (FishingState.IDLE, FishingState.RESULT) and self._scan_battle_bars(
+            state
+        ):
+            return
 
         if state is FishingState.IDLE:
             self._handle_idle()
         elif state is FishingState.WAITING:
             self._handle_waiting()
+            if self.sm.state is FishingState.WAITING:
+                self._scan_battle_bars(state)
         elif state is FishingState.STRUGGLING:
             self._handle_struggling()
         elif state is FishingState.RESULT:
             self._handle_result()
+
+    def _scan_battle_bars(self, state: FishingState) -> bool:
+        """Enter the fight after the selected bars were seen on consecutive frames."""
+        if not self._roi_bar:
+            return False
+        bar_img = self._grab(self._roi_bar)
+        hsv_img = self.vision.to_hsv(bar_img)
+        cursor_x, _ = self._find_cursor(bar_img, hsv_img)
+        target_x, _ = self._find_target(bar_img, hsv_img)
+        self._publish_bar_preview(bar_img, cursor_x, target_x)
+        if not self._battle_bars_all_visible(cursor_x, target_x):
+            self._bar_streak = 0
+            if state is FishingState.WAITING:
+                self._sample_background(bar_img, cursor_x, target_x)
+            return False
+        self._bar_streak = getattr(self, "_bar_streak", 0) + 1
+        if self._bar_streak < _BAR_ENTER_FRAMES:
+            return False
+        self._bar_streak = 0
+        self._log(f"[{state.value}] Battle bars detected -> STRUGGLING.")
+        self._enter_struggling(press_hook=False)
+        self._push_status()
+        return True
 
     def _find_cursor(self, bar_img, hsv_img=None, last_x=None):
         return self.vision.get_hsv_centroid_x(
@@ -645,6 +703,7 @@ class NTEFishingBot:
         self._bar_detected_in_struggle = False
         self._battle_visible = False
         self._battle_absent_frames = 0
+        self._bar_streak = 0
         self._assist_done = False
         self._reset_humanization_state()
 
@@ -921,7 +980,12 @@ class NTEFishingBot:
     def _handle_struggling(self) -> None:
         if (
             self.sm.time_in_state > self.cfg.timing.max_struggle_secs
-            and not self._battle_visible
+            # bars on screen keep the fight going, up to twice the limit as a
+            # last resort against a false match that would never end
+            and (
+                not self._battle_visible
+                or self.sm.time_in_state > 2 * self.cfg.timing.max_struggle_secs
+            )
         ):
             self._log(
                 f"[STRUGGLING] Max duration ({self.cfg.timing.max_struggle_secs}s) reached, ending.",

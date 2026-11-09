@@ -379,6 +379,14 @@ class NTEFishingBot:
             self._log("Bot paused by user.")
         elif cmd == "resume":
             if not self._is_stopped:
+                if self.cfg.monitor_index != getattr(
+                    self, "_calibrated_monitor", self.cfg.monitor_index
+                ):
+                    # The game monitor was changed while paused: measure again.
+                    self._log("[Calibration] Monitor changed; recalibrating.")
+                    self.calibrate()
+                    if self._stop_flag:
+                        return
                 self._bait_error_count = 0
                 self._is_paused = False
                 self._start_delay_pending = True
@@ -495,6 +503,7 @@ class NTEFishingBot:
         self._log("[Calibration] Capturing full screen...")
 
         mon = self.get_active_monitor()
+        self._calibrated_monitor = self.cfg.monitor_index
 
         region = {
             "left": mon.x,

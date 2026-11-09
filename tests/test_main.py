@@ -486,3 +486,37 @@ class RunLimitTest(unittest.TestCase):
         self.assertFalse(bot._run_time_limit_reached())
         bot._time_limit_until = 101.0
         self.assertFalse(bot._run_time_limit_reached())
+
+
+class MonitorChangeResumeTest(unittest.TestCase):
+    def test_resume_recalibrates_when_the_monitor_changed(self):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.monitor_index = 1
+        bot._calibrated_monitor = 0
+        bot._is_stopped = False
+        bot._is_paused = True
+        bot._stop_flag = False
+        bot._start_delay_pending = False
+        bot._bait_error_count = 0
+        bot._session_manager = MagicMock()
+        bot._log = MagicMock()
+        bot.calibrate = MagicMock()
+        bot._handle_command("resume")
+        bot.calibrate.assert_called_once()
+        self.assertFalse(bot._is_paused)
+
+    def test_resume_skips_calibration_when_unchanged(self):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot._calibrated_monitor = bot.cfg.monitor_index
+        bot._is_stopped = False
+        bot._is_paused = True
+        bot._stop_flag = False
+        bot._start_delay_pending = False
+        bot._bait_error_count = 0
+        bot._session_manager = MagicMock()
+        bot._log = MagicMock()
+        bot.calibrate = MagicMock()
+        bot._handle_command("resume")
+        bot.calibrate.assert_not_called()

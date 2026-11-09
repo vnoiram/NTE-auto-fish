@@ -3,7 +3,7 @@ import unittest
 import cv2
 import numpy as np
 
-from modules.calibration import suggest_bite, suggest_gauge
+from modules.calibration import describe, suggest_bite, suggest_gauge
 
 
 def _bgr(h: int, s: int, v: int) -> tuple[int, int, int]:
@@ -42,6 +42,15 @@ class TestCalibration(unittest.TestCase):
         safe, cursor = suggest_gauge(img)
         self.assertIsNotNone(safe)
         self.assertIsNone(cursor)
+
+    def test_gauge_relaxes_thresholds_for_dull_colours(self):
+        img = np.full((40, 200, 3), 20, np.uint8)
+        img[:, 40:140] = _bgr(88, 45, 90)  # low saturation / brightness
+        safe, _ = suggest_gauge(img)
+        self.assertIsNotNone(safe)
+
+    def test_describe_reports_size(self):
+        self.assertIn("200x40", describe(np.zeros((40, 200, 3), np.uint8)))
 
 
 if __name__ == "__main__":

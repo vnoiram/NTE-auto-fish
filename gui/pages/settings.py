@@ -585,7 +585,7 @@ def _start_calibration(kind: str, bridge: BotBridge) -> None:
 
 
 def _run_calibration(kind: str, roi: dict, scale_sq: float) -> None:
-    from modules.calibration import suggest_bite, suggest_gauge
+    from modules.calibration import describe, suggest_bite, suggest_gauge
     from modules.io_module import CaptureModule
 
     capture = CaptureModule()
@@ -594,10 +594,16 @@ def _run_calibration(kind: str, roi: dict, scale_sq: float) -> None:
             _cal_text(kind, tr("Measuring in {n}s...").format(n=left))
             time.sleep(1.0)
         img = capture.grab_bgr(roi)
+        log.info("[Calibration] %s area: %s", kind, describe(img))
         if kind == "bite":
             sug = suggest_bite(img)
             if sug is None:
-                _cal_text(kind, tr("No matching color found. Is the prompt visible?"))
+                _cal_text(
+                    kind,
+                    tr("No matching color found. Is the prompt visible?")
+                    + "\n"
+                    + describe(img),
+                )
                 return
             min_px = max(1, int(sug.pixels * 0.5 / max(scale_sq, 1e-6)))
             _cal_pending["bite"] = (sug, min_px)
@@ -609,7 +615,12 @@ def _run_calibration(kind: str, roi: dict, scale_sq: float) -> None:
         else:
             safe, cursor = suggest_gauge(img)
             if safe is None and cursor is None:
-                _cal_text(kind, tr("No matching color found. Is the gauge visible?"))
+                _cal_text(
+                    kind,
+                    tr("No matching color found. Is the gauge visible?")
+                    + "\n"
+                    + describe(img),
+                )
                 return
             _cal_pending["gauge"] = (safe, cursor)
             lines = []

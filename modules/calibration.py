@@ -72,18 +72,45 @@ def suggest_bite(bgr: np.ndarray) -> Suggestion | None:
     return dominant_range(hsv, hue_band=_BLUE_HUE) or dominant_range(hsv)
 
 
+# (min_sat, min_val) pairs tried in order, strict to loose.
+_SAFE_LEVELS = ((80, 120), (50, 80), (30, 50))
+_CURSOR_LEVELS = ((60, 200), (40, 150), (30, 110))
+
+
 def suggest_gauge(bgr: np.ndarray) -> tuple[Suggestion | None, Suggestion | None]:
     """Fishing gauge: (safe_zone, cursor).
 
     The safe zone is the most frequent saturated colour in the gauge. The
     cursor is the brightest remaining colour, excluding the safe-zone hue.
+    Thresholds are relaxed step by step when nothing is found.
     """
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    safe = dominant_range(hsv, min_val=120)
+    safe = None
+    for sat, val in _SAFE_LEVELS:
+        safe = dominant_range(hsv, min_sat=sat, min_val=val)
+        if safe is not None:
+            break
     exclude = None
     if safe is not None:
         exclude = (safe.peak_hue - 2 * _PEAK_RADIUS, safe.peak_hue + 2 * _PEAK_RADIUS)
-    cursor = dominant_range(
-        hsv, min_sat=60, min_val=200, min_pixels=10, exclude_hue=exclude
-    )
+    cursor = None
+    for sat, val in _CURSOR_LEVELS:
+        cursor = dominant_range(
+            hsv, min_sat=sat, min_val=val, min_pixels=10, exclude_hue=exclude
+        )
+        if cursor is not None:
+            break
     return safe, cursor
+
+
+def describe(bgr: np.ndarray) -> str:
+    """Short diagnostic: mean brightness, colourful pixel share and top hues."""
+    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    colourful = (hsv[..., 1] >= 30) & (hsv[..., 2] >= 50)
+    share = float(colourful.mean()) * 100
+    text = f"{bgr.shape[1]}x{bgr.shape[0]}px, V mean {float(hsv[..., 2].mean()):.0f}, colorful {share:.2f}%"
+    if colourful.any():
+        hist = np.bincount(hsv[..., 0][colourful].ravel(), minlength=_HUE_SPAN)
+        top = np.argsort(hist)[::-1][:3]
+        text += ", top H " + "/".join(f"{int(h)}({int(hist[h])})" for h in top if hist[h])
+    return text

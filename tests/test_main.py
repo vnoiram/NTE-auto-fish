@@ -414,3 +414,19 @@ class TestDeadbandPlaySelection(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StartDelayTest(unittest.TestCase):
+    def test_wait_start_delay_uses_the_configured_range_once(self):
+        from unittest.mock import MagicMock, patch
+
+        from config import AppConfig
+
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot._stop_event = MagicMock()
+        bot._log = MagicMock()
+        with patch("main.random.uniform", return_value=2.0) as uni:
+            bot._wait_start_delay()
+        uni.assert_called_once_with(1.4, 2.6)
+        bot._stop_event.wait.assert_called_once_with(timeout=2.0)

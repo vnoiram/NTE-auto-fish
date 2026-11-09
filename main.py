@@ -10,6 +10,7 @@ import json
 import logging
 import logging.handlers
 import os
+import random
 import sys
 import threading
 import time
@@ -186,6 +187,7 @@ class NTEFishingBot:
         self._stop_flag = False
         self._stop_event = threading.Event()
         self._is_stopped = True
+        self._start_delay_pending = False
         self._fps = 0.0
         self._last_time = time.time()
         self._last_action = "NONE"
@@ -253,6 +255,7 @@ class NTEFishingBot:
         self._stop_event.clear()
         self._is_stopped = False
         self._is_paused = paused
+        self._start_delay_pending = not paused
         self.sm = FishingStateMachine()
         self.pid.reset()
         self._fish_count = 0
@@ -359,6 +362,7 @@ class NTEFishingBot:
             if not self._is_stopped:
                 self._bait_error_count = 0
                 self._is_paused = False
+                self._start_delay_pending = True
                 if (
                     self.cfg.fish_logging_enabled
                     and self._session_manager.active_session_id() is None
@@ -610,6 +614,11 @@ class NTEFishingBot:
                     self._stop_event.wait(timeout=0.1)
                     continue
 
+                if self._start_delay_pending:
+                    self._start_delay_pending = False
+                    self._wait_start_delay()
+                    continue
+
                 try:
                     self._tick()
                     capture_failures = 0
@@ -846,6 +855,16 @@ class NTEFishingBot:
             return
         self.sm.transition(FishingState.IDLE)
         self._push_status()
+
+    def _wait_start_delay(self) -> None:
+        """Pause a random moment after start/resume before the first cast."""
+        t = self.cfg.timing
+        lo = max(0.0, min(t.start_delay_min_secs, t.start_delay_max_secs))
+        hi = max(0.0, max(t.start_delay_min_secs, t.start_delay_max_secs))
+        delay = random.uniform(lo, hi)
+        if delay > 0:
+            self._log(f"[Start] Waiting {delay:.1f}s before the first cast.")
+            self._stop_event.wait(timeout=delay)
 
     def _handle_idle(self) -> None:
         self._log("[IDLE] Casting...")

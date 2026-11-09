@@ -137,3 +137,11 @@ class TestAppConfig(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_start_delay_defaults_and_tuned_timing():
+    from config import AppConfig
+
+    t = AppConfig().timing
+    assert (t.start_delay_min_secs, t.start_delay_max_secs) == (1.4, 2.6)
+    assert t.lost_frames_threshold == 20

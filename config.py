@@ -175,13 +175,16 @@ class RoiConfig:
 class TimingConfig:
     cast_animation_secs: float = 1.8
     bite_timeout_secs: float = 45.0
-    lost_frames_threshold: int = 40
+    lost_frames_threshold: int = 20
     result_wait_secs: float = 3.0
-    key_press_duration: float = 0.05
+    key_press_duration: float = 0.55
     waiting_poll_interval: float = 0.05
-    struggling_poll_interval: float = 0.01
+    struggling_poll_interval: float = 0.058
     bait_error_threshold: int = 3
     max_struggle_secs: float = 120.0
+    # Random pause between pressing start/resume and the first cast.
+    start_delay_min_secs: float = 1.4
+    start_delay_max_secs: float = 2.6
 
 
 @dataclass
@@ -196,15 +199,15 @@ class HumanizationConfig:
 
     # Deadband micro-corrections (STRUGGLING)
     deadband_tap_enabled: bool = True
-    deadband_play_battle_chance: float = 0.50
-    deadband_tap_chance: float = 0.30
+    deadband_play_battle_chance: float = 0.06
+    deadband_tap_chance: float = 0.16
     deadband_tap_duration_min: float = 0.015
     deadband_tap_duration_max: float = 0.035
 
     # Reaction latency (STRUGGLING)
     reaction_latency_min: float = 0.06
     reaction_latency_max: float = 0.25
-    reaction_latency_dist: str = "uniform"  # "uniform" / "gaussian" / "exponential"
+    reaction_latency_dist: str = "gaussian"  # "uniform" / "gaussian" / "exponential"
 
     # PID output noise overlay (STRUGGLING)
     pid_noise_enabled: bool = True

@@ -6,6 +6,7 @@ import dearpygui.dearpygui as dpg
 from config import CFG
 from gui.bridge import BotBridge, BotStatus
 from gui.pages import dashboard
+from modules.preview import BAR_SIZE, BUTTON_SIZE
 
 
 class TestPreviewDrag(unittest.TestCase):
@@ -17,6 +18,8 @@ class TestPreviewDrag(unittest.TestCase):
             bar_roi=(100, 50, 1441, 64), button_roi=(3400, 1760, 440, 360)
         )
         self.bridge.preview_active = True
+        self._zoom = CFG.tracker_preview_zoom
+        CFG.tracker_preview_zoom = 1.0
         dashboard.bind_preview_drag(self.bridge)
         self._saved = (
             CFG.roi.bar_offset_x,
@@ -32,6 +35,7 @@ class TestPreviewDrag(unittest.TestCase):
             CFG.roi.button_offset_x,
             CFG.roi.button_offset_y,
         ) = self._saved
+        CFG.tracker_preview_zoom = self._zoom
         dashboard._on_preview_release()
 
     def _drag(self, tag, dx, dy):
@@ -43,19 +47,19 @@ class TestPreviewDrag(unittest.TestCase):
             dashboard._on_preview_drag(None, [0, dx, dy])
 
     def test_dragging_the_bar_preview_moves_the_area_opposite(self):
-        self._drag("pv_bar", 51.2, 0)  # 51.2 shown px = ~144 screen px
+        self._drag("pv_bar", BAR_SIZE[0] / 10, 0)  # a tenth of the width = 144 px
         self.assertEqual(CFG.roi.bar_offset_x, -144)
 
     def test_dragging_the_bite_preview_changes_only_the_bite_offsets(self):
         before = CFG.roi.bar_offset_x
-        self._drag("pv_button", 0, -17.6)  # 360/144 = 2.5 px per shown px
-        self.assertEqual(CFG.roi.button_offset_y, 44)
+        self._drag("pv_button", 0, -BUTTON_SIZE[1] / 8)  # an eighth of the height
+        self.assertEqual(CFG.roi.button_offset_y, 45)
         self.assertEqual(CFG.roi.bar_offset_x, before)
 
     def test_drag_uses_the_pump_geometry_before_the_bot_was_calibrated(self):
         self.bridge._current_status = BotStatus()  # no ROI known yet
         self.bridge.preview["bar_roi"] = (100, 50, 1441, 64)
-        self._drag("pv_bar", 51.2, 0)
+        self._drag("pv_bar", BAR_SIZE[0] / 10, 0)
         self.assertEqual(CFG.roi.bar_offset_x, -144)
         self.bridge.preview["bar_roi"] = None
 
@@ -78,12 +82,17 @@ class TestPreviewDrag(unittest.TestCase):
     def test_drag_is_ignored_while_stopped_unless_the_area_check_is_on(self):
         self.bridge.preview_active = False
         before = CFG.roi.bar_offset_x
-        self._drag("pv_bar", 51.2, 0)
+        self._drag("pv_bar", BAR_SIZE[0] / 10, 0)
         self.assertEqual(CFG.roi.bar_offset_x, before)
         self.bridge._current_status = BotStatus(
             is_stopped=False, bar_roi=(100, 50, 1441, 64)
         )
-        self._drag("pv_bar", 51.2, 0)  # running bot: always adjustable
+        self._drag("pv_bar", BAR_SIZE[0] / 10, 0)  # running bot: always adjustable
+        self.assertEqual(CFG.roi.bar_offset_x, -144)
+
+    def test_zoom_scales_the_drag_distance(self):
+        CFG.tracker_preview_zoom = 2.0  # images shown twice as large
+        self._drag("pv_bar", BAR_SIZE[0] / 5, 0)  # same fraction of the shown image
         self.assertEqual(CFG.roi.bar_offset_x, -144)
 
     def test_drag_outside_a_preview_does_nothing(self):

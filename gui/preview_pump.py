@@ -6,6 +6,7 @@ request. Without it the previews (and dragging them) would need a running bot.
 
 import logging
 import threading
+import time
 
 from screeninfo import get_monitors
 
@@ -17,8 +18,8 @@ from modules.vision import VisionModule
 
 log = logging.getLogger("NTEFish")
 
-_INTERVAL_SECS = 0.4
-_OCR_EVERY_N = 5  # OCR is slow: read the name/weight areas every few iterations
+_INTERVAL_SECS = 0.5
+_OCR_INTERVAL_SECS = 3.0  # OCR is slow and runs in its own thread
 _REFERENCE_W, _REFERENCE_H = 3840, 2160
 
 
@@ -27,9 +28,11 @@ class PreviewPump:
         self._bridge = bridge
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
+        self._ocr_thread = threading.Thread(target=self._run_ocr, daemon=True)
 
     def start(self) -> None:
         self._thread.start()
+        self._ocr_thread.start()
 
     def stop(self) -> None:
         self._stop.set()
@@ -55,25 +58,48 @@ class PreviewPump:
             pv[f"ocr_{key}"] = render(raw, binary)
             pv[f"ocr_{key}_text"] = text
 
+    def _run_ocr(self) -> None:
+        """Read the fish name / weight areas without blocking the other previews."""
+        from modules.io_module import CaptureModule
+        from modules.preview import render_ocr_preview
+
+        capture = CaptureModule()
+        ocr = CatchOcr()
+        try:
+            while not self._stop.wait(_OCR_INTERVAL_SECS):
+                try:
+                    if not self._bridge.latest_status().is_stopped:
+                        continue
+                    if not (self._bridge.preview_active and CFG.tracker_preview_enabled):
+                        continue
+                    monitors = get_monitors()
+                    mon = monitors[max(0, min(CFG.monitor_index, len(monitors) - 1))]
+                    pv = self._bridge.preview
+                    self._read_ocr(ocr, capture, mon, pv, render_ocr_preview)
+                    pv["version"] += 1
+                except Exception:
+                    log.debug("Area check OCR failed.", exc_info=True)
+        finally:
+            capture.close()
+
     def _run(self) -> None:
         from modules.io_module import CaptureModule
         from modules.preview import (
             render_bar_preview,
             render_button_preview,
             render_icon_preview,
-            render_ocr_preview,
         )
 
         capture = CaptureModule()
-        ocr = CatchOcr()
-        tick = 0
+        last_error = ""
         try:
             while not self._stop.wait(_INTERVAL_SECS):
-                tick += 1
+
                 try:
                     if not self._bridge.latest_status().is_stopped:
                         continue  # the running bot publishes its own previews
                     if not self._bridge.preview_active:
+                        last_error = ""
                         continue  # only while the user checks the areas
                     if not CFG.tracker_preview_enabled:
                         continue
@@ -123,10 +149,14 @@ class PreviewPump:
                     pv["icons_text"] = (
                         f"icons {count} (failed cast at >= {CFG.cast_icon_fail_min})"
                     )
-                    if tick % _OCR_EVERY_N == 1:
-                        self._read_ocr(ocr, capture, mon, pv, render_ocr_preview)
+                    pv["pump_status"] = time.strftime("OK %H:%M:%S")
                     pv["version"] += 1
-                except Exception:
-                    log.debug("Preview pump iteration failed.", exc_info=True)
+                except Exception as exc:
+                    message = f"{type(exc).__name__}: {exc}"
+                    if message != last_error:
+                        last_error = message
+                        log.warning("Area check failed: %s", message, exc_info=True)
+                    self._bridge.preview["pump_status"] = f"ERROR {message}"
+                    self._bridge.preview["version"] += 1
         finally:
             capture.close()

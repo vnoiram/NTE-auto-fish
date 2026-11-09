@@ -7,10 +7,11 @@ fixed sizes so the GUI can keep one dynamic texture per preview.
 import cv2
 import numpy as np
 
-BAR_SIZE = (512, 48)  # (width, height)
-BUTTON_SIZE = (176, 144)
-ICON_SIZE = (258, 78)
-OCR_SIZE = (256, 96)  # raw crop on top, binarised image below
+# Small on purpose: previews are for aligning areas, and big textures made the GUI heavy.
+BAR_SIZE = (384, 36)  # (width, height)
+BUTTON_SIZE = (132, 108)
+ICON_SIZE = (192, 58)
+OCR_SIZE = (192, 72)  # raw crop on top, binarised image below
 
 _SAFE_TINT = (60, 255, 120)  # RGB
 _CURSOR_COLOR = (255, 230, 0)

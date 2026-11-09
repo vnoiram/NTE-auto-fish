@@ -358,6 +358,17 @@ def _create_previews():
         tag="btn_area_check",
         callback=_toggle_area_check,
     )
+    dpg.add_text("", tag="pv_pump_status")
+    dpg.add_slider_float(
+        label=tr("Preview zoom"),
+        tag="pv_zoom",
+        min_value=_ZOOM_MIN,
+        max_value=_ZOOM_MAX,
+        default_value=_zoom(),
+        format="%.1fx",
+        width=int(220 * _s),
+        callback=lambda s, v: _set_zoom(v),
+    )
     dpg.add_spacer(height=int(6 * _s))
     caption_text(
         "Press \"Check and adjust areas\" while the bot is stopped, then drag a preview "
@@ -396,6 +407,7 @@ def _create_previews():
                 height=OCR_SIZE[1],
             )
             dpg.add_text("", tag="pv_ocr_weight_text")
+    _apply_zoom()
 
 
 # Drag a preview to shift its scan area: key -> (config attrs for x/y offsets, size)
@@ -423,6 +435,44 @@ def _create_drag_handlers() -> None:
     with dpg.handler_registry():
         dpg.add_mouse_drag_handler(button=0, threshold=2.0, callback=_on_preview_drag)
         dpg.add_mouse_release_handler(button=0, callback=_on_preview_release)
+        dpg.add_mouse_wheel_handler(callback=_on_preview_wheel)
+
+
+_ZOOM_MIN, _ZOOM_MAX = 0.5, 3.0
+_PREVIEW_IMAGES = {
+    "pv_bar": BAR_SIZE,
+    "pv_button": BUTTON_SIZE,
+    "pv_icons": ICON_SIZE,
+    "pv_ocr_name": OCR_SIZE,
+    "pv_ocr_weight": OCR_SIZE,
+}
+
+
+def _zoom() -> float:
+    return max(_ZOOM_MIN, min(_ZOOM_MAX, float(CFG.tracker_preview_zoom)))
+
+
+def _apply_zoom() -> None:
+    """Resize the displayed preview images (the textures themselves stay small)."""
+    z = _zoom()
+    for tag, (w, h) in _PREVIEW_IMAGES.items():
+        if dpg.does_item_exist(tag):
+            dpg.configure_item(tag, width=int(w * z), height=int(h * z))
+
+
+def _set_zoom(value: float) -> None:
+    CFG.tracker_preview_zoom = max(_ZOOM_MIN, min(_ZOOM_MAX, round(float(value), 2)))
+    if dpg.does_item_exist("pv_zoom"):
+        dpg.set_value("pv_zoom", CFG.tracker_preview_zoom)
+    _apply_zoom()
+
+
+def _on_preview_wheel(sender, app_data) -> None:
+    """Mouse wheel over a preview image zooms all previews."""
+    if any(
+        dpg.does_item_exist(tag) and _over_preview(tag) for tag in _PREVIEW_IMAGES
+    ):
+        _set_zoom(_zoom() + 0.1 * (1 if app_data > 0 else -1))
 
 
 def _toggle_area_check(sender=None, app_data=None) -> None:
@@ -430,6 +480,10 @@ def _toggle_area_check(sender=None, app_data=None) -> None:
     if _drag_bridge is None:
         return
     _drag_bridge.preview_active = not _drag_bridge.preview_active
+    _drag_bridge.preview["pump_status"] = (
+        "Capturing..." if _drag_bridge.preview_active else ""
+    )
+    _drag_bridge.preview["version"] += 1
     _refresh_area_check_button()
 
 
@@ -489,8 +543,9 @@ def _on_preview_drag(sender, app_data) -> None:
         if roi is None or roi[2] <= 0 or roi[3] <= 0:
             return
     # displayed pixels -> screen pixels; the area moves opposite to the content
-    shift_x = dx * roi[2] / size[0]
-    shift_y = dy * roi[3] / size[1]
+    z = _zoom()
+    shift_x = dx * roi[2] / (size[0] * z)
+    shift_y = dy * roi[3] / (size[1] * z)
     start_x, start_y = _drag_state["start"]
     new_x = int(round(start_x - shift_x))
     new_y = int(round(start_y - shift_y))

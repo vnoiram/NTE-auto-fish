@@ -265,6 +265,7 @@ class AppConfig:
     bait_error_detection_enabled: bool = True
     # Show live capture previews (bar, bite prompt, OCR source) in the dashboard tracker.
     tracker_preview_enabled: bool = True
+    tracker_preview_zoom: float = 1.0
     # Detection profiles chosen by background colour (see modules/profiles.py).
     profiles: list = field(default_factory=default_profiles)
     profile_auto_switch: bool = False

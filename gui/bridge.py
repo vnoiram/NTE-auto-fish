@@ -64,6 +64,7 @@ class BotBridge:
             "ocr_weight": None,
             "ocr_name_text": "",
             "ocr_weight_text": "",
+            "pump_status": "",
             "bar_roi": None,
             "button_roi": None,
             "blue_pixels": 0,

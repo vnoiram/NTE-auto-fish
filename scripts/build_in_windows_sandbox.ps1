@@ -65,6 +65,8 @@ try {
     Write-Step "Bootstrapping pip (ensurepip)"
     $ensure = Start-Process -FilePath $python -ArgumentList @("-m", "ensurepip", "--default-pip") `
         -NoNewWindow -PassThru
+    # Touch Handle so ExitCode stays available after WaitForExit (otherwise it can be empty).
+    $null = $ensure.Handle
     if (-not $ensure.WaitForExit(180000)) {
         $ensure | Stop-Process -Force
         throw "ensurepip did not finish within 180 seconds."

@@ -34,6 +34,7 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 - **Day / evening / night profiles (experimental)**: Detection colour profiles for each time of day, plus automatic recognition of the background to switch profiles and raise the detection rate.
 - **Faster area-check OCR.**
 - **One executable for GUI and CLI**: There is no separate CLI package; the same EXE opens the GUI, or runs the CLI when started with arguments.
+- **More ways to build**: Build locally in Windows Sandbox, or prepare on Linux and let the Windows GitHub Actions runner build the EXE and download it (see the build sections below).
 - **Stable builds**: The default icon is the character artwork and builds get a plain, fixed name (no random build ID unless you ask for one).
 
 ![Area adjustment illustration](docs/images/area-adjustment.png)

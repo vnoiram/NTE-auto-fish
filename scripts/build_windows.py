@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_APP_NAME = "NTE Auto-Fish"
-DEFAULT_ICON = "random"
+DEFAULT_ICON = "classic"
 BUILTIN_ICONS = {
     "classic": Path("assets/icons/app.ico"),
     "bobber": Path("assets/icons/bobber.ico"),
@@ -101,6 +101,12 @@ def read_version() -> str:
     return (ROOT / "version.txt").read_text(encoding="utf-8").strip()
 
 
+def _exe_stem(app_name: str, build_id: str) -> str:
+    """Executable name stem; the build suffix only appears when an ID is given."""
+    stem = filename_slug(app_name)
+    return f"{stem}-b{build_id}" if build_id else stem
+
+
 def pyinstaller_command(
     app_name: str,
     build_id: str,
@@ -109,7 +115,7 @@ def pyinstaller_command(
     bundled_icon: Path,
     dist_dir: Path,
 ) -> list[str]:
-    slug = f"{filename_slug(app_name)}-b{build_id}"
+    slug = _exe_stem(app_name, build_id)
     work_dir = ROOT / "build" / "pyinstaller"
     spec_dir = ROOT / "build" / "spec"
     add_data = os.pathsep
@@ -170,7 +176,9 @@ def parse_args() -> argparse.Namespace:
         help="Built-in name (classic, bobber, target-fish, fisher-cat), random, or an .ico path",
     )
     parser.add_argument(
-        "--build-id", help="Unique ID; defaults to a random 12-character value"
+        "--build-id",
+        help="Optional ID added to the name and settings files; 'random' generates one. "
+        "Default: none (a plain, stable name)",
     )
     parser.add_argument("--dist-dir", default="dist")
     parser.add_argument(
@@ -187,7 +195,12 @@ def main() -> int:
     try:
         app_name = validate_app_name(args.app_name)
         icon_path = resolve_icon(args.icon)
-        build_id = validate_build_id(args.build_id) if args.build_id else new_build_id()
+        if not args.build_id:
+            build_id = ""
+        elif args.build_id.strip().lower() == "random":
+            build_id = new_build_id()
+        else:
+            build_id = validate_build_id(args.build_id)
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -236,8 +249,9 @@ def main() -> int:
     subprocess.run(command, cwd=ROOT, check=True)  # nosec B603
 
     slug = filename_slug(app_name)
-    built_exe = dist_dir / f"{slug}-b{build_id}.exe"
-    artifact_name = f"{slug}-v{read_version()}-b{build_id}-Windows-x64.exe"
+    built_exe = dist_dir / f"{_exe_stem(app_name, build_id)}.exe"
+    suffix = f"-b{build_id}" if build_id else ""
+    artifact_name = f"{slug}-v{read_version()}{suffix}-Windows-x64.exe"
     artifact_path = dist_dir / artifact_name
     os.replace(built_exe, artifact_path)
 

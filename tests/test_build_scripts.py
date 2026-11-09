@@ -129,3 +129,16 @@ class TestWindowsBuildScript(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StableBuildDefaultsTest(unittest.TestCase):
+    def test_default_icon_is_the_character_icon(self):
+        from scripts import build_windows
+
+        self.assertEqual(build_windows.DEFAULT_ICON, "classic")
+
+    def test_no_build_id_gives_a_plain_name(self):
+        from scripts.build_windows import _exe_stem
+
+        self.assertEqual(_exe_stem("Fishing Tools", ""), "Fishing-Tools")
+        self.assertEqual(_exe_stem("Fishing Tools", "abc"), "Fishing-Tools-babc")

@@ -3,7 +3,7 @@ param(
     [string]$AppName = "NTE Auto-Fish",
 
     [ValidateNotNullOrEmpty()]
-    [string]$Icon = "random",
+    [string]$Icon = "classic",
 
     [string]$BuildId = "",
 

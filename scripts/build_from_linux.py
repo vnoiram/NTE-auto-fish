@@ -54,13 +54,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--app-name", default="NTE Auto-Fish")
     parser.add_argument(
         "--icon",
-        default="random",
+        default="classic",
         help="Built-in name (classic, bobber, target-fish, fisher-cat), random, or a repository .ico path",
     )
     parser.add_argument(
         "--build-id",
         default="",
-        help="Optional stable ID; omitted generates a unique ID",
+        help="Optional ID for the file name; omitted = none, random = generate one",
     )
     parser.add_argument(
         "--ref", help="Pushed branch or tag; defaults to the current branch"

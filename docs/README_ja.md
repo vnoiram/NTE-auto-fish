@@ -80,17 +80,17 @@ Linux 用スクリプトは GitHub Actions の Windows runner を起動し、生
 ```bash
 ./scripts/build-from-linux.sh \
   --app-name "Fishing Tools" \
-  --icon random
+  --icon classic
 ```
 
 成果物は `dist/remote/` に保存されます。`--app-name` は EXE・ウィンドウ・サイドバー名へ、`--icon` は
 EXE とウィンドウアイコンへ反映されます。組み込みアイコンは `classic`、`bobber`、`target-fish`、
-`fisher-cat` の4種類で、既定の `random` はビルドごとに1種類を選びます。独自の `.ico` パスも指定できます。
+`fisher-cat` の4種類で、既定は `classic`(キャラクターのアイコン)で、`random` を指定するとビルドごとに1種類を選びます。独自の `.ico` パスも指定できます。
 Windows 上で直接ビルドする場合は
-`python scripts/build_windows.py --app-name "Fishing Tools" --icon random` を実行します。Windowsの
+`python scripts/build_windows.py --app-name "Fishing Tools" --icon classic` を実行します。Windowsの
 タイトルバー文字化けを避けるため、アプリ名はASCII文字のみ指定できます。
-各ビルドには衝突防止用の12文字ビルドIDが自動生成され、EXE名とウィンドウタイトルへ反映されます。
-固定IDが必要な場合は `--build-id my-id` を指定します。
+既定ではビルドIDを付けないため、EXE名・ウィンドウタイトル・設定ファイル名はビルド間で変わりません。
+IDを付けたい場合は `--build-id my-id`、ビルドごとの一意なIDが必要な場合は `--build-id random` を指定します。
 ブランド付きビルドでは設定・ログ・デバッグCSV・セッション保存先にもアプリ名とビルドIDを付けるため、
 同じフォルダに複数のビルドを置いても実行時データが上書きされません。ソースからの通常実行は従来名を維持します。
 
@@ -103,19 +103,19 @@ GitHub Actionsを使わず手元だけでビルドする場合は、Windows Sand
 Enable-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClientVM" -All
 
 # 以降はリポジトリから実行します。
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_with_windows_sandbox.ps1 -AppName "Fishing Tools" -Icon random
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_with_windows_sandbox.ps1 -AppName "Fishing Tools" -Icon classic
 ```
 
 WSLから起動する場合も、GitHubを経由せず次のコマンドで同じローカルビルドを実行できます。
 
 ```bash
-./scripts/build-with-windows-sandbox.sh -AppName "Fishing Tools" -Icon random
+./scripts/build-with-windows-sandbox.sh -AppName "Fishing Tools" -Icon classic
 ```
 
 Sandboxの自動ログオンコマンド実行時に落ちる環境では、手動モードで起動します。
 
 ```bash
-./scripts/build-with-windows-sandbox.sh -Manual -AppName "Fishing Tools" -Icon random
+./scripts/build-with-windows-sandbox.sh -Manual -AppName "Fishing Tools" -Icon classic
 ```
 
 手動モードではWindows Sandboxを起動せず、完了も待ちません。`.wsb`ファイルを生成してそのパスと実行コマンドを表示し、

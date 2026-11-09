@@ -15,10 +15,10 @@ on:
       icon_path:
         description: "Built-in icon name, random, or repository-relative .ico path"
         required: false
-        default: "random"
+        default: "classic"
         type: string
       build_id:
-        description: "Optional unique build ID; blank generates one"
+        description: "Optional build ID added to the file name; blank = none, random = generate"
         required: false
         default: ""
         type: string
@@ -94,7 +94,7 @@ jobs:
       shell: bash
       env:
         APP_NAME: ${{ inputs.app_name || 'NTE Auto-Fish' }}
-        ICON_PATH: ${{ inputs.icon_path || 'random' }}
+        ICON_PATH: ${{ inputs.icon_path || 'classic' }}
         BUILD_ID: ${{ inputs.build_id || '' }}
       run: |
         python scripts/build_windows.py \

@@ -86,16 +86,17 @@ starts the repository's Windows GitHub Actions runner and downloads its artifact
 ```bash
 ./scripts/build-from-linux.sh \
   --app-name "Fishing Tools" \
-  --icon random
+  --icon classic
 ```
 
 The artifact is downloaded to `dist/remote/`. Branding is configurable: `--app-name` changes the EXE,
 window, and sidebar name, while `--icon` changes the EXE and window icon. Built-in choices are `classic`, `bobber`,
-`target-fish`, and `fisher-cat`; `random` (the default) picks one per build. Select a named icon for reproducible
-builds, or provide a custom `.ico` path.
-On Windows, run the same build directly with `python scripts/build_windows.py --app-name "Fishing Tools" --icon random`. App names are ASCII-only
-to avoid native Windows title-bar encoding problems. Every build receives a random 12-character build ID in its
-filename and window title to prevent artifact collisions. Pass `--build-id my-id` when a stable ID is preferred.
+`target-fish`, and `fisher-cat`; the default is `classic` (the character artwork) and `random` picks one per build.
+Provide a custom `.ico` path to use your own.
+On Windows, run the same build directly with `python scripts/build_windows.py --app-name "Fishing Tools" --icon classic`. App names are ASCII-only
+to avoid native Windows title-bar encoding problems. By default no build ID is added, so the file name, window title
+and settings file stay the same between builds. Pass `--build-id my-id` to add an ID, or `--build-id random` to
+generate a unique one to prevent artifact collisions.
 Branded builds also namespace their settings, log, debug CSV, and session directory with the app name and build ID,
 so multiple builds can run from the same directory without overwriting each other's runtime data. Unbranded source
 runs retain the legacy filenames.
@@ -109,19 +110,19 @@ For a fully local build without GitHub Actions, enable Windows Sandbox and run t
 Enable-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClientVM" -All
 
 # Run from the repository on subsequent builds.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_with_windows_sandbox.ps1 -AppName "Fishing Tools" -Icon random
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_with_windows_sandbox.ps1 -AppName "Fishing Tools" -Icon classic
 ```
 
 From WSL, the equivalent local command is:
 
 ```bash
-./scripts/build-with-windows-sandbox.sh -AppName "Fishing Tools" -Icon random
+./scripts/build-with-windows-sandbox.sh -AppName "Fishing Tools" -Icon classic
 ```
 
 If Windows Sandbox crashes while executing its automatic logon command, start it in manual mode:
 
 ```bash
-./scripts/build-with-windows-sandbox.sh -Manual -AppName "Fishing Tools" -Icon random
+./scripts/build-with-windows-sandbox.sh -Manual -AppName "Fishing Tools" -Icon classic
 ```
 
 Manual mode neither starts Windows Sandbox nor waits for it. The script generates the `.wsb` file, prints its path and the

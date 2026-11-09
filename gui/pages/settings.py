@@ -15,14 +15,9 @@ from collections.abc import Callable
 import dearpygui.dearpygui as dpg
 from screeninfo import get_monitors
 
-from config import (
-    CFG,
-    DEFAULT_BAR_RATIOS,
-    DEFAULT_BUTTON_RATIOS,
-    DEFAULT_ICON_RATIOS,
-    ratios_are_set,
-)
+from config import CFG
 from gui.bridge import BotBridge
+from modules.roi import compute_icon_roi, compute_rois
 from gui.components import (
     apply_glass_card_theme,
     caption_text,
@@ -1065,6 +1060,33 @@ def _build_vision_settings(bridge: BotBridge):
 _scan_editor_open = threading.Event()
 
 
+def _refresh_roi_sliders() -> None:
+    for tag, attr in (
+        ("cfg_roi_bar_x", "bar_offset_x"),
+        ("cfg_roi_bar_y", "bar_offset_y"),
+        ("cfg_roi_bar_w", "bar_width_delta"),
+        ("cfg_roi_bar_h", "bar_height_delta"),
+        ("cfg_roi_btn_x", "button_offset_x"),
+        ("cfg_roi_btn_y", "button_offset_y"),
+        ("cfg_roi_btn_w", "button_width_delta"),
+        ("cfg_roi_btn_h", "button_height_delta"),
+        ("cfg_roi_icon_x", "icon_offset_x"),
+        ("cfg_roi_icon_y", "icon_offset_y"),
+        ("cfg_roi_icon_w", "icon_width_delta"),
+        ("cfg_roi_icon_h", "icon_height_delta"),
+    ):
+        try:
+            if dpg.does_item_exist(tag):
+                dpg.set_value(tag, getattr(CFG.roi, attr))
+        except Exception:
+            log.debug("Failed to refresh %s.", tag, exc_info=True)
+
+
+def open_scanning_area_editor() -> None:
+    """Public entry point so the dashboard can open the drag editor too."""
+    _open_scanning_area_editor()
+
+
 def _open_scanning_area_editor() -> None:
     """Spawn a transparent fullscreen overlay on the game monitor.
 
@@ -1135,24 +1157,19 @@ def _open_scanning_area_editor() -> None:
             l, t, r, b = ratios
             return [int(l * sw), int(t * sh), int(r * sw), int(b * sh)]
 
+        # Start from the areas as the bot uses them now (ratios plus the pixel
+        # corrections); applying bakes everything into the ratios.
+        def roi2px(roi):
+            left, top = roi["left"] - off_x, roi["top"] - off_y
+            return [left, top, left + roi["width"], top + roi["height"]]
+
+        bar_roi, bite_roi = compute_rois(CFG, mon)
         state = {
             "name": r2px(CFG.ocr_name_roi_ratios),
             "weight": r2px(CFG.ocr_weight_roi_ratios),
-            "bar": r2px(
-                CFG.bar_roi_ratios
-                if ratios_are_set(CFG.bar_roi_ratios)
-                else DEFAULT_BAR_RATIOS
-            ),
-            "bite": r2px(
-                CFG.button_roi_ratios
-                if ratios_are_set(CFG.button_roi_ratios)
-                else DEFAULT_BUTTON_RATIOS
-            ),
-            "icons": r2px(
-                CFG.icon_roi_ratios
-                if ratios_are_set(CFG.icon_roi_ratios)
-                else DEFAULT_ICON_RATIOS
-            ),
+            "bar": roi2px(bar_roi),
+            "bite": roi2px(bite_roi),
+            "icons": roi2px(compute_icon_roi(CFG, mon)),
             "drag_target": None,
             "drag_mode": None,
             "drag_start": (0, 0),
@@ -1234,6 +1251,22 @@ def _open_scanning_area_editor() -> None:
             CFG.bar_roi_ratios = p2r(state["bar"])
             CFG.button_roi_ratios = p2r(state["bite"])
             CFG.icon_roi_ratios = p2r(state["icons"])
+            for attr in (
+                "bar_offset_x",
+                "bar_offset_y",
+                "bar_width_delta",
+                "bar_height_delta",
+                "button_offset_x",
+                "button_offset_y",
+                "button_width_delta",
+                "button_height_delta",
+                "icon_offset_x",
+                "icon_offset_y",
+                "icon_width_delta",
+                "icon_height_delta",
+            ):
+                setattr(CFG.roi, attr, 0)  # now part of the ratios
+            _refresh_roi_sliders()
             CFG.save()
             log.info(
                 "Scanning areas saved — name=%s  weight=%s  bar=%s  bite=%s",

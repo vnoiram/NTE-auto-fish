@@ -151,6 +151,7 @@ _JA = {
     "Reset weight area": "重さ領域をリセット",
     "Areas reset to the automatic position. Press Save areas to keep this.": "領域を自動の位置に戻しました。保持するには「領域を保存」を押してください。",
     "Save areas": "領域を保存",
+    "Edit all areas on screen": "画面上でドラッグして編集",
     "Areas saved.": "領域を保存しました。",
     "Capturing the game screen...": "ゲーム画面を撮影中...",
     "Captured in {secs}s. Restoring the window...": "{secs}秒で撮影しました。ウィンドウを戻しています...",

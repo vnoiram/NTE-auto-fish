@@ -398,6 +398,11 @@ def _create_previews():
             callback=_reset_all_areas,
         )
         dpg.add_button(label=tr("Save areas"), tag="btn_save_areas", callback=_save_areas)
+        dpg.add_button(
+            label=tr("Edit all areas on screen"),
+            tag="btn_edit_areas_overlay",
+            callback=_open_area_overlay,
+        )
     dpg.add_text(tr("Bar area"), color=TEXT_MUTED)
     dpg.add_button(label=tr("Reset"), tag="btn_reset_bar", callback=lambda: _reset_area("bar"))
     dpg.add_image("pv_bar_tex", tag="pv_bar", width=BAR_SIZE[0], height=BAR_SIZE[1])
@@ -600,6 +605,13 @@ def _after_area_reset() -> None:
             _drag_bridge.preview,
             "Areas reset to the automatic position. Press Save areas to keep this.",
         )
+
+
+def _open_area_overlay(sender=None, app_data=None) -> None:
+    """Open the on-screen editor: drag a box to move it, drag a corner to resize."""
+    from gui.pages.settings import open_scanning_area_editor
+
+    open_scanning_area_editor()
 
 
 def _save_areas(sender=None, app_data=None) -> None:

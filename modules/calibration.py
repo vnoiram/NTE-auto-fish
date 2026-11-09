@@ -77,26 +77,50 @@ _SAFE_LEVELS = ((80, 120), (50, 80), (30, 50))
 _CURSOR_LEVELS = ((60, 200), (40, 150), (30, 110))
 
 
-def suggest_gauge(bgr: np.ndarray) -> tuple[Suggestion | None, Suggestion | None]:
+_HINT_HUE_PAD = 20
+
+
+def _hint_band(hint) -> tuple[int, int] | None:
+    """Hue band around a known HSV range (lower, upper), or None without a hint."""
+    if hint is None:
+        return None
+    lower, upper = hint
+    return (max(0, lower[0] - _HINT_HUE_PAD), min(179, upper[0] + _HINT_HUE_PAD))
+
+
+def suggest_gauge(
+    bgr: np.ndarray,
+    safe_hint=None,
+    cursor_hint=None,
+) -> tuple[Suggestion | None, Suggestion | None]:
     """Fishing gauge: (safe_zone, cursor).
 
     The safe zone is the most frequent saturated colour in the gauge. The
     cursor is the brightest remaining colour, excluding the safe-zone hue.
+    Hints are the current (lower, upper) ranges: when given, each element is
+    searched only near its known hue so unrelated UI colours are not adopted.
     Thresholds are relaxed step by step when nothing is found.
     """
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    safe_band = _hint_band(safe_hint)
+    cursor_band = _hint_band(cursor_hint)
     safe = None
     for sat, val in _SAFE_LEVELS:
-        safe = dominant_range(hsv, min_sat=sat, min_val=val)
+        safe = dominant_range(hsv, min_sat=sat, min_val=val, hue_band=safe_band)
         if safe is not None:
             break
     exclude = None
-    if safe is not None:
+    if safe is not None and cursor_band is None:
         exclude = (safe.peak_hue - 2 * _PEAK_RADIUS, safe.peak_hue + 2 * _PEAK_RADIUS)
     cursor = None
     for sat, val in _CURSOR_LEVELS:
         cursor = dominant_range(
-            hsv, min_sat=sat, min_val=val, min_pixels=10, exclude_hue=exclude
+            hsv,
+            min_sat=sat,
+            min_val=val,
+            min_pixels=10,
+            hue_band=cursor_band,
+            exclude_hue=exclude,
         )
         if cursor is not None:
             break

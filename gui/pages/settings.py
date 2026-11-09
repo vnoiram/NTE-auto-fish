@@ -613,7 +613,11 @@ def _run_calibration(kind: str, roi: dict, scale_sq: float) -> None:
                 + tr("pixel trigger {n}").format(n=min_px),
             )
         else:
-            safe, cursor = suggest_gauge(img)
+            safe, cursor = suggest_gauge(
+                img,
+                (CFG.hsv.safe_zone.lower, CFG.hsv.safe_zone.upper),
+                (CFG.hsv.cursor.lower, CFG.hsv.cursor.upper),
+            )
             if safe is None and cursor is None:
                 _cal_text(
                     kind,

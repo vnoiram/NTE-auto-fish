@@ -49,6 +49,27 @@ class TestCalibration(unittest.TestCase):
         safe, _ = suggest_gauge(img)
         self.assertIsNotNone(safe)
 
+    def test_gauge_hints_ignore_unrelated_bright_colours(self):
+        img = np.full((40, 200, 3), 20, np.uint8)
+        img[:, 40:140] = _bgr(88, 230, 230)  # safe zone
+        img[:, 90:94] = _bgr(28, 130, 250)  # yellow cursor
+        img[:, 150:190] = _bgr(150, 200, 255)  # bright unrelated purple UI
+        safe, cursor = suggest_gauge(
+            img, ((75, 190, 190), (100, 255, 255)), ((18, 115, 240), (40, 150, 255))
+        )
+        self.assertTrue(cursor.lower[0] <= 28 <= cursor.upper[0])
+        self.assertLessEqual(cursor.upper[0], 70)
+        self.assertLessEqual(safe.upper[0], 120)
+
+    def test_gauge_hint_without_match_returns_none(self):
+        img = np.full((40, 200, 3), 20, np.uint8)
+        img[:, 150:190] = _bgr(150, 200, 255)
+        safe, cursor = suggest_gauge(
+            img, ((75, 190, 190), (100, 255, 255)), ((18, 115, 240), (40, 150, 255))
+        )
+        self.assertIsNone(safe)
+        self.assertIsNone(cursor)
+
     def test_describe_reports_size(self):
         self.assertIn("200x40", describe(np.zeros((40, 200, 3), np.uint8)))
 

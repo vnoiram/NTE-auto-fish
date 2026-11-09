@@ -121,10 +121,11 @@ If Windows Sandbox crashes while executing its automatic logon command, start it
 ./scripts/build-with-windows-sandbox.sh -Manual -AppName "Fishing Tools" -Icon random
 ```
 
-Manual mode does not start Windows Sandbox. The script generates the `.wsb` file, prints its path and the command to run,
-and copies that command to the host clipboard. Open the `.wsb` file yourself, paste the command into PowerShell inside the
-Sandbox, and the script (still waiting on the host) collects the EXE when the build finishes. Clipboard redirection is
-enabled only for this mode so the command can be pasted. After the command starts, the build, artifact collection, logging, and Sandbox shutdown proceed normally.
+Manual mode neither starts Windows Sandbox nor waits for it. The script generates the `.wsb` file, prints its path and the
+command to run, copies that command to the host clipboard, and exits. Open the `.wsb` file yourself and paste the command into
+PowerShell inside the Sandbox. The output directory (`dist\sandbox` by default) is mapped into the Sandbox, so the EXE and
+`sandbox-build.log` appear there directly. The staged source is kept in the printed temporary directory; delete it afterwards.
+Clipboard redirection is enabled only for this mode so the command can be pasted.
 
 The script stages a temporary read-only copy of the source, starts Windows Sandbox, installs Python and the build
 dependencies inside it, and copies only the resulting EXE to `dist\sandbox`. Python installers and pip downloads are

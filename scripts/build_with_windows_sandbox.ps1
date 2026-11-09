@@ -36,6 +36,11 @@ if ($null -eq $sandboxCommand) {
 $temporaryRoot = Join-Path $env:TEMP ("nte-auto-fish-build-" + [guid]::NewGuid().ToString("N"))
 $stagedSource = Join-Path $temporaryRoot "source"
 $stagedOutput = Join-Path $temporaryRoot "output"
+if ($Manual) {
+    # Manual mode maps the real output directory so the Sandbox writes the EXE straight to the host.
+    $stagedOutput = $OutputDirectory
+}
+$keepTemporary = $false
 $cacheDirectory = Join-Path $env:LOCALAPPDATA "NTEAutoFish\SandboxCache"
 $configurationPath = Join-Path $temporaryRoot "build.wsb"
 $sandboxProcess = $null
@@ -52,6 +57,10 @@ try {
     & robocopy.exe @copyArguments | Out-Null
     if ($LASTEXITCODE -gt 7) {
         throw "Failed to stage the project (robocopy exit code $LASTEXITCODE)."
+    }
+
+    if ($Manual) {
+        Remove-Item -LiteralPath (Join-Path $stagedOutput "build-success.txt"), (Join-Path $stagedOutput "build-error.txt"), (Join-Path $stagedOutput "sandbox-build.log") -Force -ErrorAction SilentlyContinue
     }
 
     [ordered]@{
@@ -107,14 +116,15 @@ $logonCommand
     Write-Host ("Starting Windows Sandbox build... (mode: " + $(if ($Manual) { "manual" } else { "automatic" }) + ")")
     Write-Host "The first build downloads Python and dependencies; later builds reuse the local download cache."
     if ($Manual) {
+        $keepTemporary = $true
         Write-Host ""
-        Write-Host "Manual mode: Windows Sandbox is NOT started automatically."
+        Write-Host "Manual mode: Windows Sandbox is NOT started and this script does not wait."
         Write-Host "1. Start Windows Sandbox by opening this file (double-click it in Explorer):"
         Write-Host $configurationPath -ForegroundColor Cyan
         Write-Host "2. Open PowerShell inside Windows Sandbox and run this command:"
         Write-Host $guestBuildCommand -ForegroundColor Cyan
-        Write-Host "This script keeps waiting (up to $TimeoutMinutes minutes) and collects the EXE when the build finishes."
-        Write-Host ""
+        Write-Host "The EXE and sandbox-build.log are written directly to: $OutputDirectory"
+        Write-Host "The staged source stays in $temporaryRoot (delete it after the build)."
         try {
             Set-Clipboard -Value $guestBuildCommand
             Write-Host "(The command was copied to the clipboard; paste it with Ctrl+V inside the Sandbox.)"
@@ -122,10 +132,9 @@ $logonCommand
         catch {
             # Clipboard access is a convenience only.
         }
+        return
     }
-    else {
-        $sandboxProcess = Start-Process -FilePath $sandboxCommand.Source -ArgumentList "`"$configurationPath`"" -PassThru
-    }
+    $sandboxProcess = Start-Process -FilePath $sandboxCommand.Source -ArgumentList "`"$configurationPath`"" -PassThru
     $successMarker = Join-Path $stagedOutput "build-success.txt"
     $errorMarker = Join-Path $stagedOutput "build-error.txt"
     $deadline = [DateTime]::UtcNow.AddMinutes($TimeoutMinutes)
@@ -213,7 +222,7 @@ finally {
     if ($null -ne $sandboxProcess -and -not $sandboxProcess.HasExited) {
         Stop-Process -Id $sandboxProcess.Id -Force -ErrorAction SilentlyContinue
     }
-    if (Test-Path -LiteralPath $temporaryRoot) {
+    if (-not $keepTemporary -and (Test-Path -LiteralPath $temporaryRoot)) {
         try {
             Remove-Item -LiteralPath $temporaryRoot -Recurse -Force -ErrorAction Stop
         }

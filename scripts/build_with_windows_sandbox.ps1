@@ -40,16 +40,6 @@ $cacheDirectory = Join-Path $env:LOCALAPPDATA "NTEAutoFish\SandboxCache"
 $configurationPath = Join-Path $temporaryRoot "build.wsb"
 $sandboxProcess = $null
 
-function Wait-SandboxExit {
-    param([int]$Seconds = 60)
-    $limit = [DateTime]::UtcNow.AddSeconds($Seconds)
-    while ([DateTime]::UtcNow -lt $limit) {
-        $running = @(Get-Process -Name "WindowsSandbox", "WindowsSandboxClient", "WindowsSandboxRemoteSession" -ErrorAction SilentlyContinue)
-        if ($running.Count -eq 0) { return $true }
-        Start-Sleep -Seconds 2
-    }
-    return $false
-}
 
 try {
     New-Item -ItemType Directory -Force -Path $stagedSource, $stagedOutput, $cacheDirectory | Out-Null
@@ -150,7 +140,6 @@ $logonCommand
         if (Test-Path -LiteralPath $successMarker) { break }
         if (Test-Path -LiteralPath $errorMarker) {
             Write-Host "[host] Build failed inside the Sandbox. Collecting logs..."
-            [void](Wait-SandboxExit -Seconds 30)
             Copy-Item -LiteralPath $errorMarker -Destination $OutputDirectory -Force
             $sandboxLog = Join-Path $stagedOutput "sandbox-build.log"
             if (Test-Path -LiteralPath $sandboxLog) {
@@ -206,7 +195,6 @@ $logonCommand
         throw "Windows Sandbox build timed out after $TimeoutMinutes minutes."
     }
     Write-Host "[host] Build finished. Collecting artifacts..."
-    [void](Wait-SandboxExit -Seconds 30)
 
     $artifacts = @(Get-ChildItem -LiteralPath $stagedOutput -Filter "*.exe" -File)
     if ($artifacts.Count -eq 0) {
@@ -222,24 +210,15 @@ $logonCommand
     }
 }
 finally {
-    if (-not (Wait-SandboxExit -Seconds 30)) {
-        Write-Host "[host] Windows Sandbox is still running; close its window to release the staged folders."
-        if ($null -ne $sandboxProcess -and -not $sandboxProcess.HasExited) {
-            Stop-Process -Id $sandboxProcess.Id -Force -ErrorAction SilentlyContinue
-        }
+    if ($null -ne $sandboxProcess -and -not $sandboxProcess.HasExited) {
+        Stop-Process -Id $sandboxProcess.Id -Force -ErrorAction SilentlyContinue
     }
     if (Test-Path -LiteralPath $temporaryRoot) {
-        for ($attempt = 1; $attempt -le 5; $attempt++) {
-            try {
-                Remove-Item -LiteralPath $temporaryRoot -Recurse -Force -ErrorAction Stop
-                break
-            }
-            catch {
-                if ($attempt -eq 5) {
-                    Write-Warning "Could not remove the temporary directory: $temporaryRoot"
-                }
-                else { Start-Sleep -Seconds 3 }
-            }
+        try {
+            Remove-Item -LiteralPath $temporaryRoot -Recurse -Force -ErrorAction Stop
+        }
+        catch {
+            Write-Warning "Temporary directory is still in use by the Sandbox; remove it after closing the Sandbox: $temporaryRoot"
         }
     }
 }

@@ -391,21 +391,46 @@ def _create_previews():
         "Live capture: green = safe zone color match, yellow = cursor color match, "
         "magenta = bite color match. Red line = cursor, green box = safe zone."
     )
+    with dpg.group(horizontal=True):
+        dpg.add_button(
+            label=tr("Reset all areas"),
+            tag="btn_reset_all_areas",
+            callback=_reset_all_areas,
+        )
+        dpg.add_button(label=tr("Save areas"), tag="btn_save_areas", callback=_save_areas)
     dpg.add_text(tr("Bar area"), color=TEXT_MUTED)
+    dpg.add_button(label=tr("Reset"), tag="btn_reset_bar", callback=lambda: _reset_area("bar"))
     dpg.add_image("pv_bar_tex", tag="pv_bar", width=BAR_SIZE[0], height=BAR_SIZE[1])
     dpg.add_text("", tag="pv_judge_text", wrap=int(480 * _s))
     dpg.add_text(tr("Bite prompt area"), color=TEXT_MUTED)
+    dpg.add_button(
+        label=tr("Reset"), tag="btn_reset_button", callback=lambda: _reset_area("button")
+    )
     with dpg.group(horizontal=True):
         dpg.add_image(
             "pv_button_tex", tag="pv_button", width=BUTTON_SIZE[0], height=BUTTON_SIZE[1]
         )
         dpg.add_text("", tag="pv_blue_text")
     dpg.add_text(tr("Cast check area (action-bar icons)"), color=TEXT_MUTED)
+    dpg.add_button(
+        label=tr("Reset"), tag="btn_reset_icons", callback=lambda: _reset_area("icons")
+    )
     dpg.add_image(
         "pv_icons_tex", tag="pv_icons", width=ICON_SIZE[0], height=ICON_SIZE[1]
     )
     dpg.add_text("", tag="pv_icons_text")
     dpg.add_text(tr("OCR source (top: crop, bottom: binarized)"), color=TEXT_MUTED)
+    with dpg.group(horizontal=True):
+        dpg.add_button(
+            label=tr("Reset name area"),
+            tag="btn_reset_ocr_name",
+            callback=lambda: _reset_area("ocr_name"),
+        )
+        dpg.add_button(
+            label=tr("Reset weight area"),
+            tag="btn_reset_ocr_weight",
+            callback=lambda: _reset_area("ocr_weight"),
+        )
     with dpg.group(horizontal=True):
         with dpg.group():
             dpg.add_image(
@@ -433,7 +458,9 @@ _DRAG_AREAS = {
         "cfg_roi_btn_y",
         BUTTON_SIZE,
     ),
+    "pv_icons": ("icon_offset_x", "icon_offset_y", "", "", ICON_SIZE),
 }
+_PREVIEW_ROI_KEYS = {"pv_bar": "bar_roi", "pv_button": "button_roi", "pv_icons": "icon_roi"}
 _drag_state: dict = {"target": None, "start": None}
 _drag_bridge: BotBridge | None = None
 
@@ -508,6 +535,79 @@ def _toggle_area_check(sender=None, app_data=None) -> None:
     _refresh_area_check_button()
 
 
+_AREA_RESETS = {
+    "bar": (
+        {"bar_roi_ratios": (0.0, 0.0, 0.0, 0.0)},
+        ("bar_offset_x", "bar_offset_y", "bar_width_delta", "bar_height_delta"),
+    ),
+    "button": (
+        {"button_roi_ratios": (0.0, 0.0, 0.0, 0.0)},
+        ("button_offset_x", "button_offset_y"),
+    ),
+    "icons": (
+        {"icon_roi_ratios": (0.0, 0.0, 0.0, 0.0)},
+        ("icon_offset_x", "icon_offset_y"),
+    ),
+    "ocr_name": ({"ocr_name_roi_ratios": "default"}, ()),
+    "ocr_weight": ({"ocr_weight_roi_ratios": "default"}, ()),
+}
+# Settings sliders that mirror the pixel corrections.
+_OFFSET_WIDGETS = {
+    "bar_offset_x": "cfg_roi_bar_x",
+    "bar_offset_y": "cfg_roi_bar_y",
+    "bar_width_delta": "cfg_roi_bar_w",
+    "bar_height_delta": "cfg_roi_bar_h",
+    "button_offset_x": "cfg_roi_btn_x",
+    "button_offset_y": "cfg_roi_btn_y",
+}
+
+
+def reset_area(name: str, cfg=CFG) -> None:
+    """Put one scan area back to its automatic position and size."""
+    from config import AppConfig, RoiConfig
+
+    ratios, offsets = _AREA_RESETS[name]
+    defaults = AppConfig()
+    for attr, value in ratios.items():
+        setattr(cfg, attr, getattr(defaults, attr) if value == "default" else value)
+    for attr in offsets:
+        setattr(cfg.roi, attr, getattr(RoiConfig(), attr))
+
+
+def _reset_area(name: str) -> None:
+    reset_area(name)
+    _after_area_reset()
+
+
+def _reset_all_areas(sender=None, app_data=None) -> None:
+    for name in _AREA_RESETS:
+        reset_area(name)
+    _after_area_reset()
+
+
+def _after_area_reset() -> None:
+    for attr, tag in _OFFSET_WIDGETS.items():
+        if dpg.does_item_exist(tag):
+            dpg.set_value(tag, getattr(CFG.roi, attr))
+    if _drag_bridge is not None:
+        add_pump_log(
+            _drag_bridge.preview,
+            "Areas reset to the automatic position. Press Save areas to keep this.",
+        )
+
+
+def _save_areas(sender=None, app_data=None) -> None:
+    """Persist the current areas (drags and resets only change them in memory)."""
+    try:
+        CFG.save()
+        message = "Areas saved."
+    except Exception:
+        log.warning("Failed to save the areas.", exc_info=True)
+        message = "ERROR could not save the areas."
+    if _drag_bridge is not None:
+        add_pump_log(_drag_bridge.preview, message)
+
+
 def _retake_snapshot(sender=None, app_data=None) -> None:
     if _drag_bridge is not None and _drag_bridge.preview_active:
         if _drag_bridge.snapshot_busy:
@@ -538,6 +638,8 @@ def _tr_status(text: str) -> str:
         return tr("Captured in {secs}s. Restoring the window...", secs=text.split()[2][:-2])
     if text.startswith("OCR finished in "):
         return tr("OCR finished in {secs}s.", secs=text.split()[3][:-2])
+    if text.startswith(("Areas reset", "Areas saved")):
+        return tr(text)
     if text.startswith("ERROR"):
         return text
     return tr(text) if text else text
@@ -582,10 +684,10 @@ def _on_preview_drag(sender, app_data) -> None:
     tag = _drag_state["target"]
     x_attr, y_attr, x_tag, y_tag, size = _DRAG_AREAS[tag]
     status = _drag_bridge.latest_status()
-    roi = status.bar_roi if tag == "pv_bar" else status.button_roi
+    roi = {"pv_bar": status.bar_roi, "pv_button": status.button_roi}.get(tag, (0, 0, 0, 0))
     if roi[2] <= 0 or roi[3] <= 0:
         # the bot has not been calibrated yet: use the preview pump's geometry
-        roi = _drag_bridge.preview["bar_roi" if tag == "pv_bar" else "button_roi"]
+        roi = _drag_bridge.preview[_PREVIEW_ROI_KEYS[tag]]
         if roi is None or roi[2] <= 0 or roi[3] <= 0:
             return
     # displayed pixels -> screen pixels; the area moves opposite to the content
@@ -598,7 +700,7 @@ def _on_preview_drag(sender, app_data) -> None:
     setattr(CFG.roi, x_attr, new_x)
     setattr(CFG.roi, y_attr, new_y)
     for item_tag, value in ((x_tag, new_x), (y_tag, new_y)):
-        if dpg.does_item_exist(item_tag):
+        if item_tag and dpg.does_item_exist(item_tag):
             dpg.set_value(item_tag, max(-600, min(600, value)))
 
 

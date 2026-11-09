@@ -67,6 +67,7 @@ class BotBridge:
             "ocr_weight": None,
             "ocr_name_text": "",
             "ocr_weight_text": "",
+            "icon_roi": None,
             "pump_status": "",
             "pump_log": [],  # recent area-check progress lines, newest last
             "bar_roi": None,

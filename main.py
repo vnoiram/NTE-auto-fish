@@ -412,6 +412,8 @@ class NTEFishingBot:
             r.bar_height_delta,
             r.button_offset_x,
             r.button_offset_y,
+            r.icon_offset_x,
+            r.icon_offset_y,
         )
         if key == getattr(self, "_roi_offsets_applied", None):
             return
@@ -438,11 +440,14 @@ class NTEFishingBot:
             "width": base_button["width"],
             "height": base_button["height"],
         }
-        self._roi_icon = self._ratio_roi(
+        icon = self._ratio_roi(
             cfg.icon_roi_ratios
             if ratios_are_set(cfg.icon_roi_ratios)
             else DEFAULT_ICON_RATIOS
         )
+        icon["left"] += r.icon_offset_x
+        icon["top"] += r.icon_offset_y
+        self._roi_icon = icon
         self._log(
             f"[Calibration] Scan areas: bar={self._roi_bar} button={self._roi_button} "
             f"icons={self._roi_icon}"

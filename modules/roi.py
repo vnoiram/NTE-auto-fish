@@ -59,4 +59,7 @@ def compute_icon_roi(cfg, mon) -> dict:
         if ratios_are_set(cfg.icon_roi_ratios)
         else DEFAULT_ICON_RATIOS
     )
-    return _from_ratios(ratios, mon)
+    icon = _from_ratios(ratios, mon)
+    icon["left"] += cfg.roi.icon_offset_x
+    icon["top"] += cfg.roi.icon_offset_y
+    return icon

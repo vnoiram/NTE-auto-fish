@@ -182,6 +182,13 @@ class PreviewPump:
         )
         pv["blue_threshold"] = int(max(CFG.min_blue_pixels * scale * scale, 1.0))
         icon_img = snap.grab_bgr(compute_icon_roi(CFG, mon))
+        icon_roi = compute_icon_roi(CFG, mon)
+        pv["icon_roi"] = (
+            icon_roi["left"],
+            icon_roi["top"],
+            icon_roi["width"],
+            icon_roi["height"],
+        )
         pv["icons"] = render_icon_preview(icon_img)
         pv["icons_text"] = (
             f"icons {VisionModule.count_icons(icon_img, scale)} "

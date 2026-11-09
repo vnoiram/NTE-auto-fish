@@ -37,6 +37,8 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 
 **Why there is no pull request upstream:** there are "religious" differences (in the engineer sense: matters of taste, not of correctness) between upstream and this fork: a fixed name instead of a random one, a different character as the icon, and Python 3.14 instead of 3.11. This fork implements them, I prefer them, and I do not want to push them onto upstream.
 
+**The bigger reason:** upstream does not seem to merge pull requests, so sending one would be wasted effort. As of 2026-11-10, two open pull requests ([#60](https://github.com/Chizukuo/NTE-auto-fish/pull/60), [#61](https://github.com/Chizukuo/NTE-auto-fish/pull/61)) are marked as mergeable without conflicts, yet they have not been merged.
+
 **Support policy:** this fork is disposable. There will be no regular updates and no effort to follow upstream changes.
 
 ## Highlights

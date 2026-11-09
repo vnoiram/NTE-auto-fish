@@ -9,7 +9,7 @@ import keyboard
 
 from config import CFG
 from gui.bridge import BotBridge
-from gui.i18n import set_language, tr
+from gui.i18n import set_language
 from gui.pages.dashboard import create_dashboard, update_dashboard_ui
 from gui.pages.logs import create_logs, update_logs_ui
 from gui.pages.settings import create_settings, update_settings_ui, init_session_manager
@@ -28,6 +28,7 @@ def _get_primary_monitor_size() -> tuple[int, int]:
     return w, h
 
 APP_TITLE = f"NTE Auto-Fish v{VERSION}"
+_SETTINGS_REFRESH_INTERVAL = 0.25
 
 
 class FishingGUI:
@@ -82,7 +83,10 @@ class FishingGUI:
                     log.debug("Failed to load font '%s' at size %s.", name, size, exc_info=True)
 
         dpg.create_viewport(
-            title=f"{APP_TITLE} {tr('Control Center')}",
+            # Keep the native Windows title ASCII-only. Dear PyGui's Win32
+            # title conversion can mojibake localized text; in-app text uses
+            # the Japanese-capable font configured above.
+            title=APP_TITLE,
             width=int(960 * self._ui_scale),
             height=int(700 * self._ui_scale),
             min_width=int(800 * self._ui_scale),
@@ -173,6 +177,8 @@ class FishingGUI:
         for key, tag in pages.items():
             dpg.configure_item(tag, show=(key == page_name))
         set_active_page(page_name)
+        if page_name == "settings":
+            update_settings_ui(self.bridge, force=True)
 
     # ── Hotkeys ─────────────────────────────────────────────────────────
 
@@ -297,6 +303,7 @@ class FishingGUI:
         import time
         target_fps = 60
         frame_time = 1.0 / target_fps
+        next_settings_refresh = 0.0
         try:
             dpg.show_viewport()
             self._position_viewport_away_from_roi()
@@ -306,7 +313,9 @@ class FishingGUI:
                 
                 update_dashboard_ui(self.bridge)
                 update_logs_ui(self.bridge)
-                update_settings_ui(self.bridge)
+                if start_t >= next_settings_refresh:
+                    update_settings_ui(self.bridge)
+                    next_settings_refresh = start_t + _SETTINGS_REFRESH_INTERVAL
                 dpg.render_dearpygui_frame()
                 
                 elapsed = time.perf_counter() - start_t

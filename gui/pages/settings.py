@@ -1304,13 +1304,13 @@ def _on_reset(
     on_hotkeys_changed: Callable[[], None] | None = None,
 ):
     CFG.reset()
-    update_settings_ui(bridge)
+    update_settings_ui(bridge, force=True)
     if on_hotkeys_changed:
         on_hotkeys_changed()
     log.info("Settings reset to defaults.")
 
 
-def update_settings_ui(bridge: BotBridge):
+def update_settings_ui(bridge: BotBridge, *, force: bool = False):
     if not dpg.does_item_exist("page_settings") or not dpg.is_item_shown("page_settings"):
         return
 
@@ -1320,6 +1320,24 @@ def update_settings_ui(bridge: BotBridge):
     scale_sq = status.current_scale * status.current_scale
     if dpg.does_item_exist("cfg_vision_min_area"):
         dpg.set_value("cfg_vision_min_area", CFG.detection_min_area * scale_sq)
+
+    if _session_manager is not None and dpg.does_item_exist("session_list_window"):
+        global _last_known_active_id
+        active_id = _session_manager.active_session_id()
+        if active_id != _last_known_active_id:
+            _last_known_active_id = active_id
+            _rebuild_session_list()
+        elif active_id and dpg.does_item_exist(f"session_text_{active_id}"):
+            count = _session_manager.active_fish_count()
+            start = _session_manager.active_session_start()
+            label = f"● {start[:16]} · {tr('{count} fish', count=count)}"
+            dpg.set_value(f"session_text_{active_id}", label)
+
+    # Widget defaults and callbacks already keep CFG and the controls in sync.
+    # Rewriting every control every frame is expensive and can interrupt edits.
+    # A forced refresh is only needed after reset or when opening this page.
+    if not force:
+        return
 
     dpg.set_value("cfg_pid_kp", CFG.pid.kp)
     dpg.set_value("cfg_pid_ki", CFG.pid.ki)
@@ -1341,18 +1359,6 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_min_blue", CFG.min_blue_pixels)
     dpg.set_value("cfg_fish_logging_enabled", CFG.fish_logging_enabled)
 
-    if _session_manager is not None and dpg.does_item_exist("session_list_window"):
-        global _last_known_active_id
-        active_id = _session_manager.active_session_id()
-        if active_id != _last_known_active_id:
-            _last_known_active_id = active_id
-            _rebuild_session_list()
-        elif active_id and dpg.does_item_exist(f"session_text_{active_id}"):
-            count = _session_manager.active_fish_count()
-            start = _session_manager.active_session_start()
-            label = f"● {start[:16]} · {tr('{count} fish', count=count)}"
-            dpg.set_value(f"session_text_{active_id}", label)
-
     dpg.set_value("cfg_timing_cast", CFG.timing.cast_animation_secs)
     dpg.set_value("cfg_timing_bite", CFG.timing.bite_timeout_secs)
     dpg.set_value("cfg_timing_lost", CFG.timing.lost_frames_threshold)
@@ -1369,7 +1375,6 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_result_close_method", _result_method_label(CFG.result_close_method))
     dpg.set_value("cfg_always_on_top", CFG.always_on_top)
     dpg.set_value("cfg_debug_mode", CFG.debug_mode)
-    dpg.configure_viewport(0, always_on_top=CFG.always_on_top)
 
     if dpg.does_item_exist("cfg_language"):
         dpg.set_value("cfg_language", language_label(CFG.language))

@@ -15,6 +15,10 @@ _ERROR_CENTER_BAND = (0.25, 0.75)
 _ERROR_CENTER_SHARE_MIN = 0.85
 
 _DEFAULT_MIN_AREA = 40.0
+_ICON_MAX_SAT = 50
+_ICON_MIN_VAL = 200
+_ICON_CLOSE_KERNEL_4K = 18
+_ICON_MIN_AREA_4K = 2000.0
 _KERNEL_3x3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
 
@@ -125,6 +129,26 @@ class VisionModule:
         hi = int(width * _ERROR_CENTER_BAND[1])
         center_white = int(cv2.countNonZero(white[:, lo:hi]))
         return center_white / max(white_pixels, 1) >= _ERROR_CENTER_SHARE_MIN
+
+    @staticmethod
+    def count_icons(bgr_img: np.ndarray, scale: float = 1.0) -> int:
+        """Count the white skill icons in the lower-right action bar.
+
+        Icons are white, low-saturation glyphs; letters under them are far
+        smaller and dropped by the area filter. ``scale`` is the screen scale
+        relative to 4K (FHD = 0.5).
+        """
+        hsv = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+        mask = (
+            (hsv[..., 1] <= _ICON_MAX_SAT) & (hsv[..., 2] >= _ICON_MIN_VAL)
+        ).astype(np.uint8) * 255
+        k = max(3, int(round(_ICON_CLOSE_KERNEL_4K * scale)) | 1)
+        mask = cv2.morphologyEx(
+            mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+        )
+        count, _, stats, _ = cv2.connectedComponentsWithStats(mask)
+        min_area = _ICON_MIN_AREA_4K * scale * scale
+        return sum(1 for i in range(1, count) if stats[i, cv2.CC_STAT_AREA] >= min_area)
 
     @staticmethod
     def error_region_stats(bgr_img: np.ndarray) -> dict:

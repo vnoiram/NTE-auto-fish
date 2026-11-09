@@ -58,6 +58,8 @@ class BotBridge:
         self.preview: dict = {
             "bar": None,
             "button": None,
+            "icons": None,
+            "icons_text": "",
             "error": None,
             "error_text": "",
             "ocr_name": None,

@@ -63,6 +63,8 @@ def _coerce_setting(current, value, allow_negative=False):
 
 # Automatic scan areas as (left, top, right, bottom) ratios of the screen.
 DEFAULT_BAR_RATIOS = (0.314844, 0.05463, 0.314844 + 0.37526, 0.05463 + 0.02963)
+# Lower-right action bar with the R/Q/E/F icons (they vanish once the line is cast).
+DEFAULT_ICON_RATIOS = (1 - 515 / 1920, 1 - 154 / 1080, 1.0, 1.0)
 DEFAULT_BUTTON_RATIOS = (3400 / 3840, 1760 / 2160, (3400 + 440) / 3840, (1760 + 360) / 2160)
 
 
@@ -269,6 +271,10 @@ class AppConfig:
     # means automatic (see DEFAULT_BAR_RATIOS / DEFAULT_BUTTON_RATIOS).
     bar_roi_ratios: tuple = (0.0, 0.0, 0.0, 0.0)
     button_roi_ratios: tuple = (0.0, 0.0, 0.0, 0.0)
+    icon_roi_ratios: tuple = (0.0, 0.0, 0.0, 0.0)
+    # Detect a failed cast (no bait) by the action-bar icons still being visible.
+    cast_icon_check_enabled: bool = True
+    cast_icon_fail_min: int = 3
     ocr_name_roi_ratios: tuple = (0.35, 0.30, 0.65, 0.42)
     ocr_weight_roi_ratios: tuple = (0.45, 0.43, 0.55, 0.52)
 

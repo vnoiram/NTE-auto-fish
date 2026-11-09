@@ -19,7 +19,7 @@ from gui.components import (
     styled_button,
 )
 from gui.i18n import tr
-from modules.preview import BAR_SIZE, BUTTON_SIZE, ERROR_SIZE, OCR_SIZE
+from modules.preview import BAR_SIZE, BUTTON_SIZE, ERROR_SIZE, ICON_SIZE, OCR_SIZE
 from gui.theme import (
     ACCENT,
     ACCENT_BLUE,
@@ -341,6 +341,7 @@ _PREVIEW_TEXTURES = {
     "pv_bar": BAR_SIZE,
     "pv_button": BUTTON_SIZE,
     "pv_error": ERROR_SIZE,
+    "pv_icons": ICON_SIZE,
     "pv_ocr_name": OCR_SIZE,
     "pv_ocr_weight": OCR_SIZE,
 }
@@ -376,6 +377,11 @@ def _create_previews():
             "pv_button_tex", tag="pv_button", width=BUTTON_SIZE[0], height=BUTTON_SIZE[1]
         )
         dpg.add_text("", tag="pv_blue_text")
+    dpg.add_text(tr("Cast check area (action-bar icons)"), color=TEXT_MUTED)
+    dpg.add_image(
+        "pv_icons_tex", tag="pv_icons", width=ICON_SIZE[0], height=ICON_SIZE[1]
+    )
+    dpg.add_text("", tag="pv_icons_text")
     dpg.add_text(tr("Bait error check area"), color=TEXT_MUTED)
     dpg.add_image(
         "pv_error_tex", tag="pv_error", width=ERROR_SIZE[0], height=ERROR_SIZE[1]
@@ -521,6 +527,7 @@ def _update_previews(bridge: BotBridge) -> None:
         for tag, key in (
             ("pv_bar", "bar"),
             ("pv_button", "button"),
+            ("pv_icons", "icons"),
             ("pv_error", "error"),
             ("pv_ocr_name", "ocr_name"),
             ("pv_ocr_weight", "ocr_weight"),
@@ -529,6 +536,7 @@ def _update_previews(bridge: BotBridge) -> None:
         dpg.set_value(
             "pv_blue_text", f"blue {pv['blue_pixels']} / {pv['blue_threshold']}"
         )
+        dpg.set_value("pv_icons_text", pv["icons_text"])
         dpg.set_value("pv_error_text", pv["error_text"])
         dpg.set_value("pv_ocr_name_text", pv["ocr_name_text"])
         dpg.set_value("pv_ocr_weight_text", pv["ocr_weight_text"])

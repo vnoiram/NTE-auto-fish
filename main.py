@@ -20,6 +20,7 @@ from config import (
     CFG,
     AppConfig,
     ensure_settings_loaded,
+    DEFAULT_ICON_RATIOS,
     ratios_are_set,
     sample_movement_pulse,
     sample_noise,
@@ -34,6 +35,7 @@ from modules.preview import (
     render_bar_preview,
     render_button_preview,
     render_error_preview,
+    render_icon_preview,
     render_ocr_preview,
 )
 from modules.profiles import apply_profile, pick_profile
@@ -163,6 +165,7 @@ class NTEFishingBot:
         self._roi_button: dict = dict(cfg.roi.button)
         self._roi_bar: dict = dict(cfg.roi.bar)
         self._roi_error: dict = {}
+        self._roi_icon: dict = {}
         self._bait_error_count = 0
         self._lost_frames = 0
         self._lost_cursor_frames = 0
@@ -404,6 +407,7 @@ class NTEFishingBot:
         key = (
             tuple(cfg.bar_roi_ratios),
             tuple(cfg.button_roi_ratios),
+            tuple(cfg.icon_roi_ratios),
             r.bar_offset_x,
             r.bar_offset_y,
             r.bar_width_delta,
@@ -436,8 +440,14 @@ class NTEFishingBot:
             "width": base_button["width"],
             "height": base_button["height"],
         }
+        self._roi_icon = self._ratio_roi(
+            cfg.icon_roi_ratios
+            if ratios_are_set(cfg.icon_roi_ratios)
+            else DEFAULT_ICON_RATIOS
+        )
         self._log(
-            f"[Calibration] Scan areas: bar={self._roi_bar} button={self._roi_button}"
+            f"[Calibration] Scan areas: bar={self._roi_bar} button={self._roi_button} "
+            f"icons={self._roi_icon}"
         )
 
     def _offset_roi(self, roi: dict) -> dict:
@@ -723,6 +733,19 @@ class NTEFishingBot:
         except Exception:
             return "no details"
 
+    def _publish_icon_preview(self, img, count: int) -> None:
+        bridge = getattr(self, "bridge", None)
+        if bridge is None or not self.cfg.tracker_preview_enabled:
+            return
+        try:
+            bridge.preview["icons"] = render_icon_preview(img)
+            bridge.preview["icons_text"] = (
+                f"icons {count} (failed cast at >= {self.cfg.cast_icon_fail_min})"
+            )
+            bridge.preview["version"] += 1
+        except Exception:
+            log.debug("Icon preview failed.", exc_info=True)
+
     def _publish_error_preview(self, img, is_error: bool) -> None:
         bridge = getattr(self, "bridge", None)
         if bridge is None or not self.cfg.tracker_preview_enabled:
@@ -807,13 +830,57 @@ class NTEFishingBot:
         self._target_x_rel = None
         self.sm.transition(FishingState.STRUGGLING)
 
+    def _icon_check_active(self) -> bool:
+        return bool(
+            self.cfg.bait_error_detection_enabled
+            and self.cfg.cast_icon_check_enabled
+            and self._roi_icon
+        )
+
+    def _count_action_icons(self) -> int:
+        img = self._grab(self._roi_icon)
+        count = self.vision.count_icons(img, self._current_scale)
+        self._publish_icon_preview(img, count)
+        return count
+
+    def _cast_failed_by_icons(self) -> bool:
+        """True when the action-bar icons are still shown after the cast (no bait)."""
+        need = self.cfg.cast_icon_fail_min
+        if self._count_action_icons() < need:
+            return False
+        # confirm: the icons really are still there and not a passing frame
+        self._stop_event.wait(timeout=_ERROR_CONFIRM_DELAY_SECS)
+        return self._count_action_icons() >= need
+
+    def _handle_cast_failure(self, detail: str, err_img=None) -> None:
+        """Count a failed cast; stop once the bait-error limit is reached."""
+        self._bait_error_count += 1
+        if err_img is not None:
+            self._save_error_capture(err_img)
+        self._log(
+            f"[ERROR] Cast error ({self._bait_error_count}/{self.cfg.timing.bait_error_threshold}), "
+            f"retrying... ({detail})"
+        )
+        self.input.release_all()
+        err_wait = 5.0
+        if self.cfg.humanization.enabled:
+            err_wait = sample_timing(err_wait, self.cfg.humanization, minimum=3.0)
+        self._stop_event.wait(timeout=err_wait)
+        if self._bait_error_count >= self.cfg.timing.bait_error_threshold:
+            self._log("[ERROR] Bait likely exhausted, stopping bot.")
+            self.request_stop("Bait error limit reached")
+            self._push_status()
+            return
+        self.sm.transition(FishingState.IDLE)
+        self._push_status()
+
     def _handle_idle(self) -> None:
         self._log("[IDLE] Casting...")
         cast_dur = self.cfg.timing.key_press_duration
         if self.cfg.humanization.enabled:
             cast_dur = sample_timing(cast_dur, self.cfg.humanization, minimum=0.02)
         self.input.press(self.cfg.keys.cast, cast_dur)
-        # Check for error dialog shortly after cast (dialog appears immediately)
+        use_icons = self._icon_check_active()
         error_check_delay = 0.3
         if self.cfg.humanization.enabled:
             error_check_delay = sample_timing(
@@ -822,7 +889,12 @@ class NTEFishingBot:
                 minimum=0.1,
             )
         self._stop_event.wait(timeout=error_check_delay)
-        if self._roi_error and self.cfg.bait_error_detection_enabled:
+        if (
+            not use_icons
+            and self._roi_error
+            and self.cfg.bait_error_detection_enabled
+        ):
+            # Fallback without the icon area: look for the error dialog.
             err_img = self._grab(self._roi_error)
             is_error = self.vision.check_error_region(
                 err_img, white_pixel_min=self._scaled_error_white_min
@@ -842,28 +914,9 @@ class NTEFishingBot:
                         f"({self._describe_error_region(err_img)})."
                     )
             if is_error:
-                self._bait_error_count += 1
-                self._save_error_capture(err_img)
-                self._log(
-                    f"[ERROR] Cast error ({self._bait_error_count}/{self.cfg.timing.bait_error_threshold}), "
-                    f"waiting for dialog to dismiss... ({self._describe_error_region(err_img)})"
-                )
-                self.input.release_all()
-                err_wait = 5.0
-                if self.cfg.humanization.enabled:
-                    err_wait = sample_timing(
-                        err_wait, self.cfg.humanization, minimum=3.0
-                    )
-                self._stop_event.wait(timeout=err_wait)
-                if self._bait_error_count >= self.cfg.timing.bait_error_threshold:
-                    self._log("[ERROR] Bait likely exhausted, stopping bot.")
-                    self.request_stop("Bait error limit reached")
-                    self._push_status()
-                    return
-                self.sm.transition(FishingState.IDLE)
-                self._push_status()
+                self._handle_cast_failure(self._describe_error_region(err_img), err_img)
                 return
-        # No error, wait out the rest of the cast animation
+        # Wait out the rest of the cast animation
         anim_secs = self.cfg.timing.cast_animation_secs
         if self.cfg.humanization.enabled:
             anim_secs = sample_timing(anim_secs, self.cfg.humanization, minimum=0.8)
@@ -871,6 +924,10 @@ class NTEFishingBot:
         if remaining > 0:
             self._stop_event.wait(timeout=remaining)
         if self._stop_flag:
+            return
+        # The action-bar icons vanish once the line is cast; still visible = no cast.
+        if use_icons and self._cast_failed_by_icons():
+            self._handle_cast_failure("action-bar icons still visible")
             return
         self._enter_waiting()
 

@@ -303,6 +303,8 @@ class TestRoiOffsets(unittest.TestCase):
         bot._roi_bar_default = {"left": 100, "top": 50, "width": 1000, "height": 60}
         bot._roi_button_default = {"left": 3000, "top": 1700, "width": 400, "height": 300}
         bot._roi_offsets_applied = None
+        bot._screen_w, bot._screen_h = 3840, 2160
+        bot._mon_x = bot._mon_y = 0
         return bot
 
     def test_offsets_shift_and_resize_areas(self):
@@ -363,6 +365,67 @@ class TestBaitErrorDetectionOption(unittest.TestCase):
         bot._enter_waiting = MagicMock()
         bot._handle_idle()
         bot._grab.assert_not_called()
+        bot._enter_waiting.assert_called_once_with()
+
+
+class TestCastIconCheck(unittest.TestCase):
+    def _bot(self, counts):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.humanization.enabled = False
+        bot.cfg.timing.cast_animation_secs = 0.0
+        bot.cfg.timing.bait_error_threshold = 2
+        bot.input = MagicMock()
+        bot._log = MagicMock()
+        bot._stop_event = MagicMock()
+        bot._stop_flag = False
+        bot._bait_error_count = 0
+        bot._roi_error = {}
+        bot._roi_icon = {"width": 10}
+        bot._current_scale = 0.5
+        bot._grab = MagicMock(return_value=object())
+        bot.vision = MagicMock()
+        bot.vision.count_icons.side_effect = counts
+        bot.sm = MagicMock()
+        bot.request_stop = MagicMock()
+        bot._push_status = MagicMock()
+        bot._enter_waiting = MagicMock()
+        bot._save_error_capture = MagicMock()
+        return bot
+
+    def test_icons_gone_means_the_cast_worked(self):
+        bot = self._bot([1])
+        bot._handle_idle()
+        bot._enter_waiting.assert_called_once_with()
+        bot.sm.transition.assert_not_called()
+
+    def test_icons_still_visible_counts_as_a_failed_cast(self):
+        bot = self._bot([4, 4])  # first look and the confirmation
+        bot._handle_idle()
+        bot._enter_waiting.assert_not_called()
+        self.assertEqual(bot._bait_error_count, 1)
+        bot.sm.transition.assert_called_once_with(FishingState.IDLE)
+
+    def test_a_passing_frame_is_not_a_failure(self):
+        bot = self._bot([4, 1])  # icons seen once, gone on confirmation
+        bot._handle_idle()
+        bot._enter_waiting.assert_called_once_with()
+
+    def test_stops_after_the_error_limit(self):
+        bot = self._bot([4, 4])
+        bot._bait_error_count = 1
+        bot._handle_idle()
+        bot.request_stop.assert_called_once()
+        bot._enter_waiting.assert_not_called()
+
+    def test_without_the_icon_area_the_dialog_check_is_used(self):
+        bot = self._bot([])
+        bot._roi_icon = {}
+        bot._roi_error = {"width": 1}
+        bot._scaled_error_white_min = 1
+        bot.vision.check_error_region.return_value = False
+        bot._handle_idle()
+        bot.vision.count_icons.assert_not_called()
         bot._enter_waiting.assert_called_once_with()
 
 

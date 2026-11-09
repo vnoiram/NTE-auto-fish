@@ -15,7 +15,13 @@ from collections.abc import Callable
 import dearpygui.dearpygui as dpg
 from screeninfo import get_monitors
 
-from config import CFG, DEFAULT_BAR_RATIOS, DEFAULT_BUTTON_RATIOS, ratios_are_set
+from config import (
+    CFG,
+    DEFAULT_BAR_RATIOS,
+    DEFAULT_BUTTON_RATIOS,
+    DEFAULT_ICON_RATIOS,
+    ratios_are_set,
+)
 from gui.bridge import BotBridge
 from gui.components import (
     apply_glass_card_theme,
@@ -1086,12 +1092,14 @@ def _open_scanning_area_editor() -> None:
     _WEIGHT_CLR = "#44AAFF"
     _BAR_CLR = "#44DD66"
     _BITE_CLR = "#FFCC00"
+    _ICON_CLR = "#CC66FF"
     # key, colour, label
     _AREAS = (
         ("name", _NAME_CLR, "Fish Name"),
         ("weight", _WEIGHT_CLR, "Weight (g)"),
         ("bar", _BAR_CLR, "Bar area"),
         ("bite", _BITE_CLR, "Bite area"),
+        ("icons", _ICON_CLR, "Icon area"),
     )
     _HANDLE = 10  # half-size of corner square
     _BORDER = 3
@@ -1133,6 +1141,11 @@ def _open_scanning_area_editor() -> None:
                 CFG.button_roi_ratios
                 if ratios_are_set(CFG.button_roi_ratios)
                 else DEFAULT_BUTTON_RATIOS
+            ),
+            "icons": r2px(
+                CFG.icon_roi_ratios
+                if ratios_are_set(CFG.icon_roi_ratios)
+                else DEFAULT_ICON_RATIOS
             ),
             "drag_target": None,
             "drag_mode": None,
@@ -1189,11 +1202,11 @@ def _open_scanning_area_editor() -> None:
         # ── Instruction banner ────────────────────────────────────────────
         banner = tr(
             "Drag to move  •  Drag corner squares to resize  "
-            "•  Red = Fish Name | Blue = Weight | Green = Bar | Yellow = Bite"
+            "•  Red = Fish Name | Blue = Weight | Green = Bar | Yellow = Bite | Purple = Icons"
         )
         bx = sw // 2
         canvas.create_rectangle(
-            bx - 470, 10, bx + 470, 40, fill="#1a1a2e", outline="#444444", width=1
+            bx - 540, 10, bx + 540, 40, fill="#1a1a2e", outline="#444444", width=1
         )
         canvas.create_text(bx, 25, text=banner, fill="white", font=("Yu Gothic UI", 12))
 
@@ -1214,6 +1227,7 @@ def _open_scanning_area_editor() -> None:
             CFG.ocr_weight_roi_ratios = p2r(state["weight"])
             CFG.bar_roi_ratios = p2r(state["bar"])
             CFG.button_roi_ratios = p2r(state["bite"])
+            CFG.icon_roi_ratios = p2r(state["icons"])
             CFG.save()
             log.info(
                 "Scanning areas saved — name=%s  weight=%s  bar=%s  bite=%s",
@@ -1271,7 +1285,7 @@ def _open_scanning_area_editor() -> None:
             return None
 
         def on_press(event):
-            for which in ("bite", "bar", "weight", "name"):
+            for which in ("icons", "bite", "bar", "weight", "name"):
                 mode = hit_test(event.x, event.y, state[which])
                 if mode:
                     state["drag_target"] = which

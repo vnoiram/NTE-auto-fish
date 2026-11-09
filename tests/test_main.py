@@ -213,6 +213,49 @@ class TestProfileSwitching(unittest.TestCase):
         self.assertEqual(bot.cfg.active_profile, "Day")
 
 
+class TestGaugeAssistStep(unittest.TestCase):
+    def _bot(self):
+        from modules.calibration import GaugeAssist
+
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.sm = MagicMock()
+        bot.sm.time_in_state = 0.1
+        bot._assist = GaugeAssist()
+        bot._assist_done = False
+        bot._background = None
+        bot.bridge = None
+        return bot
+
+    def test_records_once_per_fight(self):
+        import numpy as np
+
+        img = np.full((40, 400, 3), 20, np.uint8)
+        img[:, 140:260] = (200, 230, 40)  # greenish-cyan (BGR) bar
+        img[:, 198:202] = (60, 220, 255)  # yellow line
+        bot = self._bot()
+        bot._gauge_assist_step(img, 200, 200)
+        bot._gauge_assist_step(img, 200, 200)
+        self.assertEqual(bot._assist.samples, 1)
+        self.assertTrue(bot._assist_done)
+
+    def test_miss_is_counted_after_window(self):
+        import numpy as np
+
+        bot = self._bot()
+        bot.sm.time_in_state = 5.0
+        bot._gauge_assist_step(np.full((40, 400, 3), 20, np.uint8), None, None)
+        self.assertEqual(bot._assist.misses, 1)
+
+    def test_disabled_does_nothing(self):
+        import numpy as np
+
+        bot = self._bot()
+        bot.cfg.gauge_assist_enabled = False
+        bot._gauge_assist_step(np.zeros((10, 10, 3), np.uint8), None, None)
+        self.assertEqual(bot._assist.samples, 0)
+
+
 class TestDeadbandPlaySelection(unittest.TestCase):
     def test_battle_gate_is_rolled_once_then_uses_existing_tap_chance(self):
         bot = NTEFishingBot.__new__(NTEFishingBot)

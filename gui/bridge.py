@@ -33,7 +33,7 @@ class BotStatus:
     last_fish_weight_g: str | None = None
 
 
-from modules.calibration import BackgroundSampler  # noqa: E402
+from modules.calibration import BackgroundSampler, GaugeAssist  # noqa: E402
 
 
 class BotBridge:
@@ -46,6 +46,9 @@ class BotBridge:
         self._current_status = BotStatus()
         # Colours seen around the gauge while it is hidden; filled by the bot.
         self.background = BackgroundSampler()
+        # Gauge measurements taken automatically at the start of each fight.
+        self.gauge_assist = GaugeAssist()
+        self.assist_callback = None  # called after each new measurement
 
     def push_status(self, status: BotStatus) -> None:
         """Push a status frame. Older frames are dropped when the GUI lags."""

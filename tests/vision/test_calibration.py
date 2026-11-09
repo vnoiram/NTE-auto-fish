@@ -5,6 +5,8 @@ import numpy as np
 
 from modules.calibration import (
     BackgroundSampler,
+    GaugeAssist,
+    suggest_gauge_at_start,
     describe,
     suggest_bite,
     suggest_gauge,
@@ -88,6 +90,40 @@ class TestCalibration(unittest.TestCase):
         _, with_bg = suggest_gauge(img, *hints, sampler)
         self.assertIsNotNone(without)
         self.assertLess(with_bg.pixels if with_bg else 0, without.pixels)
+
+    def test_fight_start_finds_centered_cursor_and_safe_zone(self):
+        img = np.full((40, 400, 3), 20, np.uint8)
+        img[:, 140:260] = _bgr(88, 230, 230)  # fish bar around the centre
+        img[:, 198:202] = _bgr(28, 80, 255)  # cursor line at the centre
+        img[:, 20:60] = _bgr(26, 200, 250)  # yellow background far from centre
+        safe, cursor = suggest_gauge_at_start(img)
+        self.assertIsNotNone(safe)
+        self.assertIsNotNone(cursor)
+        self.assertTrue(safe.lower[0] <= 88 <= safe.upper[0])
+        self.assertTrue(cursor.lower[0] <= 28 <= cursor.upper[0])
+
+    def test_fight_start_ignores_off_centre_yellow(self):
+        img = np.full((40, 400, 3), 20, np.uint8)
+        img[:, 140:260] = _bgr(88, 230, 230)
+        img[:, 20:60] = _bgr(28, 80, 255)  # yellow only far from the centre
+        _, cursor = suggest_gauge_at_start(img)
+        self.assertIsNone(cursor)
+
+    def test_gauge_assist_aggregates_median_and_hit_rate(self):
+        assist = GaugeAssist()
+        img = np.full((40, 400, 3), 20, np.uint8)
+        img[:, 140:260] = _bgr(88, 230, 230)
+        img[:, 198:202] = _bgr(28, 80, 255)
+        safe, cursor = suggest_gauge_at_start(img)
+        assist.add(safe, cursor, True)
+        assist.add(safe, cursor, False)
+        assist.add_miss()
+        self.assertEqual(assist.samples, 2)
+        self.assertAlmostEqual(assist.hit_rate, 0.5)
+        self.assertEqual(assist.misses, 1)
+        self.assertEqual(assist.summary()[1].lower, cursor.lower)
+        assist.reset()
+        self.assertEqual(assist.samples, 0)
 
     def test_describe_reports_size(self):
         self.assertIn("200x40", describe(np.zeros((40, 200, 3), np.uint8)))

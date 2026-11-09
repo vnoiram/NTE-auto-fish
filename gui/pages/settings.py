@@ -651,6 +651,49 @@ def _run_calibration(
             log.debug("Calibration button re-enable failed", exc_info=True)
 
 
+def _update_assist_text(bridge: BotBridge) -> None:
+    assist = bridge.gauge_assist
+    if assist.samples == 0:
+        text = tr("No fight-start samples yet.")
+        if assist.misses:
+            text += f" ({tr('missed')}: {assist.misses})"
+    else:
+        safe, cursor = assist.summary()
+        rate = assist.hit_rate or 0.0
+        lines = [
+            tr("Samples: {n}, current settings detected both bars: {p}%").format(
+                n=assist.samples, p=round(rate * 100)
+            )
+        ]
+        if safe is not None:
+            lines.append(f"{tr('Safe Zone HSV')}: {_fmt_hsv(safe)}")
+        if cursor is not None:
+            lines.append(f"{tr('Cursor HSV')}: {_fmt_hsv(cursor)}")
+        if assist.misses:
+            lines.append(f"{tr('missed')}: {assist.misses}")
+        text = "\n".join(lines)
+    try:
+        dpg.set_value("cal_assist_text", text)
+    except Exception:
+        log.debug("Assist text update failed", exc_info=True)
+
+
+def _apply_assist(bridge: BotBridge) -> None:
+    safe, cursor = bridge.gauge_assist.summary()
+    if safe is None and cursor is None:
+        return
+    if safe is not None:
+        _apply_hsv("cfg_hsv_sz", CFG.hsv.safe_zone, safe)
+    if cursor is not None:
+        _apply_hsv("cfg_hsv_cur", CFG.hsv.cursor, cursor)
+    dpg.set_value("cal_assist_text", tr("Applied. Remember to press Save Settings."))
+
+
+def _reset_assist(bridge: BotBridge) -> None:
+    bridge.gauge_assist.reset()
+    _update_assist_text(bridge)
+
+
 def _apply_hsv(prefix: str, target, sug) -> None:
     target.lower = tuple(sug.lower)
     target.upper = tuple(sug.upper)
@@ -833,6 +876,29 @@ def _build_vision_settings(bridge: BotBridge):
             show=False,
             callback=lambda: _apply_calibration("gauge"),
         )
+        dpg.add_spacer(height=int(6 * _s))
+        dpg.add_text(tr("Fight-start assist"))
+        caption_text(
+            "At the start of every fight the cursor and safe zone are centered, "
+            "so the colors are measured automatically. Suggestions only; nothing "
+            "is applied until you press the button."
+        )
+        dpg.add_checkbox(
+            label=tr("Measure gauge at fight start"),
+            tag="cfg_gauge_assist",
+            default_value=CFG.gauge_assist_enabled,
+            callback=lambda s, d: _set(CFG, "gauge_assist_enabled", d),
+        )
+        dpg.add_text("", tag="cal_assist_text", wrap=int(420 * _s))
+        dpg.add_button(
+            label=tr("Apply assist suggestion"),
+            callback=lambda: _apply_assist(bridge),
+        )
+        dpg.add_button(
+            label=tr("Reset assist samples"), callback=lambda: _reset_assist(bridge)
+        )
+        bridge.assist_callback = lambda: _update_assist_text(bridge)
+        _update_assist_text(bridge)
 
         dpg.add_spacer(height=int(12 * _s))
         dpg.add_separator()
@@ -2086,6 +2152,7 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_battle_safe_zone", CFG.battle_detect_safe_zone)
     dpg.set_value("cfg_spam_cast", CFG.spam_cast_enabled)
     dpg.set_value("cfg_profile_auto", CFG.profile_auto_switch)
+    dpg.set_value("cfg_gauge_assist", CFG.gauge_assist_enabled)
     _refresh_profile_combo(CFG.active_profile)
     dpg.set_value("cfg_spam_min", CFG.spam_cast_interval_min)
     dpg.set_value("cfg_spam_max", CFG.spam_cast_interval_max)

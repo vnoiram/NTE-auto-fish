@@ -4,6 +4,7 @@ Pure image helpers with no GUI or capture dependency, so they can be tested
 with synthetic images.
 """
 
+import threading
 from dataclasses import dataclass
 
 import cv2
@@ -133,7 +134,7 @@ def suggest_bite(bgr: np.ndarray) -> Suggestion | None:
 
 # (min_sat, min_val) pairs tried in order, strict to loose.
 _SAFE_LEVELS = ((80, 120), (50, 80), (30, 50))
-_CURSOR_LEVELS = ((60, 200), (40, 150), (30, 110))
+_CURSOR_LEVELS = ((40, 235), (40, 200), (30, 150))
 
 
 _HINT_HUE_PAD = 20
@@ -190,6 +191,127 @@ def suggest_gauge(
         if cursor is not None:
             break
     return safe, cursor
+
+
+_START_SAFE_BAND = (0.25, 0.75)  # fish bar region (fraction of width) at fight start
+_START_CURSOR_BAND = (0.44, 0.56)  # cursor line is at the centre at fight start
+
+
+def suggest_gauge_at_start(
+    bgr: np.ndarray,
+    safe_hint=None,
+    cursor_hint=None,
+    background: BackgroundSampler | None = None,
+) -> tuple[Suggestion | None, Suggestion | None]:
+    """Gauge colours for the first frames of a fight.
+
+    At the start the cursor is a thin line in the middle of the gauge and the
+    safe zone is a horizontal bar around it, so the safe zone is searched in
+    the central half and the cursor only in a narrow strip at the centre.
+    """
+    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    width = hsv.shape[1]
+
+    def crop(frac: tuple[float, float]) -> slice:
+        return slice(int(width * frac[0]), max(int(width * frac[1]), 1))
+
+    safe_cols = crop(_START_SAFE_BAND)
+    cursor_cols = crop(_START_CURSOR_BAND)
+    ignore = background.mask(hsv) if background is not None else None
+
+    def sub(mask, cols):
+        return None if mask is None else mask[:, cols]
+
+    safe = None
+    for sat, val in _SAFE_LEVELS:
+        safe = dominant_range(
+            hsv[:, safe_cols],
+            min_sat=sat,
+            min_val=val,
+            hue_band=_hint_band(safe_hint),
+            ignore_mask=sub(ignore, safe_cols),
+        )
+        if safe is not None:
+            break
+
+    cursor_band = _hint_band(cursor_hint)
+    exclude = None
+    if safe is not None and cursor_band is None:
+        exclude = (safe.peak_hue - 2 * _PEAK_RADIUS, safe.peak_hue + 2 * _PEAK_RADIUS)
+    cursor = None
+    for sat, val in _CURSOR_LEVELS:
+        cursor = dominant_range(
+            hsv[:, cursor_cols],
+            min_sat=sat,
+            min_val=val,
+            min_pixels=10,
+            hue_band=cursor_band,
+            exclude_hue=exclude,
+            ignore_mask=sub(ignore, cursor_cols),
+        )
+        if cursor is not None:
+            break
+    return safe, cursor
+
+
+class GaugeAssist:
+    """Collects fight-start gauge measurements and compares them with the live detection.
+
+    Assist only: it never changes settings by itself. ``summary`` returns the
+    median suggestion so the user can apply it once enough samples agree.
+    """
+
+    def __init__(self, max_samples: int = 30) -> None:
+        self._max = max_samples
+        self._lock = threading.Lock()
+        self._safe: list[Suggestion] = []
+        self._cursor: list[Suggestion] = []
+        self._hits: list[bool] = []
+        self.misses = 0
+
+    def add(self, safe, cursor, current_detection_ok: bool) -> None:
+        with self._lock:
+            if safe is not None:
+                self._safe = (self._safe + [safe])[-self._max :]
+            if cursor is not None:
+                self._cursor = (self._cursor + [cursor])[-self._max :]
+            self._hits = (self._hits + [current_detection_ok])[-self._max :]
+
+    def add_miss(self) -> None:
+        with self._lock:
+            self.misses += 1
+
+    def reset(self) -> None:
+        with self._lock:
+            self._safe, self._cursor, self._hits, self.misses = [], [], [], 0
+
+    @property
+    def samples(self) -> int:
+        with self._lock:
+            return len(self._hits)
+
+    @property
+    def hit_rate(self) -> float | None:
+        """Share of fight starts where the current settings found both bars."""
+        with self._lock:
+            return sum(self._hits) / len(self._hits) if self._hits else None
+
+    @staticmethod
+    def _median(items: list[Suggestion]) -> Suggestion | None:
+        if not items:
+            return None
+        lower = tuple(int(np.median([i.lower[k] for i in items])) for k in range(3))
+        upper = tuple(int(np.median([i.upper[k] for i in items])) for k in range(3))
+        return Suggestion(
+            lower,
+            upper,
+            int(np.median([i.pixels for i in items])),
+            int(np.median([i.peak_hue for i in items])),
+        )
+
+    def summary(self) -> tuple[Suggestion | None, Suggestion | None]:
+        with self._lock:
+            return self._median(self._safe), self._median(self._cursor)
 
 
 def describe(bgr: np.ndarray) -> str:

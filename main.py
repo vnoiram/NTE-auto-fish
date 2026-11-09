@@ -26,7 +26,7 @@ from config import (
     sample_timing,
 )
 from modules.branding import scoped_runtime_name
-from modules.calibration import BackgroundSampler
+from modules.calibration import BackgroundSampler, GaugeAssist, suggest_gauge_at_start
 from modules.logic import FishingState, FishingStateMachine, PIDController
 from modules.ocr import CatchOcr, ratios_to_roi
 from modules.profiles import apply_profile, pick_profile
@@ -55,6 +55,7 @@ _RNG = SystemRandom()
 
 _BG_SAMPLE_INTERVAL_SECS = 1.0
 _PROFILE_CHECK_INTERVAL_SECS = 5.0
+_ASSIST_WINDOW_SECS = 2.0
 _PROFILE_MIN_SAMPLES = 3
 _DEFAULT_SCREEN_W = 3840
 _DEFAULT_SCREEN_H = 2160
@@ -182,6 +183,8 @@ class NTEFishingBot:
         self._battle_absent_frames = 0
         self._next_spam_at = 0.0
         self._next_bg_sample_at = 0.0
+        self._assist_done = True
+        self._assist = bridge.gauge_assist if bridge is not None else GaugeAssist()
         self._background = (
             bridge.background if bridge is not None else BackgroundSampler()
         )
@@ -611,6 +614,7 @@ class NTEFishingBot:
         self._bar_detected_in_struggle = False
         self._battle_visible = False
         self._battle_absent_frames = 0
+        self._assist_done = False
         self._reset_humanization_state()
 
         if press_hook:
@@ -694,6 +698,34 @@ class NTEFishingBot:
         self._waiting_timeout_secs = timeout
         self._next_spam_at = 0.0
         self.sm.transition(FishingState.WAITING)
+
+    def _gauge_assist_step(self, bar_img, cursor_x, target_x) -> None:
+        """Measure the gauge on the first frames of a fight (assist only)."""
+        if getattr(self, "_assist_done", True) or not self.cfg.gauge_assist_enabled:
+            return
+        assist = getattr(self, "_assist", None)
+        if assist is None:
+            return
+        elapsed = self.sm.time_in_state
+        safe, cursor = suggest_gauge_at_start(
+            bar_img,
+            (self.cfg.hsv.safe_zone.lower, self.cfg.hsv.safe_zone.upper),
+            (self.cfg.hsv.cursor.lower, self.cfg.hsv.cursor.upper),
+            getattr(self, "_background", None),
+        )
+        if safe is None or cursor is None:
+            if elapsed > _ASSIST_WINDOW_SECS:
+                self._assist_done = True
+                assist.add_miss()
+            return
+        self._assist_done = True
+        assist.add(safe, cursor, cursor_x is not None and target_x is not None)
+        callback = getattr(self.bridge, "assist_callback", None) if self.bridge else None
+        if callback is not None:
+            try:
+                callback()
+            except Exception:
+                log.debug("Gauge assist callback failed", exc_info=True)
 
     def _sample_background(self) -> None:
         """While waiting the gauge is hidden: learn the colours behind it."""
@@ -831,6 +863,7 @@ class NTEFishingBot:
 
         self._cursor_x_rel = cursor_x
         self._target_x_rel = target_x
+        self._gauge_assist_step(bar_img, cursor_x, target_x)
 
         output = 0.0
         action = "NONE"

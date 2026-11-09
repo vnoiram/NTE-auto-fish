@@ -924,7 +924,7 @@ class NTEFishingBot:
         t = self.cfg.timing
         lo = max(0.0, min(t.start_delay_min_secs, t.start_delay_max_secs))
         hi = max(0.0, max(t.start_delay_min_secs, t.start_delay_max_secs))
-        delay = random.uniform(lo, hi)
+        delay = random.uniform(lo, hi)  # nosec B311
         if delay > 0:
             self._log(f"[Start] Waiting {delay:.1f}s before the first cast.")
             self._stop_event.wait(timeout=delay)

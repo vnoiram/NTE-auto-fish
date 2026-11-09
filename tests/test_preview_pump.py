@@ -98,12 +98,13 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def test_pump_log_is_capped_and_bumps_version():
-    from gui.preview_pump import add_pump_log
+class TestPumpLog(unittest.TestCase):
+    def test_pump_log_is_capped_and_bumps_version(self):
+        from gui.preview_pump import add_pump_log
 
-    pv = {"pump_log": [], "version": 0}
-    for i in range(30):
-        add_pump_log(pv, f"step {i}")
-    assert len(pv["pump_log"]) == 12
-    assert pv["pump_log"][-1].endswith("step 29")
-    assert pv["version"] == 30
+        pv = {"pump_log": [], "version": 0}
+        for i in range(30):
+            add_pump_log(pv, f"step {i}")
+        self.assertEqual(len(pv["pump_log"]), 12)
+        self.assertTrue(pv["pump_log"][-1].endswith("step 29"))
+        self.assertEqual(pv["version"], 30)

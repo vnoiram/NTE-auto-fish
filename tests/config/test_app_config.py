@@ -139,9 +139,10 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def test_start_delay_defaults_and_tuned_timing():
-    from config import AppConfig
+class TestTimingDefaults(unittest.TestCase):
+    def test_start_delay_defaults_and_tuned_timing(self):
+        from config import AppConfig
 
-    t = AppConfig().timing
-    assert (t.start_delay_min_secs, t.start_delay_max_secs) == (1.4, 2.6)
-    assert t.lost_frames_threshold == 20
+        t = AppConfig().timing
+        self.assertEqual((t.start_delay_min_secs, t.start_delay_max_secs), (1.4, 2.6))
+        self.assertEqual(t.lost_frames_threshold, 20)

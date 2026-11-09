@@ -191,6 +191,7 @@ class NTEFishingBot:
         self._active_secs = 0.0
         self._fish_limit_target = None
         self._time_limit_until = None
+        self._time_limit_notified = False
         self._fps = 0.0
         self._last_time = time.time()
         self._last_action = "NONE"
@@ -262,6 +263,7 @@ class NTEFishingBot:
         self._active_secs = 0.0
         self._fish_limit_target = None
         self._time_limit_until = None
+        self._time_limit_notified = False
         self.sm = FishingStateMachine()
         self.pid.reset()
         self._fish_count = 0
@@ -886,16 +888,23 @@ class NTEFishingBot:
         fish, minutes = req
         self._fish_limit_target = self._fish_count + fish if fish > 0 else None
         self._time_limit_until = self._active_secs + minutes * 60 if minutes > 0 else None
+        self._time_limit_notified = False
         self._log(f"[Limit] Auto stop set: {fish or '-'} fish / {minutes or '-'} min from now.")
 
     def _run_time_limit_reached(self) -> bool:
         until = self._time_limit_until
-        if until is not None and self._active_secs >= until:
-            self._log("[Limit] Run time limit reached.")
-            self.request_stop("Run time limit reached")
-            self._push_status()
-            return True
-        return False
+        if until is None or self._active_secs < until:
+            return False
+        if self.sm.state is not FishingState.IDLE:
+            # Let the current cast / fight / result finish; stop before the next cast.
+            if not self._time_limit_notified:
+                self._time_limit_notified = True
+                self._log("[Limit] Time is up; stopping after the current fish.")
+            return False
+        self._log("[Limit] Run time limit reached.")
+        self.request_stop("Run time limit reached")
+        self._push_status()
+        return True
 
     def _wait_start_delay(self) -> None:
         """Pause a random moment after start/resume before the first cast."""

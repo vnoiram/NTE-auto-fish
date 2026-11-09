@@ -441,6 +441,9 @@ class RunLimitTest(unittest.TestCase):
         bot._active_secs = 100.0
         bot._fish_limit_target = None
         bot._time_limit_until = None
+        bot._time_limit_notified = False
+        bot.sm = MagicMock()
+        bot.sm.state = FishingState.IDLE
         bot._log = MagicMock()
         bot._push_status = MagicMock()
         bot.request_stop = MagicMock()
@@ -467,6 +470,16 @@ class RunLimitTest(unittest.TestCase):
         bot._time_limit_until = 100.0
         self.assertTrue(bot._run_time_limit_reached())
         bot.request_stop.assert_called_once_with("Run time limit reached")
+
+    def test_time_limit_waits_for_the_fish_in_progress(self):
+        bot = self._bot()
+        bot._time_limit_until = 100.0
+        for state in (FishingState.WAITING, FishingState.STRUGGLING, FishingState.RESULT):
+            bot.sm.state = state
+            self.assertFalse(bot._run_time_limit_reached())
+        bot.request_stop.assert_not_called()
+        bot.sm.state = FishingState.IDLE
+        self.assertTrue(bot._run_time_limit_reached())
 
     def test_no_limit_or_not_yet_reached(self):
         bot = self._bot()

@@ -261,6 +261,7 @@ class PreviewPump:
         from modules.preview import render_ocr_preview
 
         ocr = CatchOcr()
+        ocr.warm_up()
         done_key = None
         pending_key, pending_since = None, 0.0
         while not self._stop.wait(_POLL_SECS):

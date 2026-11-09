@@ -15,6 +15,9 @@ except ImportError:
     OCR_IMPORTABLE = False
 
 
+_MAX_CROP_H = 120
+
+
 def clean_fish_name(raw: str) -> str:
     """Keep word characters, spaces, apostrophes and hyphens; collapse whitespace."""
     name = re.sub(r"[^\w '\-]", " ", raw).strip()
@@ -47,6 +50,10 @@ class CatchOcr:
         # Last (raw crop, binarised image, text) per region, for the dashboard preview.
         self.last_regions: dict[str, tuple] = {}
 
+    def warm_up(self) -> None:
+        """Load the engine now so the first read does not pay the model load cost."""
+        self._ensure_engine()
+
     def _ensure_engine(self) -> bool:
         if not self.available:
             return False
@@ -71,6 +78,12 @@ class CatchOcr:
             h, w = img.shape[:2]
             if h < 80:
                 img = cv2.resize(img, (w * 3, h * 3), interpolation=cv2.INTER_CUBIC)
+            elif h > _MAX_CROP_H:
+                # Big (4K) crops make detection needlessly slow; text stays legible.
+                scale = _MAX_CROP_H / h
+                img = cv2.resize(
+                    img, (max(1, int(w * scale)), _MAX_CROP_H), interpolation=cv2.INTER_AREA
+                )
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # Otsu picks the optimal split per-image; works for both
             # light-on-dark and dark-on-light text without a hard-coded level.
@@ -79,7 +92,7 @@ class CatchOcr:
             if cv2.countNonZero(thresh) > thresh.size * 0.5:
                 thresh = cv2.bitwise_not(thresh)
             bgr = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
-            result = self._engine(bgr)
+            result = self._engine(bgr, use_cls=False)  # one upright line: skip angle classifier
             text = " ".join(result.txts).strip() if result.txts else ""
             if key:
                 self.last_regions[key] = (img, thresh, text)

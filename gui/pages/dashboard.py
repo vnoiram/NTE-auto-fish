@@ -9,6 +9,7 @@ from collections.abc import Callable
 import dearpygui.dearpygui as dpg
 import numpy as np
 
+from config import CFG
 from gui.bridge import BotBridge, BotStatus
 from gui.components import (
     apply_glass_card_theme,
@@ -259,6 +260,7 @@ def create_dashboard(
 
 def update_dashboard_ui(bridge: BotBridge):
     status = bridge.latest_status()
+    bind_preview_drag(bridge)
 
     # Resize stat cards to fill the row dynamically on window resize.
     _resize_stat_cards()
@@ -345,7 +347,12 @@ def _create_previews():
     with dpg.texture_registry():
         for tag, (w, h) in _PREVIEW_TEXTURES.items():
             dpg.add_dynamic_texture(w, h, [0.0] * (w * h * 4), tag=f"{tag}_tex")
+    _create_drag_handlers()
     dpg.add_spacer(height=int(6 * _s))
+    caption_text(
+        "Drag a preview image to shift its scan area (the area follows your drag). "
+        "Fine tuning and resizing: Settings > Vision & Detection."
+    )
     caption_text(
         "Live capture: green = safe zone color match, yellow = cursor color match, "
         "magenta = bite color match. Red line = cursor, green box = safe zone."
@@ -373,6 +380,73 @@ def _create_previews():
                 height=OCR_SIZE[1],
             )
             dpg.add_text("", tag="pv_ocr_weight_text")
+
+
+# Drag a preview to shift its scan area: key -> (config attrs for x/y offsets, size)
+_DRAG_AREAS = {
+    "pv_bar": ("bar_offset_x", "bar_offset_y", "cfg_roi_bar_x", "cfg_roi_bar_y", BAR_SIZE),
+    "pv_button": (
+        "button_offset_x",
+        "button_offset_y",
+        "cfg_roi_btn_x",
+        "cfg_roi_btn_y",
+        BUTTON_SIZE,
+    ),
+}
+_drag_state: dict = {"target": None, "start": None}
+_drag_bridge: BotBridge | None = None
+
+
+def bind_preview_drag(bridge: BotBridge) -> None:
+    """Let the dashboard know where the live scan-area sizes come from."""
+    global _drag_bridge
+    _drag_bridge = bridge
+
+
+def _create_drag_handlers() -> None:
+    with dpg.handler_registry():
+        dpg.add_mouse_drag_handler(button=0, threshold=2.0, callback=_on_preview_drag)
+        dpg.add_mouse_release_handler(button=0, callback=_on_preview_release)
+
+
+def _on_preview_release(sender=None, app_data=None) -> None:
+    _drag_state["target"] = None
+    _drag_state["start"] = None
+
+
+def _on_preview_drag(sender, app_data) -> None:
+    if _drag_bridge is None:
+        return
+    _, dx, dy = app_data
+    if _drag_state["target"] is None:
+        for tag in _DRAG_AREAS:
+            if dpg.does_item_exist(tag) and dpg.is_item_hovered(tag):
+                x_attr, y_attr = _DRAG_AREAS[tag][:2]
+                _drag_state["target"] = tag
+                _drag_state["start"] = (
+                    getattr(CFG.roi, x_attr),
+                    getattr(CFG.roi, y_attr),
+                )
+                break
+        else:
+            return
+    tag = _drag_state["target"]
+    x_attr, y_attr, x_tag, y_tag, size = _DRAG_AREAS[tag]
+    status = _drag_bridge.latest_status()
+    roi = status.bar_roi if tag == "pv_bar" else status.button_roi
+    if roi[2] <= 0 or roi[3] <= 0:
+        return
+    # displayed pixels -> screen pixels; the area moves opposite to the content
+    shift_x = dx * roi[2] / size[0]
+    shift_y = dy * roi[3] / size[1]
+    start_x, start_y = _drag_state["start"]
+    new_x = int(round(start_x - shift_x))
+    new_y = int(round(start_y - shift_y))
+    setattr(CFG.roi, x_attr, new_x)
+    setattr(CFG.roi, y_attr, new_y)
+    for item_tag, value in ((x_tag, new_x), (y_tag, new_y)):
+        if dpg.does_item_exist(item_tag):
+            dpg.set_value(item_tag, max(-600, min(600, value)))
 
 
 def _set_texture(tag: str, rgba) -> None:

@@ -127,6 +127,7 @@ _JA = {
     "Cast error {n}/{limit}, retrying": "キャストエラー {n}/{limit}、再試行中",
     "Detect bait exhaustion (cast error dialog)": "エサ切れ(キャストエラーのダイアログ)を検出して停止",
     "Bite area": "アタリ領域",
+    "Drag a preview image to shift its scan area (the area follows your drag). Fine tuning and resizing: Settings > Vision & Detection.": "プレビュー画像をドラッグすると、読取領域がずれます(ドラッグに合わせて領域が動きます)。細かい調整やサイズ変更は、設定 > Vision & Detection で行えます。",
     "Adjust from current screen": "現在の画面で調整",
     "Show the target on screen, press the button, and the colors are measured after a short countdown. Nothing changes until you apply.": "対象を画面に表示してボタンを押すと、数秒後に色を測定します。適用するまで設定は変わりません。",
     "Bite detection": "アタリ判定",

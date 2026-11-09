@@ -5,7 +5,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from modules import branding
-from scripts.build_windows import filename_slug, pyinstaller_command, validate_app_name
+from scripts.build_windows import (
+    filename_slug,
+    new_build_id,
+    pyinstaller_command,
+    validate_app_name,
+    validate_build_id,
+)
 
 
 class TestBranding(unittest.TestCase):
@@ -21,13 +27,14 @@ class TestBranding(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             manifest = Path(tmp) / "build_brand.json"
             manifest.write_text(
-                json.dumps({"app_name": "Fishing Tools"}),
+                json.dumps({"app_name": "Fishing Tools", "build_id": "abc123"}),
                 encoding="utf-8",
             )
             with patch("modules.branding.bundled_path", return_value=str(manifest)):
                 result = branding.load_branding()
 
         self.assertEqual(result.app_name, "Fishing Tools")
+        self.assertEqual(result.build_id, "abc123")
 
 
 class TestWindowsBuildScript(unittest.TestCase):
@@ -42,9 +49,18 @@ class TestWindowsBuildScript(unittest.TestCase):
     def test_filename_slug_is_stable_and_safe(self):
         self.assertEqual(filename_slug("Fishing Tools 2026"), "Fishing-Tools-2026")
 
+    def test_generated_build_ids_are_unique_and_valid(self):
+        first = new_build_id()
+        second = new_build_id()
+
+        self.assertNotEqual(first, second)
+        self.assertEqual(validate_build_id(first), first)
+        self.assertEqual(len(first), 12)
+
     def test_pyinstaller_command_contains_branding_resources(self):
         command = pyinstaller_command(
             "Fishing Tools",
+            "abc123",
             Path("icon.ico"),
             Path("build_brand.json"),
             Path("build_icon.ico"),
@@ -52,7 +68,7 @@ class TestWindowsBuildScript(unittest.TestCase):
         )
         joined = "\n".join(command)
 
-        self.assertIn("--name=Fishing-Tools", command)
+        self.assertIn("--name=Fishing-Tools-babc123", command)
         self.assertIn("build_brand.json", joined)
         self.assertIn("build_icon.ico", joined)
         self.assertIn("--collect-data=rapidocr", command)

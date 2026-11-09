@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import unicodedata
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +54,21 @@ def filename_slug(app_name: str) -> str:
     return slug or "Application"
 
 
+def validate_build_id(value: str) -> str:
+    value = value.strip()
+    if not value:
+        raise ValueError("build ID must not be empty")
+    if len(value) > 32:
+        raise ValueError("build ID must be 32 characters or fewer")
+    if not all(char.isascii() and (char.isalnum() or char in "._-") for char in value):
+        raise ValueError("build ID may contain only ASCII letters, digits, dot, underscore, and hyphen")
+    return value
+
+
+def new_build_id() -> str:
+    return uuid.uuid4().hex[:12]
+
+
 def resolve_icon(value: str) -> Path:
     path = Path(value)
     if not path.is_absolute():
@@ -71,12 +87,13 @@ def read_version() -> str:
 
 def pyinstaller_command(
     app_name: str,
+    build_id: str,
     icon_path: Path,
     brand_manifest: Path,
     bundled_icon: Path,
     dist_dir: Path,
 ) -> list[str]:
-    slug = filename_slug(app_name)
+    slug = f"{filename_slug(app_name)}-b{build_id}"
     work_dir = ROOT / "build" / "pyinstaller"
     spec_dir = ROOT / "build" / "spec"
     add_data = os.pathsep
@@ -107,13 +124,17 @@ def pyinstaller_command(
     return command
 
 
-def prepare_branding(app_name: str, icon_path: Path) -> tuple[Path, Path]:
+def prepare_branding(app_name: str, build_id: str, icon_path: Path) -> tuple[Path, Path]:
     brand_dir = ROOT / "build" / "branding"
     brand_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = brand_dir / "build_brand.json"
     bundled_icon = brand_dir / "build_icon.ico"
     manifest_path.write_text(
-        json.dumps({"app_name": app_name}, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(
+            {"app_name": app_name, "build_id": build_id},
+            ensure_ascii=False,
+            indent=2,
+        ) + "\n",
         encoding="utf-8",
     )
     if icon_path != bundled_icon.resolve():
@@ -125,6 +146,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-name", default=DEFAULT_APP_NAME)
     parser.add_argument("--icon", default=str(DEFAULT_ICON))
+    parser.add_argument("--build-id", help="Unique ID; defaults to a random 12-character value")
     parser.add_argument("--dist-dir", default="dist")
     parser.add_argument("--github-env", help="Append FILENAME to a GitHub Actions env file")
     parser.add_argument("--dry-run", action="store_true", help="Validate and print without building")
@@ -136,6 +158,7 @@ def main() -> int:
     try:
         app_name = validate_app_name(args.app_name)
         icon_path = resolve_icon(args.icon)
+        build_id = validate_build_id(args.build_id) if args.build_id else new_build_id()
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -149,6 +172,7 @@ def main() -> int:
     bundled_icon = brand_dir / "build_icon.ico"
     command = pyinstaller_command(
         app_name,
+        build_id,
         icon_path,
         manifest_path,
         bundled_icon,
@@ -169,13 +193,13 @@ def main() -> int:
         print("error: install PyInstaller first: python -m pip install pyinstaller", file=sys.stderr)
         return 2
 
-    manifest_path, bundled_icon = prepare_branding(app_name, icon_path)
+    manifest_path, bundled_icon = prepare_branding(app_name, build_id, icon_path)
     dist_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(command, cwd=ROOT, check=True)
 
     slug = filename_slug(app_name)
-    built_exe = dist_dir / f"{slug}.exe"
-    artifact_name = f"{slug}-v{read_version()}-Windows-x64.exe"
+    built_exe = dist_dir / f"{slug}-b{build_id}.exe"
+    artifact_name = f"{slug}-v{read_version()}-b{build_id}-Windows-x64.exe"
     artifact_path = dist_dir / artifact_name
     os.replace(built_exe, artifact_path)
 

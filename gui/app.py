@@ -21,7 +21,7 @@ from gui.pages.settings import (
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import FONT_SIZES, build_global_theme, get_font_path, set_ui_scale
 from main import NTEFishingBot, log
-from modules.branding import APP_NAME, app_icon_path
+from modules.branding import APP_NAME, BUILD_ID, app_icon_path
 from modules.utils import VERSION
 from screeninfo import get_monitors
 
@@ -34,6 +34,8 @@ def _get_primary_monitor_size() -> tuple[int, int]:
     return w, h
 
 APP_TITLE = f"{APP_NAME} v{VERSION}"
+if BUILD_ID:
+    APP_TITLE = f"{APP_TITLE} [{BUILD_ID}]"
 _SETTINGS_REFRESH_INTERVAL = 0.25
 
 

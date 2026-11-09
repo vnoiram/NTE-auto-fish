@@ -17,6 +17,11 @@ on:
         required: false
         default: "assets/icons/app.ico"
         type: string
+      build_id:
+        description: "Optional unique build ID; blank generates one"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -90,10 +95,12 @@ jobs:
       env:
         APP_NAME: ${{ inputs.app_name || 'NTE Auto-Fish' }}
         ICON_PATH: ${{ inputs.icon_path || 'assets/icons/app.ico' }}
+        BUILD_ID: ${{ inputs.build_id || '' }}
       run: |
         python scripts/build_windows.py \
           --app-name "$APP_NAME" \
           --icon "$ICON_PATH" \
+          --build-id "$BUILD_ID" \
           --dist-dir dist \
           --github-env "$GITHUB_ENV"
 

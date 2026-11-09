@@ -87,6 +87,8 @@ Linux 用スクリプトは GitHub Actions の Windows runner を起動し、生
 EXE とウィンドウアイコンへ反映されます。Windows 上で直接ビルドする場合は
 `python scripts/build_windows.py --app-name "Fishing Tools" --icon path/to/app.ico` を実行します。Windowsの
 タイトルバー文字化けを避けるため、アプリ名はASCII文字のみ指定できます。
+各ビルドには衝突防止用の12文字ビルドIDが自動生成され、EXE名とウィンドウタイトルへ反映されます。
+固定IDが必要な場合は `--build-id my-id` を指定します。
 
 ## 注意
 

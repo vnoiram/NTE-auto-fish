@@ -52,6 +52,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-name", default="NTE Auto-Fish")
     parser.add_argument("--icon", default="assets/icons/app.ico")
+    parser.add_argument("--build-id", default="", help="Optional stable ID; omitted generates a unique ID")
     parser.add_argument("--ref", help="Pushed branch or tag; defaults to the current branch")
     parser.add_argument("--output-dir", default="dist/remote")
     return parser.parse_args()
@@ -95,6 +96,8 @@ def main() -> int:
         f"app_name={args.app_name}",
         "-f",
         f"icon_path={icon.as_posix()}",
+        "-f",
+        f"build_id={args.build_id}",
     )
 
     run_id = ""

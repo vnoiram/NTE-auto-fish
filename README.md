@@ -89,7 +89,8 @@ starts the repository's Windows GitHub Actions runner and downloads its artifact
 The artifact is downloaded to `dist/remote/`. Branding is explicit and reproducible: `--app-name` changes the EXE,
 window, and sidebar name, while `--icon` changes the EXE and window icon. On Windows, run the same build directly
 with `python scripts/build_windows.py --app-name "Fishing Tools" --icon path/to/app.ico`. App names are ASCII-only
-to avoid native Windows title-bar encoding problems.
+to avoid native Windows title-bar encoding problems. Every build receives a random 12-character build ID in its
+filename and window title to prevent artifact collisions. Pass `--build-id my-id` when a stable ID is preferred.
 
 ## Notes
 

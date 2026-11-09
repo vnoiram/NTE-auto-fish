@@ -19,6 +19,7 @@ _CUSTOM_ICON = "build_icon.ico"
 @dataclass(frozen=True)
 class Branding:
     app_name: str = _DEFAULT_APP_NAME
+    build_id: str = ""
 
 
 def _valid_app_name(value: object) -> str | None:
@@ -35,6 +36,17 @@ def _valid_app_name(value: object) -> str | None:
     return value
 
 
+def _valid_build_id(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    value = value.strip()
+    if not value or len(value) > 32:
+        return ""
+    if not all(char.isascii() and (char.isalnum() or char in "._-") for char in value):
+        return ""
+    return value
+
+
 def load_branding() -> Branding:
     manifest_path = bundled_path(_BRANDING_MANIFEST)
     try:
@@ -47,11 +59,13 @@ def load_branding() -> Branding:
         return Branding()
 
     app_name = _valid_app_name(payload.get("app_name"))
-    return Branding(app_name=app_name or _DEFAULT_APP_NAME)
+    build_id = _valid_build_id(payload.get("build_id"))
+    return Branding(app_name=app_name or _DEFAULT_APP_NAME, build_id=build_id)
 
 
 BRANDING = load_branding()
 APP_NAME = BRANDING.app_name
+BUILD_ID = BRANDING.build_id
 
 
 def app_icon_path() -> str:

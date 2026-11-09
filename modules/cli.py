@@ -1,14 +1,19 @@
 """Command-line interface for NTE Auto-Fish (headless mode)."""
+
 import argparse
 import ctypes
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import asdict
-from typing import Callable
 
 from config import (
-    CFG, HsvRange, DEFAULT_SETTINGS_PATH,
-    _INVALID, _coerce_setting, _validate_hsv_triplet,
+    _INVALID,
+    CFG,
+    DEFAULT_SETTINGS_PATH,
+    HsvRange,
+    _coerce_setting,
+    _validate_hsv_triplet,
 )
 
 log = logging.getLogger("NTEFish")
@@ -21,7 +26,9 @@ def _set_dpi_awareness() -> None:
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(1)
     except Exception:
-        log.debug("SetProcessDpiAwareness failed; trying SetProcessDPIAware.", exc_info=True)
+        log.debug(
+            "SetProcessDpiAwareness failed; trying SetProcessDPIAware.", exc_info=True
+        )
         try:
             ctypes.windll.user32.SetProcessDPIAware()
         except Exception:
@@ -31,6 +38,7 @@ def _set_dpi_awareness() -> None:
 # ---------------------------------------------------------------------------
 # CLI command handlers
 # ---------------------------------------------------------------------------
+
 
 def _cmd_start(_args: argparse.Namespace) -> None:
     bot = _bot_factory()
@@ -65,7 +73,13 @@ def _cmd_config_show(args: argparse.Namespace) -> None:
             else:
                 print(f"Unknown config path: {section}")
                 return
-        print(json.dumps({parts[-1]: obj} if isinstance(obj, (dict, list)) else {parts[-1]: obj}, indent=4, ensure_ascii=False))
+        print(
+            json.dumps(
+                {parts[-1]: obj},
+                indent=4,
+                ensure_ascii=False,
+            )
+        )
     else:
         print(json.dumps(data, indent=4, ensure_ascii=False))
 
@@ -116,7 +130,9 @@ def _cmd_config_set(args: argparse.Namespace) -> None:
     else:
         new_val = _coerce_setting(current, new_val)
     if new_val is _INVALID:
-        print(f"Value '{args.value}' is out of range or has the wrong type for {args.key}.")
+        print(
+            f"Value '{args.value}' is out of range or has the wrong type for {args.key}."
+        )
         return
     setattr(parent, attr, new_val)
     CFG.save()
@@ -157,61 +173,82 @@ def _interactive_menu() -> None:
 
 def _interactive_edit_config() -> None:
     categories = [
-        ("PID parameters", [
-            ("pid.kp", "Proportional gain"),
-            ("pid.ki", "Integral gain"),
-            ("pid.kd", "Derivative gain"),
-            ("pid.integral_limit", "Integral limit"),
-            ("pid.deadband", "Deadband"),
-            ("pid.adaptive", "Adaptive (true/false)"),
-            ("pid.ema_alpha", "EMA alpha"),
-            ("pid.max_dt", "Max dt"),
-        ]),
-        ("HSV thresholds", [
-            ("hsv.blue.lower", "Blue lower (H,S,V)"),
-            ("hsv.blue.upper", "Blue upper (H,S,V)"),
-            ("hsv.safe_zone.lower", "Safe zone lower (H,S,V)"),
-            ("hsv.safe_zone.upper", "Safe zone upper (H,S,V)"),
-            ("hsv.cursor.lower", "Cursor lower (H,S,V)"),
-            ("hsv.cursor.upper", "Cursor upper (H,S,V)"),
-        ]),
-        ("Key bindings", [
-            ("keys.cast", "Cast key"),
-            ("keys.left", "Left key"),
-            ("keys.right", "Right key"),
-            ("keys.exit", "Exit key"),
-        ]),
-        ("Timing", [
-            ("timing.cast_animation_secs", "Cast animation (s)"),
-            ("timing.bite_timeout_secs", "Bite timeout (s)"),
-            ("timing.lost_frames_threshold", "Lost frames threshold"),
-            ("timing.result_wait_secs", "Result wait (s)"),
-            ("timing.key_press_duration", "Key press duration (s)"),
-        ]),
-        ("Humanization", [
-            ("humanization.enabled", "Enabled (true/false)"),
-            ("humanization.mouse_move_curve_amplitude", "Mouse curve amplitude (px)"),
-            ("humanization.mouse_move_duration_min", "Mouse move duration min (s)"),
-            ("humanization.mouse_move_duration_max", "Mouse move duration max (s)"),
-            ("humanization.mouse_offset_x", "Mouse click offset X (px)"),
-            ("humanization.mouse_offset_y", "Mouse click offset Y (px)"),
-            ("humanization.hook_reaction_min", "Hook reaction delay min (s)"),
-            ("humanization.hook_reaction_max", "Hook reaction delay max (s)"),
-            ("humanization.pulse_hold_min", "Pulse hold min (s)"),
-            ("humanization.pulse_hold_max", "Pulse hold max (s)"),
-            ("humanization.pulse_release_min", "Pulse release min (s)"),
-            ("humanization.pulse_release_max", "Pulse release max (s)"),
-            ("humanization.reaction_latency_min", "Struggle reaction min (s)"),
-            ("humanization.reaction_latency_max", "Struggle reaction max (s)"),
-            ("humanization.pid_noise_enabled", "PID noise (true/false)"),
-            ("humanization.pid_noise_amplitude", "PID noise amplitude (px)"),
-            ("humanization.adaptive_enabled", "Adaptive focus (true/false)"),
-        ]),
-        ("Other", [
-            ("min_blue_pixels", "Min blue pixels"),
-            ("result_close_method", "Result close (click/esc)"),
-            ("debug_mode", "Debug mode (true/false)"),
-        ]),
+        (
+            "PID parameters",
+            [
+                ("pid.kp", "Proportional gain"),
+                ("pid.ki", "Integral gain"),
+                ("pid.kd", "Derivative gain"),
+                ("pid.integral_limit", "Integral limit"),
+                ("pid.deadband", "Deadband"),
+                ("pid.adaptive", "Adaptive (true/false)"),
+                ("pid.ema_alpha", "EMA alpha"),
+                ("pid.max_dt", "Max dt"),
+            ],
+        ),
+        (
+            "HSV thresholds",
+            [
+                ("hsv.blue.lower", "Blue lower (H,S,V)"),
+                ("hsv.blue.upper", "Blue upper (H,S,V)"),
+                ("hsv.safe_zone.lower", "Safe zone lower (H,S,V)"),
+                ("hsv.safe_zone.upper", "Safe zone upper (H,S,V)"),
+                ("hsv.cursor.lower", "Cursor lower (H,S,V)"),
+                ("hsv.cursor.upper", "Cursor upper (H,S,V)"),
+            ],
+        ),
+        (
+            "Key bindings",
+            [
+                ("keys.cast", "Cast key"),
+                ("keys.left", "Left key"),
+                ("keys.right", "Right key"),
+                ("keys.exit", "Exit key"),
+            ],
+        ),
+        (
+            "Timing",
+            [
+                ("timing.cast_animation_secs", "Cast animation (s)"),
+                ("timing.bite_timeout_secs", "Bite timeout (s)"),
+                ("timing.lost_frames_threshold", "Lost frames threshold"),
+                ("timing.result_wait_secs", "Result wait (s)"),
+                ("timing.key_press_duration", "Key press duration (s)"),
+            ],
+        ),
+        (
+            "Humanization",
+            [
+                ("humanization.enabled", "Enabled (true/false)"),
+                (
+                    "humanization.mouse_move_curve_amplitude",
+                    "Mouse curve amplitude (px)",
+                ),
+                ("humanization.mouse_move_duration_min", "Mouse move duration min (s)"),
+                ("humanization.mouse_move_duration_max", "Mouse move duration max (s)"),
+                ("humanization.mouse_offset_x", "Mouse click offset X (px)"),
+                ("humanization.mouse_offset_y", "Mouse click offset Y (px)"),
+                ("humanization.hook_reaction_min", "Hook reaction delay min (s)"),
+                ("humanization.hook_reaction_max", "Hook reaction delay max (s)"),
+                ("humanization.pulse_hold_min", "Pulse hold min (s)"),
+                ("humanization.pulse_hold_max", "Pulse hold max (s)"),
+                ("humanization.pulse_release_min", "Pulse release min (s)"),
+                ("humanization.pulse_release_max", "Pulse release max (s)"),
+                ("humanization.reaction_latency_min", "Struggle reaction min (s)"),
+                ("humanization.reaction_latency_max", "Struggle reaction max (s)"),
+                ("humanization.pid_noise_enabled", "PID noise (true/false)"),
+                ("humanization.pid_noise_amplitude", "PID noise amplitude (px)"),
+                ("humanization.adaptive_enabled", "Adaptive focus (true/false)"),
+            ],
+        ),
+        (
+            "Other",
+            [
+                ("min_blue_pixels", "Min blue pixels"),
+                ("result_close_method", "Result close (click/esc)"),
+                ("debug_mode", "Debug mode (true/false)"),
+            ],
+        ),
     ]
 
     while True:
@@ -236,7 +273,9 @@ def _interactive_edit_config() -> None:
                 _, _, val = _resolve_cfg_path(key)
                 print(f"  {i}. {desc} ({key}) = {val!r}")
             print("  0. Back")
-            field_choice = input("\nSelect field to edit [0, 1-{}]: ".format(len(fields))).strip()
+            field_choice = input(
+                f"\nSelect field to edit [0, 1-{len(fields)}]: "
+            ).strip()
             if field_choice == "0":
                 break
             try:
@@ -273,8 +312,9 @@ def build_parser() -> argparse.ArgumentParser:
     cfg_sub = cfg_parser.add_subparsers(dest="config_action")
 
     show_parser = cfg_sub.add_parser("show", help="Show current configuration")
-    show_parser.add_argument("section", nargs="?", default=None,
-                             help="Dot path to show (e.g. pid, hsv.blue)")
+    show_parser.add_argument(
+        "section", nargs="?", default=None, help="Dot path to show (e.g. pid, hsv.blue)"
+    )
 
     set_parser = cfg_sub.add_parser("set", help="Set a config value")
     set_parser.add_argument("key", help="Dot path, e.g. pid.kp")

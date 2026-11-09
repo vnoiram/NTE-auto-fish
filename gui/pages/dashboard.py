@@ -1,30 +1,35 @@
 """Dashboard page — status cards, controls, PID plot, telemetry, visual tracker."""
+
 from __future__ import annotations
 
-from collections import deque
 import logging
-from typing import Callable
+from collections import deque
+from collections.abc import Callable
 
 import dearpygui.dearpygui as dpg
 
 from gui.bridge import BotBridge, BotStatus
-from gui.components import apply_glass_card_theme, metric_row, section_header, styled_button
+from gui.components import (
+    apply_glass_card_theme,
+    metric_row,
+    section_header,
+    styled_button,
+)
 from gui.i18n import tr
 from gui.theme import (
     ACCENT,
     ACCENT_BLUE,
     CARD_GAP,
     CARD_PADDING,
-    SIDEBAR_WIDTH,
-    STATE_RUNNING,
-    STATE_RUNNING_HOVER,
-    STATE_RUNNING_ACTIVE,
     STATE_PAUSED,
-    STATE_PAUSED_HOVER,
     STATE_PAUSED_ACTIVE,
+    STATE_PAUSED_HOVER,
+    STATE_RUNNING,
+    STATE_RUNNING_ACTIVE,
+    STATE_RUNNING_HOVER,
     STATE_STOPPED,
-    STATE_STOPPED_HOVER,
     STATE_STOPPED_ACTIVE,
+    STATE_STOPPED_HOVER,
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_VERY_MUTED,
@@ -62,13 +67,19 @@ def _ensure_themes():
     global _theme_start, _theme_pause, _theme_stop, _theme_calibrate
     if _theme_running is None:
         _theme_running = _state_button_theme(
-            STATE_RUNNING, STATE_RUNNING_HOVER, STATE_RUNNING_ACTIVE,
+            STATE_RUNNING,
+            STATE_RUNNING_HOVER,
+            STATE_RUNNING_ACTIVE,
         )
         _theme_paused = _state_button_theme(
-            STATE_PAUSED, STATE_PAUSED_HOVER, STATE_PAUSED_ACTIVE,
+            STATE_PAUSED,
+            STATE_PAUSED_HOVER,
+            STATE_PAUSED_ACTIVE,
         )
         _theme_stopped = _state_button_theme(
-            STATE_STOPPED, STATE_STOPPED_HOVER, STATE_STOPPED_ACTIVE,
+            STATE_STOPPED,
+            STATE_STOPPED_HOVER,
+            STATE_STOPPED_ACTIVE,
         )
         _theme_start = build_button_theme("primary")
         _theme_pause = build_button_theme("warning")
@@ -77,13 +88,12 @@ def _ensure_themes():
 
 
 def _state_button_theme(bg, hovered, active) -> int:
-    with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvButton):
-            dpg.add_theme_color(dpg.mvThemeCol_Button, bg)
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, hovered)
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, active)
-            dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6 * _s)
+    with dpg.theme() as theme, dpg.theme_component(dpg.mvButton):
+        dpg.add_theme_color(dpg.mvThemeCol_Button, bg)
+        dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, hovered)
+        dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, active)
+        dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
+        dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6 * _s)
     return theme
 
 
@@ -116,32 +126,49 @@ def create_dashboard(
     dpg.add_spacer(height=_gap)
 
     with dpg.child_window(
-        height=int(60 * _s), tag="control_bar", border=True, no_scrollbar=True,
+        height=int(60 * _s),
+        tag="control_bar",
+        border=True,
+        no_scrollbar=True,
     ):
         apply_glass_card_theme("control_bar")
         with dpg.group(horizontal=True):
             styled_button(
-                "Start", "btn_start_bot",
+                "Start",
+                "btn_start_bot",
                 callback=lambda s, a, u: _run_callback(on_start, bridge, "resume"),
-                variant="primary", width=int(80 * _s), height=int(28 * _s),
+                variant="primary",
+                width=int(80 * _s),
+                height=int(28 * _s),
             )
             dpg.add_spacer(width=int(8 * _s))
             styled_button(
-                "Pause", "btn_pause_bot",
+                "Pause",
+                "btn_pause_bot",
                 callback=lambda s, a, u: bridge.send_cmd("pause"),
-                variant="warning", width=int(80 * _s), height=int(28 * _s),
+                variant="warning",
+                width=int(80 * _s),
+                height=int(28 * _s),
             )
             dpg.add_spacer(width=int(8 * _s))
             styled_button(
-                "Stop", "btn_stop_bot",
+                "Stop",
+                "btn_stop_bot",
                 callback=lambda s, a, u: _run_callback(on_stop, bridge, "stop"),
-                variant="danger", width=int(80 * _s), height=int(28 * _s),
+                variant="danger",
+                width=int(80 * _s),
+                height=int(28 * _s),
             )
             dpg.add_spacer(width=int(8 * _s))
             styled_button(
-                "Calibrate", "btn_recalibrate",
-                callback=lambda s, a, u: _run_callback(on_recalibrate, bridge, "recalibrate"),
-                variant="neutral", width=int(90 * _s), height=int(28 * _s),
+                "Calibrate",
+                "btn_recalibrate",
+                callback=lambda s, a, u: _run_callback(
+                    on_recalibrate, bridge, "recalibrate"
+                ),
+                variant="neutral",
+                width=int(90 * _s),
+                height=int(28 * _s),
             )
             dpg.add_spacer(width=int(24 * _s))
             dpg.add_text(tr("Ready"), tag="stat_status_message", color=TEXT_MUTED)
@@ -154,20 +181,29 @@ def create_dashboard(
     with dpg.group(horizontal=True):
         # Left: PID Plot
         with dpg.child_window(
-            width=-(_right_w + int(CARD_GAP * _s) + int(20 * _s)), height=-1,
-            tag="pid_card", border=True, no_scrollbar=True,
+            width=-(_right_w + int(CARD_GAP * _s) + int(20 * _s)),
+            height=-1,
+            tag="pid_card",
+            border=True,
+            no_scrollbar=True,
         ):
             apply_glass_card_theme("pid_card")
             section_header("PID Output", color=ACCENT)
             with dpg.plot(
-                no_title=True, no_menus=True, no_box_select=True,
-                height=-1, width=-1, tag="pid_plot",
+                no_title=True,
+                no_menus=True,
+                no_box_select=True,
+                height=-1,
+                width=-1,
+                tag="pid_plot",
             ):
                 dpg.add_plot_axis(dpg.mvXAxis, no_gridlines=True, no_tick_labels=True)
                 with dpg.plot_axis(dpg.mvYAxis, tag="pid_y"):
                     dpg.add_line_series(
-                        list(range(120)), list(_pid_history),
-                        label=tr("Output"), tag="pid_series",
+                        list(range(120)),
+                        list(_pid_history),
+                        label=tr("Output"),
+                        tag="pid_series",
                     )
                 dpg.set_axis_limits("pid_y", -110, 110)
 
@@ -175,12 +211,18 @@ def create_dashboard(
 
         # Right column (transparent container)
         with dpg.child_window(
-            width=_right_w, height=-1,
-            tag="right_col", border=False, no_scrollbar=True,
+            width=_right_w,
+            height=-1,
+            tag="right_col",
+            border=False,
+            no_scrollbar=True,
         ):
             # Telemetry card
             with dpg.child_window(
-                height=int(260 * _s), tag="telemetry_card", border=True, no_scrollbar=True,
+                height=int(260 * _s),
+                tag="telemetry_card",
+                border=True,
+                no_scrollbar=True,
             ):
                 apply_glass_card_theme("telemetry_card")
                 section_header("Telemetry", color=ACCENT_BLUE)
@@ -199,7 +241,10 @@ def create_dashboard(
 
             # Vision tracker card
             with dpg.child_window(
-                height=-1, tag="vision_card", border=True, no_scrollbar=True,
+                height=-1,
+                tag="vision_card",
+                border=True,
+                no_scrollbar=True,
             ):
                 apply_glass_card_theme("vision_card")
                 section_header("Vision Tracker", color=ACCENT)
@@ -256,6 +301,7 @@ def update_dashboard_ui(bridge: BotBridge):
 
 _last_container_w = 0
 
+
 def _resize_stat_cards():
     """Calculate card width from actual container size and apply dynamically."""
     global _last_container_w
@@ -287,24 +333,41 @@ def _create_visualizer():
     vis_h = int(72 * _s)
     with dpg.drawlist(width=1, height=vis_h, tag="visualizer"):
         dpg.draw_rectangle(
-            (0, 0), (1, 1), color=(70, 75, 82),
-            fill=VIS_TRACK, rounding=17, tag="vis_track",
+            (0, 0),
+            (1, 1),
+            color=(70, 75, 82),
+            fill=VIS_TRACK,
+            rounding=17,
+            tag="vis_track",
         )
         dpg.draw_line(
-            (0, 0), (0, 1), color=(88, 96, 105),
-            thickness=2, tag="vis_center",
+            (0, 0),
+            (0, 1),
+            color=(88, 96, 105),
+            thickness=2,
+            tag="vis_center",
         )
         dpg.draw_rectangle(
-            (0, 0), (1, 1), color=VIS_SAFE_ZONE_BD,
-            fill=VIS_SAFE_ZONE, rounding=12, tag="vis_safe_zone",
+            (0, 0),
+            (1, 1),
+            color=VIS_SAFE_ZONE_BD,
+            fill=VIS_SAFE_ZONE,
+            rounding=12,
+            tag="vis_safe_zone",
         )
         dpg.draw_line(
-            (0, 0), (0, 1), color=VIS_CURSOR,
-            thickness=5, tag="vis_cursor",
+            (0, 0),
+            (0, 1),
+            color=VIS_CURSOR,
+            thickness=5,
+            tag="vis_cursor",
         )
         dpg.draw_circle(
-            (0, 0), 8, color=VIS_CURSOR_DOT,
-            fill=VIS_CURSOR, tag="vis_cursor_dot",
+            (0, 0),
+            8,
+            color=VIS_CURSOR_DOT,
+            fill=VIS_CURSOR,
+            tag="vis_cursor_dot",
         )
 
 
@@ -324,7 +387,9 @@ def _update_visualizer(status: BotStatus):
     track_top = 20
     track_bottom = 52
     track_mid = (track_left + track_right) / 2
-    dpg.configure_item("vis_track", pmin=(track_left, track_top), pmax=(track_right, track_bottom))
+    dpg.configure_item(
+        "vis_track", pmin=(track_left, track_top), pmax=(track_right, track_bottom)
+    )
     dpg.configure_item("vis_center", p1=(track_mid, 12), p2=(track_mid, 60))
 
     if status.bar_width <= 0:
@@ -340,7 +405,8 @@ def _update_visualizer(status: BotStatus):
         zone_half = max(24, min(64, track_width * 0.045))
         target_x = _scaled_x(status.target_x, status.bar_width, track_left, scale)
         dpg.configure_item(
-            "vis_safe_zone", show=True,
+            "vis_safe_zone",
+            show=True,
             pmin=(max(track_left, target_x - zone_half), track_top),
             pmax=(min(track_right, target_x + zone_half), track_bottom),
         )
@@ -349,7 +415,9 @@ def _update_visualizer(status: BotStatus):
 
     if status.cursor_x is not None:
         cursor_x = _scaled_x(status.cursor_x, status.bar_width, track_left, scale)
-        dpg.configure_item("vis_cursor", show=True, p1=(cursor_x, 10), p2=(cursor_x, 62))
+        dpg.configure_item(
+            "vis_cursor", show=True, p1=(cursor_x, 10), p2=(cursor_x, 62)
+        )
         dpg.configure_item("vis_cursor_dot", show=True, center=(cursor_x, 36))
     else:
         dpg.configure_item("vis_cursor", show=False)
@@ -368,7 +436,11 @@ def _scaled_x(value: int, bar_width: int, track_left: int, scale: float) -> floa
 
 def _create_stat_card(tag: str, label: str, default: str, width: int = 200):
     with dpg.child_window(
-        width=width, height=int(100 * _s), tag=tag, border=True, no_scrollbar=True,
+        width=width,
+        height=int(100 * _s),
+        tag=tag,
+        border=True,
+        no_scrollbar=True,
     ):
         apply_glass_card_theme(tag)
         dpg.add_text(tr(label), color=TEXT_VERY_MUTED)

@@ -4,7 +4,11 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from modules.vision import VisionModule, _ERROR_BRIGHTNESS_THRESHOLD, _ERROR_WHITE_PIXEL_MIN
+from modules.vision import (
+    _ERROR_BRIGHTNESS_THRESHOLD,
+    _ERROR_WHITE_PIXEL_MIN,
+    VisionModule,
+)
 
 
 class TestCheckErrorRegion(unittest.TestCase):
@@ -37,7 +41,10 @@ class TestCheckErrorRegion(unittest.TestCase):
         thresholds = {
             "4k": {"brightness": base_brightness, "white_pixel_min": base_white},
             "2k": {"brightness": base_brightness, "white_pixel_min": base_white // 2},
-            "1080p": {"brightness": base_brightness, "white_pixel_min": base_white // 4}
+            "1080p": {
+                "brightness": base_brightness,
+                "white_pixel_min": base_white // 4,
+            },
         }
         parts = filename.lower().split("_")
         res = next((p for p in parts if p in thresholds), "4k")
@@ -53,7 +60,7 @@ class TestCheckErrorRegion(unittest.TestCase):
                 result = VisionModule.check_error_region(
                     img,
                     brightness_threshold=kwargs["brightness"],
-                    white_pixel_min=kwargs["white_pixel_min"]
+                    white_pixel_min=kwargs["white_pixel_min"],
                 )
 
                 self.assertTrue(
@@ -71,7 +78,7 @@ class TestCheckErrorRegion(unittest.TestCase):
                 result = VisionModule.check_error_region(
                     img,
                     brightness_threshold=kwargs["brightness"],
-                    white_pixel_min=kwargs["white_pixel_min"]
+                    white_pixel_min=kwargs["white_pixel_min"],
                 )
 
                 self.assertFalse(

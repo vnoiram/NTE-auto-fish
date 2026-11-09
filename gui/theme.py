@@ -1,5 +1,7 @@
 """Design system for the NTE Auto-Fish glassmorphism UI."""
+
 import os
+
 import dearpygui.dearpygui as dpg
 
 # ---------------------------------------------------------------------------
@@ -25,15 +27,15 @@ BORDER_SUBTLE = (255, 255, 255, 15)
 BORDER_LIGHT = (255, 255, 255, 25)
 
 # Accent
-ACCENT = (14, 165, 233, 255)       # Sky blue
-ACCENT_HOVER = (56, 189, 248, 255) # Lighter sky blue
-ACCENT_ACTIVE = (2, 132, 199, 255) # Deeper sky blue
+ACCENT = (14, 165, 233, 255)  # Sky blue
+ACCENT_HOVER = (56, 189, 248, 255)  # Lighter sky blue
+ACCENT_ACTIVE = (2, 132, 199, 255)  # Deeper sky blue
 ACCENT_BLUE = (139, 92, 246, 255)  # Violet
 
 # Text
-TEXT_PRIMARY = (248, 250, 252, 255)   # Slate 50
-TEXT_MUTED = (148, 163, 184, 255)     # Slate 400
-TEXT_VERY_MUTED = (100, 116, 139, 255)# Slate 500
+TEXT_PRIMARY = (248, 250, 252, 255)  # Slate 50
+TEXT_MUTED = (148, 163, 184, 255)  # Slate 400
+TEXT_VERY_MUTED = (100, 116, 139, 255)  # Slate 500
 
 # Semantic
 SUCCESS = (16, 185, 129, 255)
@@ -89,12 +91,15 @@ INPUT_ROUNDING = 8
 BUTTON_ROUNDING = 6
 SIDEBAR_WIDTH = 180
 
+
 def _compute_initial_scale() -> float:
     # We maintain 1.0 scale to keep crisp 16px fonts and a stable layout.
     # OS DPI scaling will handle high-DPI sizing correctly.
     return 1.0
 
+
 _ui_scale: float = _compute_initial_scale()
+
 
 def set_ui_scale(scale: float) -> None:
     """Set the runtime UI scale factor (called once during app startup)."""
@@ -105,6 +110,7 @@ def set_ui_scale(scale: float) -> None:
 def get_sidebar_width() -> int:
     """Return sidebar width scaled for the current screen resolution."""
     return int(SIDEBAR_WIDTH * _ui_scale)
+
 
 # ---------------------------------------------------------------------------
 # Font paths & sizes
@@ -128,8 +134,11 @@ FONT_SIZES = {
 def get_font_path(language: str) -> str:
     """Return a Windows font with Japanese glyphs when Japanese is active."""
     if language == "ja":
-        return next((path for path in _JAPANESE_FONT_PATHS if os.path.exists(path)), _FONT_PATH)
+        return next(
+            (path for path in _JAPANESE_FONT_PATHS if os.path.exists(path)), _FONT_PATH
+        )
     return _FONT_PATH
+
 
 # ---------------------------------------------------------------------------
 # Theme builders
@@ -141,7 +150,9 @@ def build_global_theme(scale: float = 1.0) -> int:
     with dpg.theme() as theme:
         with dpg.theme_component(dpg.mvAll):
             # Spacing (scaled for different screen resolutions)
-            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, CARD_PADDING * scale, CARD_PADDING * scale)
+            dpg.add_theme_style(
+                dpg.mvStyleVar_WindowPadding, CARD_PADDING * scale, CARD_PADDING * scale
+            )
             dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 10 * scale, 6 * scale)
             dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 12 * scale, 10 * scale)
             dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8 * scale, 6 * scale)
@@ -192,7 +203,9 @@ def build_global_theme(scale: float = 1.0) -> int:
             dpg.add_theme_color(dpg.mvThemeCol_ScrollbarBg, (18, 18, 22, 0))
             dpg.add_theme_color(dpg.mvThemeCol_ScrollbarGrab, (60, 64, 72, 160))
             dpg.add_theme_color(dpg.mvThemeCol_ScrollbarGrabHovered, (80, 86, 96, 200))
-            dpg.add_theme_color(dpg.mvThemeCol_ScrollbarGrabActive, (100, 108, 120, 240))
+            dpg.add_theme_color(
+                dpg.mvThemeCol_ScrollbarGrabActive, (100, 108, 120, 240)
+            )
 
             # Plot
             dpg.add_theme_color(dpg.mvThemeCol_PlotLines, PLOT_LINE)
@@ -216,54 +229,53 @@ def build_glass_card_theme(
             dpg.add_theme_color(dpg.mvThemeCol_Border, border_color)
             dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, CARD_ROUNDING * s)
             dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 1)
-            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, CARD_PADDING * s, CARD_PADDING * s)
+            dpg.add_theme_style(
+                dpg.mvStyleVar_WindowPadding, CARD_PADDING * s, CARD_PADDING * s
+            )
     return theme
 
 
 def build_sidebar_theme() -> int:
     """Theme for the sidebar child_window."""
-    with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvChildWindow):
-            dpg.add_theme_color(dpg.mvThemeCol_ChildBg, SIDEBAR_BG)
-            dpg.add_theme_color(dpg.mvThemeCol_Border, BORDER_SUBTLE)
-            dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 0)
-            dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 0)
-            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 0, 0)
+    with dpg.theme() as theme, dpg.theme_component(dpg.mvChildWindow):
+        dpg.add_theme_color(dpg.mvThemeCol_ChildBg, SIDEBAR_BG)
+        dpg.add_theme_color(dpg.mvThemeCol_Border, BORDER_SUBTLE)
+        dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 0)
+        dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 0)
+        dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 0, 0)
     return theme
 
 
 def build_nav_item_theme(active: bool = False) -> int:
     """Theme for sidebar navigation buttons."""
-    with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvButton):
-            if active:
-                dpg.add_theme_color(dpg.mvThemeCol_Button, GLASS_HIGHLIGHT2)
-                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, GLASS_HIGHLIGHT2)
-            else:
-                dpg.add_theme_color(dpg.mvThemeCol_Button, (0, 0, 0, 0))
-                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, GLASS_HIGHLIGHT)
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, GLASS_HIGHLIGHT2)
-            dpg.add_theme_color(dpg.mvThemeCol_Text, TEXT_PRIMARY if active else TEXT_MUTED)
-            dpg.add_theme_style(dpg.mvStyleVar_ButtonTextAlign, 0, 0.5)
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 0)
+    with dpg.theme() as theme, dpg.theme_component(dpg.mvButton):
+        if active:
+            dpg.add_theme_color(dpg.mvThemeCol_Button, GLASS_HIGHLIGHT2)
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, GLASS_HIGHLIGHT2)
+        else:
+            dpg.add_theme_color(dpg.mvThemeCol_Button, (0, 0, 0, 0))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, GLASS_HIGHLIGHT)
+        dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, GLASS_HIGHLIGHT2)
+        dpg.add_theme_color(dpg.mvThemeCol_Text, TEXT_PRIMARY if active else TEXT_MUTED)
+        dpg.add_theme_style(dpg.mvStyleVar_ButtonTextAlign, 0, 0.5)
+        dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 0)
     return theme
 
 
 def build_settings_cat_theme(active: bool = False) -> int:
     """Theme for settings category buttons."""
     s = _ui_scale
-    with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvButton):
-            if active:
-                dpg.add_theme_color(dpg.mvThemeCol_Button, GLASS_HIGHLIGHT2)
-                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, GLASS_HIGHLIGHT2)
-            else:
-                dpg.add_theme_color(dpg.mvThemeCol_Button, (0, 0, 0, 0))
-                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, GLASS_HIGHLIGHT)
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, GLASS_HIGHLIGHT2)
-            dpg.add_theme_color(dpg.mvThemeCol_Text, TEXT_PRIMARY if active else TEXT_MUTED)
-            dpg.add_theme_style(dpg.mvStyleVar_ButtonTextAlign, 0, 0.5)
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6 * s)
+    with dpg.theme() as theme, dpg.theme_component(dpg.mvButton):
+        if active:
+            dpg.add_theme_color(dpg.mvThemeCol_Button, GLASS_HIGHLIGHT2)
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, GLASS_HIGHLIGHT2)
+        else:
+            dpg.add_theme_color(dpg.mvThemeCol_Button, (0, 0, 0, 0))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, GLASS_HIGHLIGHT)
+        dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, GLASS_HIGHLIGHT2)
+        dpg.add_theme_color(dpg.mvThemeCol_Text, TEXT_PRIMARY if active else TEXT_MUTED)
+        dpg.add_theme_style(dpg.mvStyleVar_ButtonTextAlign, 0, 0.5)
+        dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6 * s)
     return theme
 
 
@@ -277,22 +289,20 @@ def build_button_theme(variant: str) -> int:
         "neutral": (BTN_NEUTRAL, BTN_NEUTRAL_HOVER, BTN_NEUTRAL_ACTIVE),
     }
     bg, hovered, active = colors.get(variant, colors["neutral"])
-    with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvButton):
-            dpg.add_theme_color(dpg.mvThemeCol_Button, bg)
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, hovered)
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, active)
-            dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, BUTTON_ROUNDING * s)
+    with dpg.theme() as theme, dpg.theme_component(dpg.mvButton):
+        dpg.add_theme_color(dpg.mvThemeCol_Button, bg)
+        dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, hovered)
+        dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, active)
+        dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
+        dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, BUTTON_ROUNDING * s)
     return theme
 
 
 def build_card_no_border_theme() -> int:
     """Transparent container card with no border — used as a layout wrapper."""
-    with dpg.theme() as theme:
-        with dpg.theme_component(dpg.mvChildWindow):
-            dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (0, 0, 0, 0))
-            dpg.add_theme_color(dpg.mvThemeCol_Border, (0, 0, 0, 0))
-            dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 0)
-            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 0, 0)
+    with dpg.theme() as theme, dpg.theme_component(dpg.mvChildWindow):
+        dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (0, 0, 0, 0))
+        dpg.add_theme_color(dpg.mvThemeCol_Border, (0, 0, 0, 0))
+        dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 0)
+        dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 0, 0)
     return theme

@@ -1,4 +1,5 @@
 """Computer vision helpers for HSV detection."""
+
 import cv2
 import numpy as np
 
@@ -32,7 +33,9 @@ class VisionModule:
         hsv_img: np.ndarray | None = None,
     ):
         """Return the horizontal centroid for pixels inside an HSV range."""
-        hsv = hsv_img if hsv_img is not None else cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+        hsv = (
+            hsv_img if hsv_img is not None else cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+        )
         mask = cv2.inRange(
             hsv,
             np.array(lower, dtype=np.uint8),
@@ -104,7 +107,9 @@ class VisionModule:
         if mean_brightness > brightness_threshold:
             return False
         total_pixels = gray.shape[0] * gray.shape[1]
-        white_pixels = int(cv2.countNonZero(cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]))
+        white_pixels = int(
+            cv2.countNonZero(cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1])
+        )
         if white_pixels < white_pixel_min:
             return False
         ratio = white_pixels / max(total_pixels, 1)
@@ -118,7 +123,9 @@ class VisionModule:
         hsv_img: np.ndarray | None = None,
     ) -> bool:
         """Return true when enough bite-trigger pixels are present."""
-        hsv = hsv_img if hsv_img is not None else cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+        hsv = (
+            hsv_img if hsv_img is not None else cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+        )
         blue = hsv_range or CFG.hsv.blue
         threshold = CFG.min_blue_pixels if min_pixels is None else min_pixels
         lower = np.array(blue.lower, dtype=np.uint8)

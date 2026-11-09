@@ -1,4 +1,5 @@
 """Fishing state machine and PID control logic."""
+
 import enum
 import logging
 import time
@@ -68,7 +69,9 @@ class PIDController:
         if max_dt is not None:
             self.max_dt = max_dt
 
-    def update(self, current: float, target: float, bar_half_width: float = 200.0) -> float:
+    def update(
+        self, current: float, target: float, bar_half_width: float = 200.0
+    ) -> float:
         now = time.perf_counter()
         dt = now - self._last_ts
         self._last_ts = now
@@ -104,7 +107,9 @@ class PIDController:
 
             # Distance scaling normalized to bar half-width
             distance_scale = min(1.0, abs(error) / max(bar_half_width, 1.0))
-            current_kp = self.kp * self._adaptive_kp_scale * (0.5 + 0.5 * distance_scale)
+            current_kp = (
+                self.kp * self._adaptive_kp_scale * (0.5 + 0.5 * distance_scale)
+            )
 
         kp_term = current_kp * error
 

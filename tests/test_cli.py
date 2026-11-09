@@ -14,19 +14,30 @@ class TestCliParsing(unittest.TestCase):
         self.assertEqual(cli._parse_value("x", "a"), "x")
 
     def test_config_set_rejects_out_of_range_hsv(self):
-        with patch.object(cli, "CFG", AppConfig()) as cfg, patch.object(cfg, "save") as save:
-            cli._cmd_config_set(type("A", (), {"key": "hsv.blue.lower", "value": "0,0,999"})())
+        with (
+            patch.object(cli, "CFG", AppConfig()) as cfg,
+            patch.object(cfg, "save") as save,
+        ):
+            cli._cmd_config_set(
+                type("A", (), {"key": "hsv.blue.lower", "value": "0,0,999"})()
+            )
             self.assertEqual(cfg.hsv.blue.lower, AppConfig().hsv.blue.lower)
             save.assert_not_called()
 
     def test_config_set_rejects_negative_number(self):
-        with patch.object(cli, "CFG", AppConfig()) as cfg, patch.object(cfg, "save") as save:
+        with (
+            patch.object(cli, "CFG", AppConfig()) as cfg,
+            patch.object(cfg, "save") as save,
+        ):
             cli._cmd_config_set(type("A", (), {"key": "pid.max_dt", "value": "-1"})())
             self.assertEqual(cfg.pid.max_dt, AppConfig().pid.max_dt)
             save.assert_not_called()
 
     def test_config_set_accepts_valid_value(self):
-        with patch.object(cli, "CFG", AppConfig()) as cfg, patch.object(cfg, "save") as save:
+        with (
+            patch.object(cli, "CFG", AppConfig()) as cfg,
+            patch.object(cfg, "save") as save,
+        ):
             cli._cmd_config_set(type("A", (), {"key": "pid.kp", "value": "0.7"})())
             self.assertEqual(cfg.pid.kp, 0.7)
             save.assert_called_once()
@@ -52,7 +63,11 @@ class TestCliParsing(unittest.TestCase):
 class TestLazySettings(unittest.TestCase):
     def test_import_does_not_load_settings_until_requested(self):
         import config
-        with patch.object(config, "_settings_loaded", False), patch.object(config.CFG, "load") as load:
+
+        with (
+            patch.object(config, "_settings_loaded", False),
+            patch.object(config.CFG, "load") as load,
+        ):
             ensure_settings_loaded()
             ensure_settings_loaded()
             load.assert_called_once()

@@ -1,12 +1,14 @@
 """OCR of the catch result card (fish name and weight)."""
+
 import logging
 import re
-from typing import Callable, Optional
+from collections.abc import Callable
 
 log = logging.getLogger("NTEFish")
 
 try:
     from rapidocr import RapidOCR as _RapidOCR
+
     OCR_IMPORTABLE = True
 except ImportError:
     _RapidOCR = None  # type: ignore[assignment,misc]
@@ -51,7 +53,9 @@ class CatchOcr:
                 self._engine = _RapidOCR()
             except Exception:
                 # e.g. model files missing in a frozen build; don't take the bot down.
-                log.warning("OCR engine failed to initialise; disabling OCR.", exc_info=True)
+                log.warning(
+                    "OCR engine failed to initialise; disabling OCR.", exc_info=True
+                )
                 self.available = False
                 return False
         return True
@@ -86,8 +90,8 @@ class CatchOcr:
         capture,
         name_roi: dict,
         weight_roi: dict,
-        hide_ui: Optional[Callable[[], None]] = None,
-        show_ui: Optional[Callable[[], None]] = None,
+        hide_ui: Callable[[], None] | None = None,
+        show_ui: Callable[[], None] | None = None,
     ) -> tuple[str, str]:
         """Return (name, weight_g); ("", "") when OCR is unavailable.
 

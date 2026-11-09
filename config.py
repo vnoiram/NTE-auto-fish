@@ -1,4 +1,5 @@
 """Single source of runtime configuration for NTE Auto-Fish."""
+
 import json
 import logging
 import math
@@ -6,10 +7,9 @@ import os
 import threading
 from dataclasses import asdict, dataclass, field
 from random import SystemRandom
-from typing import Tuple
 
-from modules.utils import APP_DIR
 from modules.branding import scoped_runtime_name
+from modules.utils import APP_DIR
 
 DEFAULT_SETTINGS_PATH = os.path.join(APP_DIR, scoped_runtime_name("settings.json"))
 SUPPORTED_LANGUAGES = frozenset({"en", "ja"})
@@ -50,7 +50,9 @@ def _coerce_setting(current, value):
     if isinstance(current, tuple):
         if not isinstance(value, (list, tuple)) or len(value) != len(current):
             return _INVALID
-        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in value):
+        if not all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) for v in value
+        ):
             return _INVALID
         return tuple(value)
     if isinstance(current, dict):
@@ -60,8 +62,8 @@ def _coerce_setting(current, value):
 
 @dataclass
 class HsvRange:
-    lower: Tuple[int, int, int]
-    upper: Tuple[int, int, int]
+    lower: tuple[int, int, int]
+    upper: tuple[int, int, int]
 
 
 @dataclass
@@ -186,7 +188,7 @@ class HumanizationConfig:
     mouse_move_duration_max: float = 0.30
     mouse_offset_x: int = 150
     mouse_offset_y: int = 50
-    
+
     # Hook Reaction Latency (WAITING stage)
     hook_reaction_min: float = 0.12
     hook_reaction_max: float = 0.45
@@ -236,7 +238,7 @@ class AppConfig:
 
     def reset(self, path=None):
         default_cfg = AppConfig()
-        
+
         def reset_obj(target, source):
             for field_name in target.__dataclass_fields__:
                 val = getattr(source, field_name)
@@ -245,7 +247,7 @@ class AppConfig:
                     reset_obj(attr, val)
                 else:
                     setattr(target, field_name, val)
-        
+
         reset_obj(self, default_cfg)
         self.save(path)
 
@@ -254,7 +256,7 @@ class AppConfig:
         if not os.path.exists(path):
             return
         try:
-            with open(path, "r", encoding="utf-8") as handle:
+            with open(path, encoding="utf-8") as handle:
                 data = json.load(handle)
 
             def update_obj(obj, values, path=""):
@@ -263,7 +265,9 @@ class AppConfig:
                         continue
                     attr = getattr(obj, key)
                     name = f"{path}{key}"
-                    if isinstance(value, dict) and hasattr(attr, "__dataclass_fields__"):
+                    if isinstance(value, dict) and hasattr(
+                        attr, "__dataclass_fields__"
+                    ):
                         update_obj(attr, value, f"{name}.")
                         continue
                     if isinstance(obj, HsvRange):

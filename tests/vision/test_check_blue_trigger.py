@@ -37,7 +37,7 @@ class TestCheckBlueTrigger(unittest.TestCase):
         thresholds = {
             "4k": base_pixels,
             "2k": base_pixels // 2,
-            "1080p": base_pixels // 4
+            "1080p": base_pixels // 4,
         }
         parts = filename.lower().split("_")
         res = next((p for p in parts if p in thresholds), "4k")

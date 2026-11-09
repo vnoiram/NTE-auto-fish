@@ -4,11 +4,11 @@ Screen capture and input helpers.
 CaptureModule uses mss to grab BGR frames from screen regions. InputModule
 wraps pydirectinput and tracks held keys so state changes can release them.
 """
+
 import logging
 import threading
 import time
 from random import SystemRandom
-from typing import Optional
 
 import mss
 import numpy as np
@@ -92,8 +92,11 @@ class InputModule:
                 self._held.discard(key)
 
     def pulse_hold(
-        self, key: str, hold_secs: float, release_secs: float,
-        stop_event: Optional[threading.Event] = None,
+        self,
+        key: str,
+        hold_secs: float,
+        release_secs: float,
+        stop_event: threading.Event | None = None,
     ) -> None:
         """Hold a key for hold_secs, then release for release_secs.
 
@@ -129,13 +132,17 @@ class InputModule:
             try:
                 pydirectinput.keyUp(key)
             except Exception:
-                log.debug("Failed to release key '%s' in release_all.", key, exc_info=True)
+                log.debug(
+                    "Failed to release key '%s' in release_all.", key, exc_info=True
+                )
 
     def click(self, x: int, y: int) -> None:
         """Click a screen coordinate."""
         pydirectinput.click(x, y)
 
-    def humanized_move(self, x: int, y: int, amp: int = 150, d_min: float = 0.15, d_max: float = 0.3) -> None:
+    def humanized_move(
+        self, x: int, y: int, amp: int = 150, d_min: float = 0.15, d_max: float = 0.3
+    ) -> None:
         """Move the mouse to (x,y) with a human-like trajectory."""
         try:
             curr_x, curr_y = pydirectinput.position()
@@ -146,10 +153,14 @@ class InputModule:
             pydirectinput.moveTo(mid_x, mid_y, duration=dur1)
             pydirectinput.moveTo(x, y, duration=dur2)
         except Exception:
-            log.debug("Humanized move failed; falling back to direct move.", exc_info=True)
+            log.debug(
+                "Humanized move failed; falling back to direct move.", exc_info=True
+            )
             pydirectinput.moveTo(x, y, duration=_RNG.uniform(d_min * 2, d_max * 2))
 
-    def humanized_click(self, x: int, y: int, amp: int = 150, d_min: float = 0.15, d_max: float = 0.3) -> None:
+    def humanized_click(
+        self, x: int, y: int, amp: int = 150, d_min: float = 0.15, d_max: float = 0.3
+    ) -> None:
         """Move the mouse to (x,y) with a human-like trajectory and click."""
         self.humanized_move(x, y, amp, d_min, d_max)
         time.sleep(_RNG.uniform(0.05, 0.15))

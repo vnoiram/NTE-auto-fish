@@ -1,24 +1,24 @@
 """Left sidebar navigation panel."""
+
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import dearpygui.dearpygui as dpg
 
 from gui.i18n import tr
-from modules.branding import APP_NAME
 from gui.theme import (
     ACCENT,
-    GLASS_HIGHLIGHT,
-    GLASS_HIGHLIGHT2,
-    TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_VERY_MUTED,
-    _ui_scale as _s,
     build_nav_item_theme,
     build_sidebar_theme,
     get_sidebar_width,
 )
+from gui.theme import (
+    _ui_scale as _s,
+)
+from modules.branding import APP_NAME
 
 # ---------------------------------------------------------------------------
 # Navigation definition
@@ -26,8 +26,8 @@ from gui.theme import (
 
 NAV_PAGES = [
     ("dashboard", "Dashboard"),
-    ("settings",  "Settings"),
-    ("logs",      "Activity"),
+    ("settings", "Settings"),
+    ("logs", "Activity"),
 ]
 
 _active_page: str = "dashboard"
@@ -60,8 +60,11 @@ def create_sidebar(on_navigate: Callable[[str], None]):
     sidebar_w = get_sidebar_width()
     margin = int(18 * s)
     with dpg.child_window(
-        width=sidebar_w, height=-1, tag="sidebar",
-        border=False, no_scrollbar=True,
+        width=sidebar_w,
+        height=-1,
+        tag="sidebar",
+        border=False,
+        no_scrollbar=True,
     ):
         dpg.bind_item_theme("sidebar", _sidebar_theme)
 
@@ -122,7 +125,7 @@ def set_active_page(page_name: str):
 
 def _create_nav_item(name: str, label: str, on_navigate: Callable[[str], None]):
     """Create a single sidebar nav item with accent indicator bar."""
-    is_active = (name == _active_page)
+    is_active = name == _active_page
     btn_tag = f"nav_btn_{name}"
     ind_tag = f"nav_ind_{name}"
 
@@ -134,11 +137,19 @@ def _create_nav_item(name: str, label: str, on_navigate: Callable[[str], None]):
         with dpg.drawlist(width=bar_w, height=nav_h, tag=f"nav_ind_dl_{name}"):
             if is_active:
                 dpg.draw_rectangle(
-                    (0, 0), (bar_w, nav_h), color=ACCENT, fill=ACCENT, tag=ind_tag,
+                    (0, 0),
+                    (bar_w, nav_h),
+                    color=ACCENT,
+                    fill=ACCENT,
+                    tag=ind_tag,
                 )
             else:
                 dpg.draw_rectangle(
-                    (0, 0), (bar_w, nav_h), color=(0, 0, 0, 0), fill=(0, 0, 0, 0), tag=ind_tag,
+                    (0, 0),
+                    (bar_w, nav_h),
+                    color=(0, 0, 0, 0),
+                    fill=(0, 0, 0, 0),
+                    tag=ind_tag,
                 )
 
         # Nav button
@@ -149,7 +160,9 @@ def _create_nav_item(name: str, label: str, on_navigate: Callable[[str], None]):
             height=nav_h,
             callback=lambda s, a, u: _navigate(name, on_navigate),
         )
-        dpg.bind_item_theme(btn_tag, _nav_active_theme if is_active else _nav_inactive_theme)
+        dpg.bind_item_theme(
+            btn_tag, _nav_active_theme if is_active else _nav_inactive_theme
+        )
 
     _nav_tags[name] = {"btn": btn_tag, "indicator": ind_tag}
 

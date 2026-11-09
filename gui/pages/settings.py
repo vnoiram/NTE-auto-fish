@@ -1,4 +1,5 @@
 """Settings page — two-column category navigation with config panels."""
+
 from __future__ import annotations
 
 import json
@@ -8,19 +9,31 @@ import threading
 import urllib.parse
 import urllib.request
 import webbrowser
-from typing import Callable
+from collections.abc import Callable
 
 import dearpygui.dearpygui as dpg
 from screeninfo import get_monitors
 
 from config import CFG
 from gui.bridge import BotBridge
+from gui.components import (
+    apply_glass_card_theme,
+    caption_text,
+    hsv_editor,
+    section_header,
+    styled_button,
+    update_hsv_preview,
+)
 from gui.i18n import LANGUAGE_LABELS, language_from_label, language_label, tr
+from gui.theme import (
+    ACCENT,
+    CARD_GAP,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
+    build_settings_cat_theme,
+)
+from gui.theme import _ui_scale as _s
 from modules.utils import VERSION
-from gui.components import (apply_glass_card_theme, caption_text, hsv_editor,
-                            section_header, styled_button, update_hsv_preview)
-from gui.theme import (ACCENT, CARD_GAP, TEXT_MUTED, TEXT_PRIMARY, _ui_scale as _s,
-                       build_settings_cat_theme)
 
 log = logging.getLogger("NTEFish")
 
@@ -29,12 +42,12 @@ log = logging.getLogger("NTEFish")
 # ---------------------------------------------------------------------------
 
 CATEGORIES = [
-    ("pid",           "PID Tuning"),
-    ("vision",        "Vision & Detection"),
-    ("timing",        "Timing"),
-    ("input",         "Input & Hotkeys"),
-    ("humanization",  "Humanization"),
-    ("system",        "System & Updates"),
+    ("pid", "PID Tuning"),
+    ("vision", "Vision & Detection"),
+    ("timing", "Timing"),
+    ("input", "Input & Hotkeys"),
+    ("humanization", "Humanization"),
+    ("system", "System & Updates"),
 ]
 
 _RESULT_METHODS = {
@@ -42,7 +55,9 @@ _RESULT_METHODS = {
     "Press exit key": "key",
 }
 
-_LATEST_RELEASE_API_URL = "https://api.github.com/repos/Chizukuo/NTE-auto-fish/releases/latest"
+_LATEST_RELEASE_API_URL = (
+    "https://api.github.com/repos/Chizukuo/NTE-auto-fish/releases/latest"
+)
 _LATEST_RELEASE_API_HOST = "api.github.com"
 
 
@@ -51,6 +66,7 @@ def _validated_update_api_url() -> str:
     if parsed.scheme != "https" or parsed.hostname != _LATEST_RELEASE_API_HOST:
         raise ValueError("Unexpected update check endpoint")
     return _LATEST_RELEASE_API_URL
+
 
 def _version_tuple(version: str) -> tuple:
     """Parse 'x.y.z' into a comparable tuple; non-numeric parts become 0."""
@@ -152,7 +168,6 @@ def init_session_manager(mgr) -> None:
     _session_manager = mgr
 
 
-
 def _ensure_themes():
     global _cat_active_theme, _cat_inactive_theme
     if _cat_active_theme is None:
@@ -176,8 +191,11 @@ def create_settings(
     with dpg.group(horizontal=True):
         # ── Left column: category list ──────────────────────────────────
         with dpg.child_window(
-            width=int(200 * _s), height=-1, tag="settings_cat_list",
-            border=True, no_scrollbar=True,
+            width=int(200 * _s),
+            height=-1,
+            tag="settings_cat_list",
+            border=True,
+            no_scrollbar=True,
         ):
             apply_glass_card_theme("settings_cat_list")
             dpg.add_spacer(height=int(8 * _s))
@@ -190,8 +208,11 @@ def create_settings(
 
         # ── Right column: settings content ──────────────────────────────
         with dpg.child_window(
-            width=-1, height=-1, tag="settings_content",
-            border=True, no_scrollbar=False,
+            width=-1,
+            height=-1,
+            tag="settings_content",
+            border=True,
+            no_scrollbar=False,
         ):
             apply_glass_card_theme("settings_content")
 
@@ -207,15 +228,21 @@ def create_settings(
             # Save / Reset buttons
             with dpg.group(horizontal=True):
                 styled_button(
-                    "Save Settings", "btn_save",
+                    "Save Settings",
+                    "btn_save",
                     callback=lambda s, a, u: _save(bridge),
-                    variant="primary", width=int(140 * _s), height=int(32 * _s),
+                    variant="primary",
+                    width=int(140 * _s),
+                    height=int(32 * _s),
                 )
                 dpg.add_spacer(width=int(12 * _s))
                 styled_button(
-                    "Reset to Defaults", "btn_reset",
+                    "Reset to Defaults",
+                    "btn_reset",
                     callback=lambda s, a, u: _on_reset(bridge, on_hotkeys_changed),
-                    variant="neutral", width=int(160 * _s), height=int(32 * _s),
+                    variant="neutral",
+                    width=int(160 * _s),
+                    height=int(32 * _s),
                 )
 
     # Show only the active category
@@ -228,7 +255,7 @@ def create_settings(
 
 
 def _create_category_item(key: str, label: str):
-    is_active = (key == _active_category)
+    is_active = key == _active_category
     btn_tag = f"cat_btn_{key}"
     ind_tag = f"cat_ind_{key}"
 
@@ -238,11 +265,19 @@ def _create_category_item(key: str, label: str):
             item_h = int(32 * _s)
             if is_active:
                 dpg.draw_rectangle(
-                    (0, 0), (bar_w, item_h), color=ACCENT, fill=ACCENT, tag=ind_tag,
+                    (0, 0),
+                    (bar_w, item_h),
+                    color=ACCENT,
+                    fill=ACCENT,
+                    tag=ind_tag,
                 )
             else:
                 dpg.draw_rectangle(
-                    (0, 0), (bar_w, item_h), color=(0, 0, 0, 0), fill=(0, 0, 0, 0), tag=ind_tag,
+                    (0, 0),
+                    (bar_w, item_h),
+                    color=(0, 0, 0, 0),
+                    fill=(0, 0, 0, 0),
+                    tag=ind_tag,
                 )
 
         dpg.add_button(
@@ -252,7 +287,9 @@ def _create_category_item(key: str, label: str):
             height=item_h,
             callback=lambda s, a, u: _switch_category(key),
         )
-        dpg.bind_item_theme(btn_tag, _cat_active_theme if is_active else _cat_inactive_theme)
+        dpg.bind_item_theme(
+            btn_tag, _cat_active_theme if is_active else _cat_inactive_theme
+        )
 
     _cat_tags[key] = {"btn": btn_tag, "indicator": ind_tag}
 
@@ -270,8 +307,10 @@ def _switch_category(key: str):
 
         if cat_key in _cat_tags:
             tags = _cat_tags[cat_key]
-            is_active = (cat_key == key)
-            dpg.bind_item_theme(tags["btn"], _cat_active_theme if is_active else _cat_inactive_theme)
+            is_active = cat_key == key
+            dpg.bind_item_theme(
+                tags["btn"], _cat_active_theme if is_active else _cat_inactive_theme
+            )
             dpg.configure_item(
                 tags["indicator"],
                 color=ACCENT if is_active else (0, 0, 0, 0),
@@ -293,32 +332,61 @@ def _switch_category(key: str):
 def _build_pid_settings():
     with dpg.group(tag="settings_group_pid"):
         section_header("PID Tuning", color=ACCENT)
-        caption_text("Proportional-Integral-Derivative controller for fish bar tracking.")
+        caption_text(
+            "Proportional-Integral-Derivative controller for fish bar tracking."
+        )
         dpg.add_spacer(height=8)
 
         _slider_with_tooltip(
-            "Kp", tag="cfg_pid_kp", min_val=0.0, max_val=2.0, fmt="%.3f",
-            default=CFG.pid.kp, cb=lambda s, d: _set(CFG.pid, "kp", d),
+            "Kp",
+            tag="cfg_pid_kp",
+            min_val=0.0,
+            max_val=2.0,
+            fmt="%.3f",
+            default=CFG.pid.kp,
+            cb=lambda s, d: _set(CFG.pid, "kp", d),
         )
         _slider_with_tooltip(
-            "Ki", tag="cfg_pid_ki", min_val=0.0, max_val=0.5, fmt="%.3f",
-            default=CFG.pid.ki, cb=lambda s, d: _set(CFG.pid, "ki", d),
+            "Ki",
+            tag="cfg_pid_ki",
+            min_val=0.0,
+            max_val=0.5,
+            fmt="%.3f",
+            default=CFG.pid.ki,
+            cb=lambda s, d: _set(CFG.pid, "ki", d),
         )
         _slider_with_tooltip(
-            "Kd", tag="cfg_pid_kd", min_val=0.0, max_val=1.0, fmt="%.3f",
-            default=CFG.pid.kd, cb=lambda s, d: _set(CFG.pid, "kd", d),
+            "Kd",
+            tag="cfg_pid_kd",
+            min_val=0.0,
+            max_val=1.0,
+            fmt="%.3f",
+            default=CFG.pid.kd,
+            cb=lambda s, d: _set(CFG.pid, "kd", d),
         )
         _slider_with_tooltip(
-            "Deadband (px)", tag="cfg_pid_deadband", min_val=0.0, max_val=20.0, fmt="%.1f",
-            default=CFG.pid.deadband, cb=lambda s, d: _set(CFG.pid, "deadband", d),
+            "Deadband (px)",
+            tag="cfg_pid_deadband",
+            min_val=0.0,
+            max_val=20.0,
+            fmt="%.1f",
+            default=CFG.pid.deadband,
+            cb=lambda s, d: _set(CFG.pid, "deadband", d),
         )
         _slider_with_tooltip(
-            "Integral limit", tag="cfg_pid_integral_limit", min_val=10.0, max_val=500.0, fmt="%.0f",
-            default=CFG.pid.integral_limit, cb=lambda s, d: _set(CFG.pid, "integral_limit", d),
+            "Integral limit",
+            tag="cfg_pid_integral_limit",
+            min_val=10.0,
+            max_val=500.0,
+            fmt="%.0f",
+            default=CFG.pid.integral_limit,
+            cb=lambda s, d: _set(CFG.pid, "integral_limit", d),
         )
         _checkbox_with_tooltip(
-            "Adaptive damping", tag="cfg_pid_adaptive",
-            default=CFG.pid.adaptive, cb=lambda s, d: _set(CFG.pid, "adaptive", d),
+            "Adaptive damping",
+            tag="cfg_pid_adaptive",
+            default=CFG.pid.adaptive,
+            cb=lambda s, d: _set(CFG.pid, "adaptive", d),
         )
 
 
@@ -335,32 +403,42 @@ def _rebuild_session_list() -> None:
     active_id = _session_manager.active_session_id()
 
     if not sessions:
-        dpg.add_text(tr("No sessions yet."), parent="session_list_window", color=TEXT_MUTED)
+        dpg.add_text(
+            tr("No sessions yet."), parent="session_list_window", color=TEXT_MUTED
+        )
         return
 
     for meta in reversed(sessions):
         is_active = meta.id == active_id
         prefix = "● " if is_active else "  "
-        label = f"{prefix}{meta.start[:16]} · {tr('{count} fish', count=meta.fish_count)}"
+        label = (
+            f"{prefix}{meta.start[:16]} · {tr('{count} fish', count=meta.fish_count)}"
+        )
         row_tag = f"session_row_{meta.id}"
 
         with dpg.group(horizontal=True, parent="session_list_window", tag=row_tag):
             text_tag = f"session_text_{meta.id}" if is_active else dpg.generate_uuid()
-            dpg.add_text(label, tag=text_tag, color=TEXT_PRIMARY if is_active else TEXT_MUTED)
+            dpg.add_text(
+                label, tag=text_tag, color=TEXT_PRIMARY if is_active else TEXT_MUTED
+            )
             dpg.add_spacer(width=int(8 * _s))
             styled_button(
-                "Delete", f"session_del_{meta.id}",
+                "Delete",
+                f"session_del_{meta.id}",
                 callback=lambda s, a, u: _on_delete_session(u),
                 variant="danger",
-                width=int(56 * _s), height=int(22 * _s),
+                width=int(56 * _s),
+                height=int(22 * _s),
                 user_data=meta.id,
             )
             dpg.add_spacer(width=int(4 * _s))
             styled_button(
-                "Export", f"session_exp_{meta.id}",
+                "Export",
+                f"session_exp_{meta.id}",
                 callback=lambda s, a, u: _on_export_session(u),
                 variant="neutral",
-                width=int(56 * _s), height=int(22 * _s),
+                width=int(56 * _s),
+                height=int(22 * _s),
                 user_data=meta.id,
             )
 
@@ -398,10 +476,12 @@ def _on_export_session(session_id: str) -> None:
         with dpg.group(horizontal=True):
             for fmt, ext in [("CSV", "csv"), ("JSON", "json"), ("XLSX", "xlsx")]:
                 styled_button(
-                    fmt, f"export_btn_{fmt}_{session_id}",
+                    fmt,
+                    f"export_btn_{fmt}_{session_id}",
                     callback=lambda s, a, u: _do_export(u[0], u[1], modal_tag),
                     variant="neutral",
-                    width=int(56 * _s), height=int(26 * _s),
+                    width=int(56 * _s),
+                    height=int(26 * _s),
                     user_data=(session_id, ext),
                 )
                 dpg.add_spacer(width=int(4 * _s))
@@ -451,17 +531,25 @@ def _do_export(session_id: str, fmt: str, modal_tag: str) -> None:
         dpg.add_spacer(height=int(6 * _s))
         with dpg.group(horizontal=True):
             styled_button(
-                "Save", "export_path_ok",
+                "Save",
+                "export_path_ok",
                 callback=_on_confirm,
                 variant="neutral",
-                width=int(70 * _s), height=int(26 * _s),
+                width=int(70 * _s),
+                height=int(26 * _s),
             )
             dpg.add_spacer(width=int(6 * _s))
             styled_button(
-                "Cancel", "export_path_cancel",
-                callback=lambda s, a, u: dpg.delete_item(path_modal) if dpg.does_item_exist(path_modal) else None,
+                "Cancel",
+                "export_path_cancel",
+                callback=lambda s, a, u: (
+                    dpg.delete_item(path_modal)
+                    if dpg.does_item_exist(path_modal)
+                    else None
+                ),
                 variant="danger",
-                width=int(70 * _s), height=int(26 * _s),
+                width=int(70 * _s),
+                height=int(26 * _s),
             )
 
 
@@ -470,32 +558,44 @@ def _build_vision_settings(bridge: BotBridge):
         section_header("Vision & Detection", color=ACCENT)
         caption_text("HSV color ranges and detection sensitivity for game elements.")
         dpg.add_spacer(height=8)
- 
+
         status = bridge.latest_status()
         scale_sq = status.current_scale * status.current_scale
         current_val = CFG.detection_min_area * scale_sq
 
         _slider_with_tooltip(
-            "Detection threshold (px)", tag="cfg_vision_min_area",
-            min_val=1.0, max_val=100.0, fmt="%.1f",
+            "Detection threshold (px)",
+            tag="cfg_vision_min_area",
+            min_val=1.0,
+            max_val=100.0,
+            fmt="%.1f",
             default=current_val,
             cb=lambda s, d: _set_scaled_min_area(d, bridge),
         )
         dpg.add_spacer(height=4)
 
-        hsv_editor("cfg_hsv_sz", CFG.hsv.safe_zone, label="Safe Zone HSV", default_open=True)
+        hsv_editor(
+            "cfg_hsv_sz", CFG.hsv.safe_zone, label="Safe Zone HSV", default_open=True
+        )
         hsv_editor("cfg_hsv_cur", CFG.hsv.cursor, label="Cursor HSV", default_open=True)
-        hsv_editor("cfg_hsv_bl", CFG.hsv.blue, label="Bite Trigger HSV", default_open=False)
+        hsv_editor(
+            "cfg_hsv_bl", CFG.hsv.blue, label="Bite Trigger HSV", default_open=False
+        )
 
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
-            "Edge ignore ratio", tag="cfg_roi_ignore_margin",
-            min_val=0.0, max_val=0.12, fmt="%.3f",
+            "Edge ignore ratio",
+            tag="cfg_roi_ignore_margin",
+            min_val=0.0,
+            max_val=0.12,
+            fmt="%.3f",
             default=CFG.roi.ignore_margin_ratio,
             cb=lambda s, d: _set(CFG.roi, "ignore_margin_ratio", d),
         )
         _input_with_tooltip(
-            "Blue pixel trigger", tag="cfg_min_blue", width=140,
+            "Blue pixel trigger",
+            tag="cfg_min_blue",
+            width=140,
             default=CFG.min_blue_pixels,
             cb=lambda s, d: _set_int(CFG, "min_blue_pixels", d, "cfg_min_blue", 1),
         )
@@ -505,7 +605,9 @@ def _build_vision_settings(bridge: BotBridge):
         dpg.add_spacer(height=int(8 * _s))
         dpg.add_text(tr("Fish Logging"), color=TEXT_MUTED)
         dpg.add_spacer(height=int(4 * _s))
-        caption_text("Record each caught fish (name + weight) to a per-session CSV file.")
+        caption_text(
+            "Record each caught fish (name + weight) to a per-session CSV file."
+        )
         dpg.add_spacer(height=int(4 * _s))
         dpg.add_checkbox(
             label=tr("Enable fish logging"),
@@ -515,9 +617,12 @@ def _build_vision_settings(bridge: BotBridge):
         )
         dpg.add_spacer(height=int(8 * _s))
         styled_button(
-            "Change Scanning Areas", "btn_scan_areas",
+            "Change Scanning Areas",
+            "btn_scan_areas",
             callback=lambda s, a, u: _open_scanning_area_editor(),
-            variant="neutral", width=int(190 * _s), height=int(28 * _s),
+            variant="neutral",
+            width=int(190 * _s),
+            height=int(28 * _s),
         )
         dpg.add_spacer(height=int(10 * _s))
         dpg.add_text(tr("Sessions"), color=TEXT_MUTED)
@@ -549,7 +654,9 @@ def _open_scanning_area_editor() -> None:
     try:
         import tkinter as tk
     except ImportError:
-        log.warning("Tkinter is not available in this build; scanning area editor is disabled.")
+        log.warning(
+            "Tkinter is not available in this build; scanning area editor is disabled."
+        )
         return
 
     if _scan_editor_open.is_set():
@@ -557,18 +664,18 @@ def _open_scanning_area_editor() -> None:
         return
 
     monitors = get_monitors()
-    mon_idx  = max(0, min(CFG.monitor_index, len(monitors) - 1))
-    mon      = monitors[mon_idx]
-    sw, sh   = mon.width, mon.height
-    off_x    = mon.x
-    off_y    = mon.y
+    mon_idx = max(0, min(CFG.monitor_index, len(monitors) - 1))
+    mon = monitors[mon_idx]
+    sw, sh = mon.width, mon.height
+    off_x = mon.x
+    off_y = mon.y
 
     # Pixels that use this colour become see-through on Windows
     _TRANSPARENT = "#000001"
-    _NAME_CLR    = "#FF4444"
-    _WEIGHT_CLR  = "#44AAFF"
-    _HANDLE      = 10          # half-size of corner square
-    _BORDER      = 3
+    _NAME_CLR = "#FF4444"
+    _WEIGHT_CLR = "#44AAFF"
+    _HANDLE = 10  # half-size of corner square
+    _BORDER = 3
 
     def _run() -> None:
         try:
@@ -587,8 +694,7 @@ def _open_scanning_area_editor() -> None:
         root.configure(bg=_TRANSPARENT)
         root.attributes("-transparentcolor", _TRANSPARENT)
 
-        canvas = tk.Canvas(root, bg=_TRANSPARENT, highlightthickness=0,
-                           cursor="fleur")
+        canvas = tk.Canvas(root, bg=_TRANSPARENT, highlightthickness=0, cursor="fleur")
         canvas.place(x=0, y=0, width=sw, height=sh)
 
         # ── Convert config ratios → pixel rects ──────────────────────────
@@ -597,11 +703,11 @@ def _open_scanning_area_editor() -> None:
             return [int(l * sw), int(t * sh), int(r * sw), int(b * sh)]
 
         state = {
-            "name":          r2px(CFG.ocr_name_roi_ratios),
-            "weight":        r2px(CFG.ocr_weight_roi_ratios),
-            "drag_target":   None,
-            "drag_mode":     None,
-            "drag_start":    (0, 0),
+            "name": r2px(CFG.ocr_name_roi_ratios),
+            "weight": r2px(CFG.ocr_weight_roi_ratios),
+            "drag_target": None,
+            "drag_mode": None,
+            "drag_start": (0, 0),
             "drag_rect_start": None,
         }
 
@@ -614,23 +720,41 @@ def _open_scanning_area_editor() -> None:
                 ty, by = min(y1, y2), max(y1, y2)
                 label = tr("Fish Name") if which == "name" else tr("Weight (g)")
                 # Rectangle border (no fill — game shows through)
-                canvas.create_rectangle(lx, ty, rx, by, outline=color,
-                                        width=_BORDER, tags="overlay")
+                canvas.create_rectangle(
+                    lx, ty, rx, by, outline=color, width=_BORDER, tags="overlay"
+                )
                 # Label badge above the rectangle
                 tx, text_y = lx + 6, ty - 14
-                canvas.create_rectangle(tx - 4, text_y - 2,
-                                        tx + len(label) * 8 + 4, text_y + 16,
-                                        fill="#1a1a2e", outline=color, width=1,
-                                        tags="overlay")
-                canvas.create_text(tx, text_y + 7, text=label,
-                                   fill=color, anchor="w",
-                                   font=("Yu Gothic UI", 11, "bold"), tags="overlay")
+                canvas.create_rectangle(
+                    tx - 4,
+                    text_y - 2,
+                    tx + len(label) * 8 + 4,
+                    text_y + 16,
+                    fill="#1a1a2e",
+                    outline=color,
+                    width=1,
+                    tags="overlay",
+                )
+                canvas.create_text(
+                    tx,
+                    text_y + 7,
+                    text=label,
+                    fill=color,
+                    anchor="w",
+                    font=("Yu Gothic UI", 11, "bold"),
+                    tags="overlay",
+                )
                 # Corner handles
                 for cx, cy in [(lx, ty), (rx, ty), (lx, by), (rx, by)]:
                     canvas.create_rectangle(
-                        cx - _HANDLE, cy - _HANDLE,
-                        cx + _HANDLE, cy + _HANDLE,
-                        fill=color, outline="white", width=1, tags="overlay",
+                        cx - _HANDLE,
+                        cy - _HANDLE,
+                        cx + _HANDLE,
+                        cy + _HANDLE,
+                        fill=color,
+                        outline="white",
+                        width=1,
+                        tags="overlay",
                     )
 
         # ── Instruction banner ────────────────────────────────────────────
@@ -639,10 +763,10 @@ def _open_scanning_area_editor() -> None:
             "•  Red = Fish Name  |  Blue = Weight (g)"
         )
         bx = sw // 2
-        canvas.create_rectangle(bx - 370, 10, bx + 370, 40,
-                                 fill="#1a1a2e", outline="#444444", width=1)
-        canvas.create_text(bx, 25, text=banner, fill="white",
-                           font=("Yu Gothic UI", 12))
+        canvas.create_rectangle(
+            bx - 370, 10, bx + 370, 40, fill="#1a1a2e", outline="#444444", width=1
+        )
+        canvas.create_text(bx, 25, text=banner, fill="white", font=("Yu Gothic UI", 12))
 
         # ── OK / Cancel buttons (bottom-right) ────────────────────────────
         btn_frame = tk.Frame(root, bg="#1a1a2e", bd=0)
@@ -656,23 +780,41 @@ def _open_scanning_area_editor() -> None:
                     max(0.0, min(1.0, max(x1, x2) / sw)),
                     max(0.0, min(1.0, max(y1, y2) / sh)),
                 )
-            CFG.ocr_name_roi_ratios   = p2r(state["name"])
+
+            CFG.ocr_name_roi_ratios = p2r(state["name"])
             CFG.ocr_weight_roi_ratios = p2r(state["weight"])
             CFG.save()
-            log.info("OCR scanning areas saved — name=%s  weight=%s",
-                     CFG.ocr_name_roi_ratios, CFG.ocr_weight_roi_ratios)
+            log.info(
+                "OCR scanning areas saved — name=%s  weight=%s",
+                CFG.ocr_name_roi_ratios,
+                CFG.ocr_weight_roi_ratios,
+            )
             root.destroy()
 
         tk.Button(
-            btn_frame, text="OK", bg="#4CAF50", fg="white",
-            activebackground="#45a049", activeforeground="white",
-            font=("Yu Gothic UI", 12, "bold"), padx=22, pady=8, bd=0,
+            btn_frame,
+            text="OK",
+            bg="#4CAF50",
+            fg="white",
+            activebackground="#45a049",
+            activeforeground="white",
+            font=("Yu Gothic UI", 12, "bold"),
+            padx=22,
+            pady=8,
+            bd=0,
             command=do_apply,
         ).pack(side=tk.LEFT, padx=(0, 6))
         tk.Button(
-            btn_frame, text=tr("Cancel"), bg="#555555", fg="white",
-            activebackground="#666666", activeforeground="white",
-            font=("Yu Gothic UI", 12), padx=22, pady=8, bd=0,
+            btn_frame,
+            text=tr("Cancel"),
+            bg="#555555",
+            fg="white",
+            activebackground="#666666",
+            activeforeground="white",
+            font=("Yu Gothic UI", 12),
+            padx=22,
+            pady=8,
+            bd=0,
             command=root.destroy,
         ).pack(side=tk.LEFT)
         btn_frame.place(x=sw - 270, y=sh - 64)
@@ -683,8 +825,12 @@ def _open_scanning_area_editor() -> None:
             lx, rx = min(x1, x2), max(x1, x2)
             ty, by = min(y1, y2), max(y1, y2)
             hs = _HANDLE + 4
-            for mode, cx, cy in [("tl", lx, ty), ("tr", rx, ty),
-                                  ("bl", lx, by), ("br", rx, by)]:
+            for mode, cx, cy in [
+                ("tl", lx, ty),
+                ("tr", rx, ty),
+                ("bl", lx, by),
+                ("br", rx, by),
+            ]:
                 if abs(ex - cx) <= hs and abs(ey - cy) <= hs:
                     return mode
             if lx <= ex <= rx and ty <= ey <= by:
@@ -695,9 +841,9 @@ def _open_scanning_area_editor() -> None:
             for which in ("name", "weight"):
                 mode = hit_test(event.x, event.y, state[which])
                 if mode:
-                    state["drag_target"]    = which
-                    state["drag_mode"]      = mode
-                    state["drag_start"]     = (event.x, event.y)
+                    state["drag_target"] = which
+                    state["drag_mode"] = mode
+                    state["drag_start"] = (event.x, event.y)
                     state["drag_rect_start"] = list(state[which])
                     return
 
@@ -706,7 +852,7 @@ def _open_scanning_area_editor() -> None:
                 return
             dx = event.x - state["drag_start"][0]
             dy = event.y - state["drag_start"][1]
-            r  = state["drag_rect_start"]
+            r = state["drag_rect_start"]
             which, mode = state["drag_target"], state["drag_mode"]
 
             if mode == "move":
@@ -715,21 +861,21 @@ def _open_scanning_area_editor() -> None:
                 ny = max(0, min(sh - h, r[1] + dy))
                 state[which] = [nx, ny, nx + w, ny + h]
             elif mode == "tl":
-                state[which] = [max(0, r[0]+dx), max(0, r[1]+dy), r[2], r[3]]
+                state[which] = [max(0, r[0] + dx), max(0, r[1] + dy), r[2], r[3]]
             elif mode == "tr":
-                state[which] = [r[0], max(0, r[1]+dy), min(sw, r[2]+dx), r[3]]
+                state[which] = [r[0], max(0, r[1] + dy), min(sw, r[2] + dx), r[3]]
             elif mode == "bl":
-                state[which] = [max(0, r[0]+dx), r[1], r[2], min(sh, r[3]+dy)]
+                state[which] = [max(0, r[0] + dx), r[1], r[2], min(sh, r[3] + dy)]
             elif mode == "br":
-                state[which] = [r[0], r[1], min(sw, r[2]+dx), min(sh, r[3]+dy)]
+                state[which] = [r[0], r[1], min(sw, r[2] + dx), min(sh, r[3] + dy)]
             redraw()
 
         def on_release(event):
             state["drag_target"] = None
-            state["drag_mode"]   = None
+            state["drag_mode"] = None
 
-        canvas.bind("<Button-1>",       on_press)
-        canvas.bind("<B1-Motion>",      on_drag)
+        canvas.bind("<Button-1>", on_press)
+        canvas.bind("<B1-Motion>", on_drag)
         canvas.bind("<ButtonRelease-1>", on_release)
 
         redraw()
@@ -746,58 +892,91 @@ def _build_timing_settings():
         dpg.add_spacer(height=8)
 
         _slider_with_tooltip(
-            "Cast animation (s)", tag="cfg_timing_cast",
-            min_val=0.5, max_val=10.0, fmt="%.2f",
+            "Cast animation (s)",
+            tag="cfg_timing_cast",
+            min_val=0.5,
+            max_val=10.0,
+            fmt="%.2f",
             default=CFG.timing.cast_animation_secs,
             cb=lambda s, d: _set(CFG.timing, "cast_animation_secs", d),
         )
         _slider_with_tooltip(
-            "Bite timeout (s)", tag="cfg_timing_bite",
-            min_val=5.0, max_val=300.0, fmt="%.1f",
+            "Bite timeout (s)",
+            tag="cfg_timing_bite",
+            min_val=5.0,
+            max_val=300.0,
+            fmt="%.1f",
             default=CFG.timing.bite_timeout_secs,
             cb=lambda s, d: _set(CFG.timing, "bite_timeout_secs", d),
         )
         _input_with_tooltip(
-            "Lost frame limit", tag="cfg_timing_lost", width=140,
+            "Lost frame limit",
+            tag="cfg_timing_lost",
+            width=140,
             default=CFG.timing.lost_frames_threshold,
             cb=lambda s, d: _set_int(
-                CFG.timing, "lost_frames_threshold", d, "cfg_timing_lost", 1,
+                CFG.timing,
+                "lost_frames_threshold",
+                d,
+                "cfg_timing_lost",
+                1,
             ),
         )
         _slider_with_tooltip(
-            "Result wait (s)", tag="cfg_timing_result",
-            min_val=0.5, max_val=15.0, fmt="%.2f",
+            "Result wait (s)",
+            tag="cfg_timing_result",
+            min_val=0.5,
+            max_val=15.0,
+            fmt="%.2f",
             default=CFG.timing.result_wait_secs,
             cb=lambda s, d: _set(CFG.timing, "result_wait_secs", d),
         )
         _slider_with_tooltip(
-            "Key press base (s)", tag="cfg_timing_key_press",
-            min_val=0.01, max_val=1.0, fmt="%.3f",
+            "Key press base (s)",
+            tag="cfg_timing_key_press",
+            min_val=0.01,
+            max_val=1.0,
+            fmt="%.3f",
             default=CFG.timing.key_press_duration,
             cb=lambda s, d: _set(CFG.timing, "key_press_duration", d),
         )
         _slider_with_tooltip(
-            "Waiting poll (s)", tag="cfg_timing_wait_poll",
-            min_val=0.005, max_val=1.0, fmt="%.3f",
+            "Waiting poll (s)",
+            tag="cfg_timing_wait_poll",
+            min_val=0.005,
+            max_val=1.0,
+            fmt="%.3f",
             default=CFG.timing.waiting_poll_interval,
             cb=lambda s, d: _set(CFG.timing, "waiting_poll_interval", d),
         )
         _slider_with_tooltip(
-            "Tracking poll (s)", tag="cfg_timing_track_poll",
-            min_val=0.005, max_val=0.500, fmt="%.3f",
+            "Tracking poll (s)",
+            tag="cfg_timing_track_poll",
+            min_val=0.005,
+            max_val=0.500,
+            fmt="%.3f",
             default=CFG.timing.struggling_poll_interval,
             cb=lambda s, d: _set(CFG.timing, "struggling_poll_interval", d),
         )
         _input_with_tooltip(
-            "Bait error limit", tag="cfg_timing_bait_err", width=140,
+            "Bait error limit",
+            tag="cfg_timing_bait_err",
+            width=140,
             default=CFG.timing.bait_error_threshold,
             cb=lambda s, d: _set_int(
-                CFG.timing, "bait_error_threshold", d, "cfg_timing_bait_err", 1,
+                CFG.timing,
+                "bait_error_threshold",
+                d,
+                "cfg_timing_bait_err",
+                1,
             ),
         )
         _slider_with_tooltip(
-            "Max struggle (s)", tag="cfg_timing_max_struggle",
-            min_val=30.0, max_val=600.0, fmt="%.0f",
+            "Max struggle (s)",
+            tag="cfg_timing_max_struggle",
+            min_val=30.0,
+            max_val=600.0,
+            fmt="%.0f",
             default=CFG.timing.max_struggle_secs,
             cb=lambda s, d: _set(CFG.timing, "max_struggle_secs", d),
         )
@@ -820,18 +999,22 @@ def _build_input_settings(
         _key_input("Exit key", "cfg_key_exit", CFG.keys.exit, "exit")
 
         dpg.add_combo(
-            label=tr("Result close"), items=[tr(label) for label in _RESULT_METHODS],
+            label=tr("Result close"),
+            items=[tr(label) for label in _RESULT_METHODS],
             default_value=_result_method_label(CFG.result_close_method),
-            width=160, tag="cfg_result_close_method",
+            width=160,
+            tag="cfg_result_close_method",
             callback=lambda s, d: _set_result_method(d),
         )
         dpg.add_checkbox(
-            label=tr("Always on top"), tag="cfg_always_on_top",
+            label=tr("Always on top"),
+            tag="cfg_always_on_top",
             default_value=CFG.always_on_top,
             callback=lambda s, d: _on_top_changed(d),
         )
         dpg.add_checkbox(
-            label=tr("Debug logging"), tag="cfg_debug_mode",
+            label=tr("Debug logging"),
+            tag="cfg_debug_mode",
             default_value=CFG.debug_mode,
             callback=lambda s, d: _set(CFG, "debug_mode", d),
         )
@@ -852,12 +1035,16 @@ def _build_input_settings(
         dpg.add_text(tr("Global Hotkeys"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _text_input_with_tooltip(
-            "Toggle", tag="cfg_hotkey_toggle", width=200,
+            "Toggle",
+            tag="cfg_hotkey_toggle",
+            width=200,
             default=CFG.hotkeys.toggle,
             cb=lambda s, d: _set_hotkey("toggle", d, bridge, on_hotkeys_changed),
         )
         _text_input_with_tooltip(
-            "Stop", tag="cfg_hotkey_stop", width=200,
+            "Stop",
+            tag="cfg_hotkey_stop",
+            width=200,
             default=CFG.hotkeys.stop,
             cb=lambda s, d: _set_hotkey("stop", d, bridge, on_hotkeys_changed),
         )
@@ -870,7 +1057,8 @@ def _build_humanization_settings():
         dpg.add_spacer(height=8)
 
         _checkbox_with_tooltip(
-            "Humanize input", tag="cfg_hum_enabled",
+            "Humanize input",
+            tag="cfg_hum_enabled",
             default=CFG.humanization.enabled,
             cb=lambda s, d: _set(CFG.humanization, "enabled", d),
         )
@@ -879,26 +1067,38 @@ def _build_humanization_settings():
         dpg.add_text(tr("Key Pulse Timing"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
-            "Button hold min (s)", tag="cfg_hum_pulse_hold_min",
-            min_val=0.010, max_val=0.500, fmt="%.3f",
+            "Button hold min (s)",
+            tag="cfg_hum_pulse_hold_min",
+            min_val=0.010,
+            max_val=0.500,
+            fmt="%.3f",
             default=CFG.humanization.pulse_hold_min,
             cb=lambda s, d: _set(CFG.humanization, "pulse_hold_min", d),
         )
         _slider_with_tooltip(
-            "Button hold max (s)", tag="cfg_hum_pulse_hold_max",
-            min_val=0.020, max_val=1.000, fmt="%.3f",
+            "Button hold max (s)",
+            tag="cfg_hum_pulse_hold_max",
+            min_val=0.020,
+            max_val=1.000,
+            fmt="%.3f",
             default=CFG.humanization.pulse_hold_max,
             cb=lambda s, d: _set(CFG.humanization, "pulse_hold_max", d),
         )
         _slider_with_tooltip(
-            "Button released min (s)", tag="cfg_hum_pulse_release_min",
-            min_val=0.005, max_val=0.500, fmt="%.3f",
+            "Button released min (s)",
+            tag="cfg_hum_pulse_release_min",
+            min_val=0.005,
+            max_val=0.500,
+            fmt="%.3f",
             default=CFG.humanization.pulse_release_min,
             cb=lambda s, d: _set(CFG.humanization, "pulse_release_min", d),
         )
         _slider_with_tooltip(
-            "Button released max (s)", tag="cfg_hum_pulse_release_max",
-            min_val=0.010, max_val=1.000, fmt="%.3f",
+            "Button released max (s)",
+            tag="cfg_hum_pulse_release_max",
+            min_val=0.010,
+            max_val=1.000,
+            fmt="%.3f",
             default=CFG.humanization.pulse_release_max,
             cb=lambda s, d: _set(CFG.humanization, "pulse_release_max", d),
         )
@@ -907,21 +1107,30 @@ def _build_humanization_settings():
         dpg.add_text(tr("Deadband Micro-corrections"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _checkbox_with_tooltip(
-            "Deadband taps", tag="cfg_hum_db_tap",
+            "Deadband taps",
+            tag="cfg_hum_db_tap",
             default=CFG.humanization.deadband_tap_enabled,
             cb=lambda s, d: _set(CFG.humanization, "deadband_tap_enabled", d),
         )
         _slider_with_tooltip(
-            "Per-battle play chance", tag="cfg_hum_db_battle_chance",
-            min_val=0.0, max_val=1.0, fmt="%.2f",
+            "Per-battle play chance",
+            tag="cfg_hum_db_battle_chance",
+            min_val=0.0,
+            max_val=1.0,
+            fmt="%.2f",
             default=CFG.humanization.deadband_play_battle_chance,
             cb=lambda s, d: _set(
-                CFG.humanization, "deadband_play_battle_chance", d,
+                CFG.humanization,
+                "deadband_play_battle_chance",
+                d,
             ),
         )
         _slider_with_tooltip(
-            "Tap chance", tag="cfg_hum_db_chance",
-            min_val=0.0, max_val=1.0, fmt="%.2f",
+            "Tap chance",
+            tag="cfg_hum_db_chance",
+            min_val=0.0,
+            max_val=1.0,
+            fmt="%.2f",
             default=CFG.humanization.deadband_tap_chance,
             cb=lambda s, d: _set(CFG.humanization, "deadband_tap_chance", d),
         )
@@ -930,19 +1139,26 @@ def _build_humanization_settings():
         dpg.add_text(tr("Reaction Latency"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
-            "Reaction min (s)", tag="cfg_hum_react_min",
-            min_val=0.0, max_val=0.750, fmt="%.3f",
+            "Reaction min (s)",
+            tag="cfg_hum_react_min",
+            min_val=0.0,
+            max_val=0.750,
+            fmt="%.3f",
             default=CFG.humanization.reaction_latency_min,
             cb=lambda s, d: _set(CFG.humanization, "reaction_latency_min", d),
         )
         _slider_with_tooltip(
-            "Reaction max (s)", tag="cfg_hum_react_max",
-            min_val=0.0, max_val=1.500, fmt="%.3f",
+            "Reaction max (s)",
+            tag="cfg_hum_react_max",
+            min_val=0.0,
+            max_val=1.500,
+            fmt="%.3f",
             default=CFG.humanization.reaction_latency_max,
             cb=lambda s, d: _set(CFG.humanization, "reaction_latency_max", d),
         )
         _combo_with_tooltip(
-            "Reaction dist", tag="cfg_hum_react_dist",
+            "Reaction dist",
+            tag="cfg_hum_react_dist",
             items=["uniform", "gaussian", "exponential"],
             default=CFG.humanization.reaction_latency_dist,
             cb=lambda s, d: _set(CFG.humanization, "reaction_latency_dist", d),
@@ -952,18 +1168,23 @@ def _build_humanization_settings():
         dpg.add_text(tr("PID Noise"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _checkbox_with_tooltip(
-            "PID noise", tag="cfg_hum_noise_enabled",
+            "PID noise",
+            tag="cfg_hum_noise_enabled",
             default=CFG.humanization.pid_noise_enabled,
             cb=lambda s, d: _set(CFG.humanization, "pid_noise_enabled", d),
         )
         _slider_with_tooltip(
-            "Noise amplitude (px)", tag="cfg_hum_noise_amp",
-            min_val=0.0, max_val=15.0, fmt="%.1f",
+            "Noise amplitude (px)",
+            tag="cfg_hum_noise_amp",
+            min_val=0.0,
+            max_val=15.0,
+            fmt="%.1f",
             default=CFG.humanization.pid_noise_amplitude,
             cb=lambda s, d: _set(CFG.humanization, "pid_noise_amplitude", d),
         )
         _combo_with_tooltip(
-            "Noise dist", tag="cfg_hum_noise_dist",
+            "Noise dist",
+            tag="cfg_hum_noise_dist",
             items=["uniform", "gaussian"],
             default=CFG.humanization.pid_noise_dist,
             cb=lambda s, d: _set(CFG.humanization, "pid_noise_dist", d),
@@ -974,58 +1195,85 @@ def _build_humanization_settings():
         dpg.add_spacer(height=4)
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
-                "Movement scale min", tag="cfg_hum_move_scale_min",
-                min_val=0.25, max_val=1.5, fmt="%.2f",
+                "Movement scale min",
+                tag="cfg_hum_move_scale_min",
+                min_val=0.25,
+                max_val=1.5,
+                fmt="%.2f",
                 default=CFG.humanization.movement_scale_min,
                 cb=lambda s, d: _set(CFG.humanization, "movement_scale_min", d),
             )
             _slider_with_tooltip(
-                "Movement scale max", tag="cfg_hum_move_scale_max",
-                min_val=0.5, max_val=2.0, fmt="%.2f",
+                "Movement scale max",
+                tag="cfg_hum_move_scale_max",
+                min_val=0.5,
+                max_val=2.0,
+                fmt="%.2f",
                 default=CFG.humanization.movement_scale_max,
                 cb=lambda s, d: _set(CFG.humanization, "movement_scale_max", d),
             )
         _slider_with_tooltip(
-            "Slow move chance", tag="cfg_hum_slow_chance",
-            min_val=0.0, max_val=0.5, fmt="%.2f",
+            "Slow move chance",
+            tag="cfg_hum_slow_chance",
+            min_val=0.0,
+            max_val=0.5,
+            fmt="%.2f",
             default=CFG.humanization.slow_move_chance,
             cb=lambda s, d: _set(CFG.humanization, "slow_move_chance", d),
         )
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
-                "Slow hold scale", tag="cfg_hum_slow_hold_scale",
-                min_val=0.1, max_val=1.0, fmt="%.2f",
+                "Slow hold scale",
+                tag="cfg_hum_slow_hold_scale",
+                min_val=0.1,
+                max_val=1.0,
+                fmt="%.2f",
                 default=CFG.humanization.slow_move_hold_scale_max,
                 cb=lambda s, d: _set(CFG.humanization, "slow_move_hold_scale_max", d),
             )
             _slider_with_tooltip(
-                "Slow gap scale", tag="cfg_hum_slow_gap_scale",
-                min_val=1.0, max_val=3.0, fmt="%.2f",
+                "Slow gap scale",
+                tag="cfg_hum_slow_gap_scale",
+                min_val=1.0,
+                max_val=3.0,
+                fmt="%.2f",
                 default=CFG.humanization.slow_move_gap_scale,
                 cb=lambda s, d: _set(CFG.humanization, "slow_move_gap_scale", d),
             )
         _slider_with_tooltip(
-            "Reverse flick chance", tag="cfg_hum_flick_chance",
-            min_val=0.0, max_val=1.0, fmt="%.2f",
+            "Reverse flick chance",
+            tag="cfg_hum_flick_chance",
+            min_val=0.0,
+            max_val=1.0,
+            fmt="%.2f",
             default=CFG.humanization.flick_chance_on_reverse,
             cb=lambda s, d: _set(CFG.humanization, "flick_chance_on_reverse", d),
         )
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
-                "Flick hold scale", tag="cfg_hum_flick_hold_scale",
-                min_val=1.0, max_val=3.0, fmt="%.2f",
+                "Flick hold scale",
+                tag="cfg_hum_flick_hold_scale",
+                min_val=1.0,
+                max_val=3.0,
+                fmt="%.2f",
                 default=CFG.humanization.flick_hold_scale_max,
                 cb=lambda s, d: _set(CFG.humanization, "flick_hold_scale_max", d),
             )
             _slider_with_tooltip(
-                "Flick gap scale", tag="cfg_hum_flick_gap_scale",
-                min_val=0.1, max_val=1.0, fmt="%.2f",
+                "Flick gap scale",
+                tag="cfg_hum_flick_gap_scale",
+                min_val=0.1,
+                max_val=1.0,
+                fmt="%.2f",
                 default=CFG.humanization.flick_gap_scale,
                 cb=lambda s, d: _set(CFG.humanization, "flick_gap_scale", d),
             )
         _slider_with_tooltip(
-            "Random action chance", tag="cfg_hum_random_action_chance",
-            min_val=0.0, max_val=0.2, fmt="%.2f",
+            "Random action chance",
+            tag="cfg_hum_random_action_chance",
+            min_val=0.0,
+            max_val=0.2,
+            fmt="%.2f",
             default=CFG.humanization.random_action_chance,
             cb=lambda s, d: _set(CFG.humanization, "random_action_chance", d),
         )
@@ -1035,33 +1283,48 @@ def _build_humanization_settings():
         dpg.add_spacer(height=4)
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
-                "Timing scale min", tag="cfg_hum_timing_scale_min",
-                min_val=0.25, max_val=1.5, fmt="%.2f",
+                "Timing scale min",
+                tag="cfg_hum_timing_scale_min",
+                min_val=0.25,
+                max_val=1.5,
+                fmt="%.2f",
                 default=CFG.humanization.timing_scale_min,
                 cb=lambda s, d: _set(CFG.humanization, "timing_scale_min", d),
             )
             _slider_with_tooltip(
-                "Timing scale max", tag="cfg_hum_timing_scale_max",
-                min_val=0.5, max_val=3.0, fmt="%.2f",
+                "Timing scale max",
+                tag="cfg_hum_timing_scale_max",
+                min_val=0.5,
+                max_val=3.0,
+                fmt="%.2f",
                 default=CFG.humanization.timing_scale_max,
                 cb=lambda s, d: _set(CFG.humanization, "timing_scale_max", d),
             )
         _slider_with_tooltip(
-            "Extra delay chance", tag="cfg_hum_timing_extra_chance",
-            min_val=0.0, max_val=1.0, fmt="%.2f",
+            "Extra delay chance",
+            tag="cfg_hum_timing_extra_chance",
+            min_val=0.0,
+            max_val=1.0,
+            fmt="%.2f",
             default=CFG.humanization.timing_extra_chance,
             cb=lambda s, d: _set(CFG.humanization, "timing_extra_chance", d),
         )
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
-                "Extra delay min (s)", tag="cfg_hum_timing_extra_min",
-                min_val=0.0, max_val=1.0, fmt="%.3f",
+                "Extra delay min (s)",
+                tag="cfg_hum_timing_extra_min",
+                min_val=0.0,
+                max_val=1.0,
+                fmt="%.3f",
                 default=CFG.humanization.timing_extra_min,
                 cb=lambda s, d: _set(CFG.humanization, "timing_extra_min", d),
             )
             _slider_with_tooltip(
-                "Extra delay max (s)", tag="cfg_hum_timing_extra_max",
-                min_val=0.0, max_val=3.0, fmt="%.3f",
+                "Extra delay max (s)",
+                tag="cfg_hum_timing_extra_max",
+                min_val=0.0,
+                max_val=3.0,
+                fmt="%.3f",
                 default=CFG.humanization.timing_extra_max,
                 cb=lambda s, d: _set(CFG.humanization, "timing_extra_max", d),
             )
@@ -1070,34 +1333,57 @@ def _build_humanization_settings():
         dpg.add_text(tr("Mouse Trajectory (RESULT Stage)"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
-            "Curve amp (px)", tag="cfg_hum_mouse_amp",
-            min_val=0.0, max_val=300.0, fmt="%.0f",
+            "Curve amp (px)",
+            tag="cfg_hum_mouse_amp",
+            min_val=0.0,
+            max_val=300.0,
+            fmt="%.0f",
             default=CFG.humanization.mouse_move_curve_amplitude,
-            cb=lambda s, d: _set_int(CFG.humanization, "mouse_move_curve_amplitude", d, "cfg_hum_mouse_amp", 0),
+            cb=lambda s, d: _set_int(
+                CFG.humanization,
+                "mouse_move_curve_amplitude",
+                d,
+                "cfg_hum_mouse_amp",
+                0,
+            ),
         )
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
-                "Move dur min (s)", tag="cfg_hum_mouse_dur_min",
-                min_val=0.05, max_val=0.5, fmt="%.2f",
+                "Move dur min (s)",
+                tag="cfg_hum_mouse_dur_min",
+                min_val=0.05,
+                max_val=0.5,
+                fmt="%.2f",
                 default=CFG.humanization.mouse_move_duration_min,
                 cb=lambda s, d: _set(CFG.humanization, "mouse_move_duration_min", d),
             )
             _slider_with_tooltip(
-                "Move dur max (s)", tag="cfg_hum_mouse_dur_max",
-                min_val=0.1, max_val=1.0, fmt="%.2f",
+                "Move dur max (s)",
+                tag="cfg_hum_mouse_dur_max",
+                min_val=0.1,
+                max_val=1.0,
+                fmt="%.2f",
                 default=CFG.humanization.mouse_move_duration_max,
                 cb=lambda s, d: _set(CFG.humanization, "mouse_move_duration_max", d),
             )
         with dpg.group(horizontal=True):
             _input_with_tooltip(
-                "Click jitter X (px)", tag="cfg_hum_mouse_offset_x", width=120,
+                "Click jitter X (px)",
+                tag="cfg_hum_mouse_offset_x",
+                width=120,
                 default=CFG.humanization.mouse_offset_x,
-                cb=lambda s, d: _set_int(CFG.humanization, "mouse_offset_x", d, "cfg_hum_mouse_offset_x", 0),
+                cb=lambda s, d: _set_int(
+                    CFG.humanization, "mouse_offset_x", d, "cfg_hum_mouse_offset_x", 0
+                ),
             )
             _input_with_tooltip(
-                "Click jitter Y (px)", tag="cfg_hum_mouse_offset_y", width=120,
+                "Click jitter Y (px)",
+                tag="cfg_hum_mouse_offset_y",
+                width=120,
                 default=CFG.humanization.mouse_offset_y,
-                cb=lambda s, d: _set_int(CFG.humanization, "mouse_offset_y", d, "cfg_hum_mouse_offset_y", 0),
+                cb=lambda s, d: _set_int(
+                    CFG.humanization, "mouse_offset_y", d, "cfg_hum_mouse_offset_y", 0
+                ),
             )
 
         dpg.add_spacer(height=8)
@@ -1105,47 +1391,64 @@ def _build_humanization_settings():
         dpg.add_spacer(height=4)
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
-                "Hook reaction min", tag="cfg_hum_hook_min",
-                min_val=0.0, max_val=1.0, fmt="%.2f",
+                "Hook reaction min",
+                tag="cfg_hum_hook_min",
+                min_val=0.0,
+                max_val=1.0,
+                fmt="%.2f",
                 default=CFG.humanization.hook_reaction_min,
                 cb=lambda s, d: _set(CFG.humanization, "hook_reaction_min", d),
             )
             _slider_with_tooltip(
-                "Hook reaction max", tag="cfg_hum_hook_max",
-                min_val=0.05, max_val=2.0, fmt="%.2f",
+                "Hook reaction max",
+                tag="cfg_hum_hook_max",
+                min_val=0.05,
+                max_val=2.0,
+                fmt="%.2f",
                 default=CFG.humanization.hook_reaction_max,
                 cb=lambda s, d: _set(CFG.humanization, "hook_reaction_max", d),
             )
         _combo_with_tooltip(
-            "Hook reaction dist", tag="cfg_hum_hook_dist",
+            "Hook reaction dist",
+            tag="cfg_hum_hook_dist",
             items=["uniform", "gaussian", "exponential"],
             default=CFG.humanization.hook_reaction_dist,
             cb=lambda s, d: _set(CFG.humanization, "hook_reaction_dist", d),
         )
-        
+
         dpg.add_spacer(height=8)
         dpg.add_text(tr("Adaptive Focus (Dynamic Speedup)"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _checkbox_with_tooltip(
-            "Adaptive focus", tag="cfg_hum_adaptive_enabled",
+            "Adaptive focus",
+            tag="cfg_hum_adaptive_enabled",
             default=CFG.humanization.adaptive_enabled,
             cb=lambda s, d: _set(CFG.humanization, "adaptive_enabled", d),
         )
         _slider_with_tooltip(
-            "Latency focus min", tag="cfg_hum_latency_focus_min",
-            min_val=0.1, max_val=1.0, fmt="%.2f",
+            "Latency focus min",
+            tag="cfg_hum_latency_focus_min",
+            min_val=0.1,
+            max_val=1.0,
+            fmt="%.2f",
             default=CFG.humanization.adaptive_latency_min_scale,
             cb=lambda s, d: _set(CFG.humanization, "adaptive_latency_min_scale", d),
         )
         _slider_with_tooltip(
-            "Pulse gap focus min", tag="cfg_hum_gap_focus_min",
-            min_val=0.1, max_val=1.0, fmt="%.2f",
+            "Pulse gap focus min",
+            tag="cfg_hum_gap_focus_min",
+            min_val=0.1,
+            max_val=1.0,
+            fmt="%.2f",
             default=CFG.humanization.adaptive_pulse_gap_min_scale,
             cb=lambda s, d: _set(CFG.humanization, "adaptive_pulse_gap_min_scale", d),
         )
         _slider_with_tooltip(
-            "Pulse hold focus max", tag="cfg_hum_hold_focus_max",
-            min_val=1.0, max_val=2.5, fmt="%.2f",
+            "Pulse hold focus max",
+            tag="cfg_hum_hold_focus_max",
+            min_val=1.0,
+            max_val=2.5,
+            fmt="%.2f",
             default=CFG.humanization.adaptive_pulse_hold_max_scale,
             cb=lambda s, d: _set(CFG.humanization, "adaptive_pulse_hold_max_scale", d),
         )
@@ -1159,8 +1462,7 @@ def _check_for_updates():
         try:
             api_url = _validated_update_api_url()
             req = urllib.request.Request(
-                api_url,
-                headers={"User-Agent": "NTE-auto-fish"}
+                api_url, headers={"User-Agent": "NTE-auto-fish"}
             )
             # The request target is a hard-coded HTTPS GitHub API URL validated above.
             with urllib.request.urlopen(req, timeout=5) as response:  # nosec B310
@@ -1172,10 +1474,16 @@ def _check_for_updates():
 
                 if current_ver != "Unknown" and latest_tag:
                     if _version_tuple(latest_tag) > _version_tuple(current_ver):
-                        msg = tr("New version available: v{version}!", version=latest_tag)
-                        update_url = html_url if _is_trusted_release_url(html_url) else ""
+                        msg = tr(
+                            "New version available: v{version}!", version=latest_tag
+                        )
+                        update_url = (
+                            html_url if _is_trusted_release_url(html_url) else ""
+                        )
                     else:
-                        msg = tr("You are up to date! (v{version})", version=current_ver)
+                        msg = tr(
+                            "You are up to date! (v{version})", version=current_ver
+                        )
                         update_url = ""
                 else:
                     msg = tr("Failed to parse versions.")
@@ -1216,7 +1524,8 @@ def _build_system_settings():
         dpg.add_spacer(height=8)
 
         _combo_with_tooltip(
-            "Language", tag="cfg_language",
+            "Language",
+            tag="cfg_language",
             items=list(LANGUAGE_LABELS.values()),
             default=language_label(CFG.language),
             cb=lambda s, d: _set_language_selection(d),
@@ -1226,15 +1535,22 @@ def _build_system_settings():
 
         with dpg.group(horizontal=True):
             styled_button(
-                "Check for Updates", "cfg_system_update_btn",
+                "Check for Updates",
+                "cfg_system_update_btn",
                 callback=lambda: _check_for_updates(),
-                variant="neutral", width=int(140 * _s), height=int(28 * _s),
+                variant="neutral",
+                width=int(140 * _s),
+                height=int(28 * _s),
             )
             styled_button(
-                "Download Update", "cfg_system_update_open",
+                "Download Update",
+                "cfg_system_update_open",
                 callback=lambda s, a, u: webbrowser.open(u) if u else None,
-                variant="primary", width=int(140 * _s), height=int(28 * _s),
-                user_data="", show=False
+                variant="primary",
+                width=int(140 * _s),
+                height=int(28 * _s),
+                user_data="",
+                show=False,
             )
 
         dpg.add_spacer(height=4)
@@ -1244,15 +1560,25 @@ def _build_system_settings():
         dpg.add_text(tr("Project Links"), color=TEXT_MUTED)
         with dpg.group(horizontal=True):
             styled_button(
-                "View Releases", "btn_gh_releases",
-                callback=lambda: webbrowser.open("https://github.com/Chizukuo/NTE-auto-fish/releases"),
-                variant="neutral", width=int(140 * _s), height=int(28 * _s),
+                "View Releases",
+                "btn_gh_releases",
+                callback=lambda: webbrowser.open(
+                    "https://github.com/Chizukuo/NTE-auto-fish/releases"
+                ),
+                variant="neutral",
+                width=int(140 * _s),
+                height=int(28 * _s),
             )
             dpg.add_spacer(width=int(8 * _s))
             styled_button(
-                "Report Issue", "btn_gh_issues",
-                callback=lambda: webbrowser.open("https://github.com/Chizukuo/NTE-auto-fish/issues"),
-                variant="neutral", width=int(140 * _s), height=int(28 * _s),
+                "Report Issue",
+                "btn_gh_issues",
+                callback=lambda: webbrowser.open(
+                    "https://github.com/Chizukuo/NTE-auto-fish/issues"
+                ),
+                variant="neutral",
+                width=int(140 * _s),
+                height=int(28 * _s),
             )
 
 
@@ -1262,12 +1588,23 @@ def _build_system_settings():
 
 
 def _slider_with_tooltip(
-    label: str, tag: str, min_val: float, max_val: float,
-    fmt: str, default: float, cb: Callable,
+    label: str,
+    tag: str,
+    min_val: float,
+    max_val: float,
+    fmt: str,
+    default: float,
+    cb: Callable,
 ):
     dpg.add_slider_float(
-        label=tr(label), tag=tag, min_value=min_val, max_value=max_val,
-        format=fmt, width=-int(180 * _s), default_value=default, callback=cb,
+        label=tr(label),
+        tag=tag,
+        min_value=min_val,
+        max_value=max_val,
+        format=fmt,
+        width=-int(180 * _s),
+        default_value=default,
+        callback=cb,
     )
     _add_tooltip(tag, label)
     tip = _TOOLTIPS.get(label)
@@ -1286,9 +1623,15 @@ def _checkbox_with_tooltip(label: str, tag: str, default: bool, cb: Callable):
 
 
 def _input_with_tooltip(
-    label: str, tag: str, width: int, default, cb: Callable,
+    label: str,
+    tag: str,
+    width: int,
+    default,
+    cb: Callable,
 ):
-    dpg.add_input_int(label=tr(label), tag=tag, width=width, default_value=default, callback=cb)
+    dpg.add_input_int(
+        label=tr(label), tag=tag, width=width, default_value=default, callback=cb
+    )
     _add_tooltip(tag, label)
     tip = _TOOLTIPS.get(label)
     if tip:
@@ -1297,11 +1640,19 @@ def _input_with_tooltip(
 
 
 def _text_input_with_tooltip(
-    label: str, tag: str, width: int, default: str, cb: Callable,
+    label: str,
+    tag: str,
+    width: int,
+    default: str,
+    cb: Callable,
 ):
     dpg.add_input_text(
-        label=tr(label), tag=tag, width=width,
-        default_value=default, on_enter=True, callback=cb,
+        label=tr(label),
+        tag=tag,
+        width=width,
+        default_value=default,
+        on_enter=True,
+        callback=cb,
     )
     _add_tooltip(tag, label)
     tip = _TOOLTIPS.get(label)
@@ -1311,11 +1662,19 @@ def _text_input_with_tooltip(
 
 
 def _combo_with_tooltip(
-    label: str, tag: str, items: list[str], default: str, cb: Callable,
+    label: str,
+    tag: str,
+    items: list[str],
+    default: str,
+    cb: Callable,
 ):
     dpg.add_combo(
-        label=tr(label), tag=tag, items=items,
-        default_value=default, width=160, callback=cb,
+        label=tr(label),
+        tag=tag,
+        items=items,
+        default_value=default,
+        width=160,
+        callback=cb,
     )
     _add_tooltip(tag, label)
     tip = _TOOLTIPS.get(label)
@@ -1334,8 +1693,11 @@ def _add_tooltip(tag: str, label: str):
 
 def _key_input(label: str, tag: str, default: str, attr: str):
     dpg.add_input_text(
-        label=tr(label), tag=tag, width=140,
-        default_value=default, on_enter=True,
+        label=tr(label),
+        tag=tag,
+        width=140,
+        default_value=default,
+        on_enter=True,
         callback=lambda s, d: _set_key(attr, d, tag),
     )
 
@@ -1362,11 +1724,13 @@ def _on_reset(
 
 
 def update_settings_ui(bridge: BotBridge):
-    if not dpg.does_item_exist("page_settings") or not dpg.is_item_shown("page_settings"):
+    if not dpg.does_item_exist("page_settings") or not dpg.is_item_shown(
+        "page_settings"
+    ):
         return
 
     _apply_pending_update_check_results()
-    
+
     status = bridge.latest_status()
     scale_sq = status.current_scale * status.current_scale
     if dpg.does_item_exist("cfg_vision_min_area"):
@@ -1418,13 +1782,14 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_key_left", CFG.keys.left)
     dpg.set_value("cfg_key_right", CFG.keys.right)
     dpg.set_value("cfg_key_exit", CFG.keys.exit)
-    dpg.set_value("cfg_result_close_method", _result_method_label(CFG.result_close_method))
+    dpg.set_value(
+        "cfg_result_close_method", _result_method_label(CFG.result_close_method)
+    )
     dpg.set_value("cfg_always_on_top", CFG.always_on_top)
     dpg.set_value("cfg_debug_mode", CFG.debug_mode)
 
     if dpg.does_item_exist("cfg_language"):
         dpg.set_value("cfg_language", language_label(CFG.language))
-
 
     monitors = _monitor_labels()
     idx = min(CFG.monitor_index, len(monitors) - 1)
@@ -1465,9 +1830,15 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_hum_timing_extra_min", CFG.humanization.timing_extra_min)
     dpg.set_value("cfg_hum_timing_extra_max", CFG.humanization.timing_extra_max)
     dpg.set_value("cfg_hum_adaptive_enabled", CFG.humanization.adaptive_enabled)
-    dpg.set_value("cfg_hum_latency_focus_min", CFG.humanization.adaptive_latency_min_scale)
-    dpg.set_value("cfg_hum_gap_focus_min", CFG.humanization.adaptive_pulse_gap_min_scale)
-    dpg.set_value("cfg_hum_hold_focus_max", CFG.humanization.adaptive_pulse_hold_max_scale)
+    dpg.set_value(
+        "cfg_hum_latency_focus_min", CFG.humanization.adaptive_latency_min_scale
+    )
+    dpg.set_value(
+        "cfg_hum_gap_focus_min", CFG.humanization.adaptive_pulse_gap_min_scale
+    )
+    dpg.set_value(
+        "cfg_hum_hold_focus_max", CFG.humanization.adaptive_pulse_hold_max_scale
+    )
 
     dpg.set_value("cfg_hum_mouse_amp", CFG.humanization.mouse_move_curve_amplitude)
     dpg.set_value("cfg_hum_mouse_dur_min", CFG.humanization.mouse_move_duration_min)

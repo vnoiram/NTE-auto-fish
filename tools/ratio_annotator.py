@@ -90,7 +90,9 @@ class RatioAnnotator:
 
     def _update_status_label(self):
         if self.status_label:
-            self.status_label.config(text=f"Resolution: {self.w}x{self.h} | Boxes: {len(self.boxes)}")
+            self.status_label.config(
+                text=f"Resolution: {self.w}x{self.h} | Boxes: {len(self.boxes)}"
+            )
 
     def _save_boxes(self):
         if not self.boxes:
@@ -230,7 +232,9 @@ class RatioAnnotator:
             text=f"Resolution: {self.w}x{self.h} | Boxes: {len(self.boxes)}",
             anchor="w",
         )
-        self.status_label.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=2)
+        self.status_label.grid(
+            row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=2
+        )
         help_label = tk.Label(
             self.root,
             text="Drag: annotate   z: undo   c: clear   s: save   q/ESC: quit",
@@ -315,7 +319,10 @@ def _choose_image():
     root.withdraw()
     selected_file = filedialog.askopenfilename(
         title="Choose an image to annotate",
-        filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp *.webp"), ("All files", "*.*")],
+        filetypes=[
+            ("Image files", "*.jpg *.jpeg *.png *.bmp *.webp"),
+            ("All files", "*.*"),
+        ],
     )
     root.update()
     root.destroy()
@@ -333,8 +340,12 @@ def _load_image(path: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Image ratio bounding box annotator")
-    parser.add_argument("-i", "--image", type=str, default="screenshot.png", help="Input image path")
-    parser.add_argument("-o", "--output", type=str, default="annotations.json", help="Output JSON path")
+    parser.add_argument(
+        "-i", "--image", type=str, default="screenshot.png", help="Input image path"
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, default="annotations.json", help="Output JSON path"
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.image):

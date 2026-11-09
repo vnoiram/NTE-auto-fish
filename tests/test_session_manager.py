@@ -14,6 +14,7 @@ class TestSessionManager(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         self.mgr.end_session()
         shutil.rmtree(self._tmpdir, ignore_errors=True)
 
@@ -57,7 +58,7 @@ class TestSessionManager(unittest.TestCase):
         self.assertEqual(len(self.mgr.load_sessions()), 0)
 
     def test_load_sessions_rebuilds_from_files_if_index_missing(self):
-        meta = self.mgr.start_session()
+        self.mgr.start_session()
         self.mgr.append_catch("Trout", "200")
         self.mgr.end_session()
         index_path = os.path.join(self._tmpdir, "index.json")
@@ -98,12 +99,12 @@ class TestSessionManager(unittest.TestCase):
         out = os.path.join(self._tmpdir, "out.xlsx")
         self.mgr.export_session(meta.id, out, "xlsx")
         import openpyxl
+
         wb = openpyxl.load_workbook(out)
         ws = wb.active
         headers = [ws.cell(1, c).value for c in range(1, 4)]
         self.assertEqual(headers, ["timestamp", "fish_name", "weight_g"])
         self.assertEqual(ws.cell(2, 2).value, "Perch")
-
 
     def test_corrupt_index_keeps_other_sessions_visible(self):
         first = self.mgr.start_session()
@@ -117,6 +118,7 @@ class TestSessionManager(unittest.TestCase):
 
     def test_concurrent_append_and_end_does_not_raise(self):
         import threading
+
         errors = []
 
         def worker():

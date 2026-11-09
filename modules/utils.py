@@ -1,4 +1,5 @@
 """Shared utilities for NTE Auto-Fish."""
+
 import logging
 import os
 import sys
@@ -29,7 +30,7 @@ def get_version() -> str:
     v_path = bundled_path("version.txt")
     if os.path.exists(v_path):
         try:
-            with open(v_path, "r", encoding="utf-8") as f:
+            with open(v_path, encoding="utf-8") as f:
                 return f.read().strip()
         except OSError:
             log.debug("Failed to read version file: %s", v_path, exc_info=True)

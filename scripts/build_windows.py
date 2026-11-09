@@ -56,7 +56,9 @@ def validate_app_name(value: str) -> str:
 
 
 def filename_slug(app_name: str) -> str:
-    normalized = unicodedata.normalize("NFKD", app_name).encode("ascii", "ignore").decode()
+    normalized = (
+        unicodedata.normalize("NFKD", app_name).encode("ascii", "ignore").decode()
+    )
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", normalized).strip("-.")
     return slug or "Application"
 
@@ -68,7 +70,9 @@ def validate_build_id(value: str) -> str:
     if len(value) > 32:
         raise ValueError("build ID must be 32 characters or fewer")
     if not all(char.isascii() and (char.isalnum() or char in "._-") for char in value):
-        raise ValueError("build ID may contain only ASCII letters, digits, dot, underscore, and hyphen")
+        raise ValueError(
+            "build ID may contain only ASCII letters, digits, dot, underscore, and hyphen"
+        )
     return value
 
 
@@ -136,7 +140,9 @@ def pyinstaller_command(
     return command
 
 
-def prepare_branding(app_name: str, build_id: str, icon_path: Path) -> tuple[Path, Path]:
+def prepare_branding(
+    app_name: str, build_id: str, icon_path: Path
+) -> tuple[Path, Path]:
     brand_dir = ROOT / "build" / "branding"
     brand_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = brand_dir / "build_brand.json"
@@ -146,7 +152,8 @@ def prepare_branding(app_name: str, build_id: str, icon_path: Path) -> tuple[Pat
             {"app_name": app_name, "build_id": build_id},
             ensure_ascii=False,
             indent=2,
-        ) + "\n",
+        )
+        + "\n",
         encoding="utf-8",
     )
     if icon_path != bundled_icon.resolve():
@@ -162,10 +169,16 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_ICON,
         help="Built-in name (classic, bobber, target-fish, fisher-cat), random, or an .ico path",
     )
-    parser.add_argument("--build-id", help="Unique ID; defaults to a random 12-character value")
+    parser.add_argument(
+        "--build-id", help="Unique ID; defaults to a random 12-character value"
+    )
     parser.add_argument("--dist-dir", default="dist")
-    parser.add_argument("--github-env", help="Append FILENAME to a GitHub Actions env file")
-    parser.add_argument("--dry-run", action="store_true", help="Validate and print without building")
+    parser.add_argument(
+        "--github-env", help="Append FILENAME to a GitHub Actions env file"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Validate and print without building"
+    )
     return parser.parse_args()
 
 
@@ -212,7 +225,10 @@ def main() -> int:
         )
         return 2
     if importlib.util.find_spec("PyInstaller") is None:
-        print("error: install PyInstaller first: python -m pip install pyinstaller", file=sys.stderr)
+        print(
+            "error: install PyInstaller first: python -m pip install pyinstaller",
+            file=sys.stderr,
+        )
         return 2
 
     manifest_path, bundled_icon = prepare_branding(app_name, build_id, icon_path)

@@ -1,4 +1,5 @@
 """Dependency validation helpers for NTE Auto-Fish."""
+
 import importlib
 import sys
 
@@ -27,7 +28,9 @@ def _is_importable(module_name: str) -> bool:
         return False
 
 
-def get_missing_dependencies(packages: dict[str, str] | None = None) -> list[tuple[str, str]]:
+def get_missing_dependencies(
+    packages: dict[str, str] | None = None,
+) -> list[tuple[str, str]]:
     """Return [(module_name, package_name), ...] for dependencies that cannot be imported."""
     if packages is None:
         packages = CLI_PACKAGES

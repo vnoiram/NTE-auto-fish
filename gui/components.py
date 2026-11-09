@@ -1,26 +1,22 @@
 """Reusable widget factories for the glassmorphism UI."""
+
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 import dearpygui.dearpygui as dpg
 
 from gui.i18n import tr
 from gui.theme import (
     ACCENT,
-    ACCENT_BLUE,
-    BORDER_SUBTLE,
-    BUTTON_ROUNDING,
-    CARD_BG,
-    CARD_ROUNDING,
-    GLASS_HIGHLIGHT,
-    GLASS_HIGHLIGHT2,
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_VERY_MUTED,
     build_button_theme,
     build_glass_card_theme,
+)
+from gui.theme import (
     _ui_scale as _s,
 )
 
@@ -67,7 +63,12 @@ def styled_button(
 ):
     """Create a button with the appropriate variant theme."""
     dpg.add_button(
-        label=tr(label), tag=tag, width=width, height=height, callback=callback, **kwargs
+        label=tr(label),
+        tag=tag,
+        width=width,
+        height=height,
+        callback=callback,
+        **kwargs,
     )
     dpg.bind_item_theme(tag, _get_button_theme(variant))
 
@@ -101,7 +102,9 @@ def metric_row(label: str, value_tag: str, default: str = "N/A"):
 # ---------------------------------------------------------------------------
 
 
-def hsv_editor(prefix: str, hsv_range, label: str | None = None, default_open: bool = True):
+def hsv_editor(
+    prefix: str, hsv_range, label: str | None = None, default_open: bool = True
+):
     """HSV range editor with Min/Max sliders and a live color preview swatch."""
     if label is None:
         label = f"{prefix.split('_')[-1].upper()} HSV"
@@ -109,16 +112,28 @@ def hsv_editor(prefix: str, hsv_range, label: str | None = None, default_open: b
         with dpg.group(horizontal=True):
             with dpg.group():
                 dpg.add_slider_intx(
-                    label=tr("Min"), size=3, min_value=0, max_value=255,
-                    width=-int(60 * _s), tag=f"{prefix}_lower",
+                    label=tr("Min"),
+                    size=3,
+                    min_value=0,
+                    max_value=255,
+                    width=-int(60 * _s),
+                    tag=f"{prefix}_lower",
                     default_value=list(hsv_range.lower),
-                    callback=lambda s, d: _on_hsv_changed(prefix, hsv_range, "lower", d),
+                    callback=lambda s, d: _on_hsv_changed(
+                        prefix, hsv_range, "lower", d
+                    ),
                 )
                 dpg.add_slider_intx(
-                    label=tr("Max"), size=3, min_value=0, max_value=255,
-                    width=-int(60 * _s), tag=f"{prefix}_upper",
+                    label=tr("Max"),
+                    size=3,
+                    min_value=0,
+                    max_value=255,
+                    width=-int(60 * _s),
+                    tag=f"{prefix}_upper",
                     default_value=list(hsv_range.upper),
-                    callback=lambda s, d: _on_hsv_changed(prefix, hsv_range, "upper", d),
+                    callback=lambda s, d: _on_hsv_changed(
+                        prefix, hsv_range, "upper", d
+                    ),
                 )
             dpg.add_spacer(width=12)
             _hsv_preview(prefix, hsv_range)
@@ -129,8 +144,12 @@ def _hsv_preview(prefix: str, hsv_range):
     rgb = _hsv_to_rgb(*center)
     with dpg.drawlist(width=48, height=48, tag=f"{prefix}_preview"):
         dpg.draw_rectangle(
-            (2, 2), (46, 46), color=rgb, fill=rgb,
-            rounding=6, tag=f"{prefix}_swatch",
+            (2, 2),
+            (46, 46),
+            color=rgb,
+            fill=rgb,
+            rounding=6,
+            tag=f"{prefix}_swatch",
         )
 
 

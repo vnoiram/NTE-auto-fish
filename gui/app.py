@@ -1,4 +1,5 @@
 """DearPyGui application shell for NTE Auto-Fish — glassmorphism rewrite."""
+
 from __future__ import annotations
 
 import ctypes
@@ -6,6 +7,7 @@ import threading
 
 import dearpygui.dearpygui as dpg
 import keyboard
+from screeninfo import get_monitors
 
 from config import CFG
 from gui.bridge import BotBridge
@@ -23,7 +25,6 @@ from gui.theme import FONT_SIZES, build_global_theme, get_font_path, set_ui_scal
 from main import NTEFishingBot, log
 from modules.branding import APP_NAME, BUILD_ID, app_icon_path
 from modules.utils import VERSION
-from screeninfo import get_monitors
 
 
 def _get_primary_monitor_size() -> tuple[int, int]:
@@ -32,6 +33,7 @@ def _get_primary_monitor_size() -> tuple[int, int]:
     w = user32.GetSystemMetrics(0)
     h = user32.GetSystemMetrics(1)
     return w, h
+
 
 APP_TITLE = f"{APP_NAME} v{VERSION}"
 if BUILD_ID:
@@ -62,7 +64,10 @@ class FishingGUI:
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
         except Exception:
-            log.debug("SetProcessDpiAwareness failed; trying SetProcessDPIAware.", exc_info=True)
+            log.debug(
+                "SetProcessDpiAwareness failed; trying SetProcessDPIAware.",
+                exc_info=True,
+            )
             try:
                 ctypes.windll.user32.SetProcessDPIAware()
             except Exception:
@@ -84,11 +89,18 @@ class FishingGUI:
                     scaled_size = max(8, int(size * self._ui_scale))
                     font = dpg.add_font(font_path, scaled_size)
                     if CFG.language == "ja":
-                        dpg.add_font_range_hint(dpg.mvFontRangeHint_Japanese, parent=font)
+                        dpg.add_font_range_hint(
+                            dpg.mvFontRangeHint_Japanese, parent=font
+                        )
                     self._fonts[name] = font
                 except Exception:
                     self._fonts[name] = None
-                    log.debug("Failed to load font '%s' at size %s.", name, size, exc_info=True)
+                    log.debug(
+                        "Failed to load font '%s' at size %s.",
+                        name,
+                        size,
+                        exc_info=True,
+                    )
 
         dpg.create_viewport(
             # Keep the native Windows title ASCII-only. Dear PyGui's Win32
@@ -119,13 +131,19 @@ class FishingGUI:
 
                 # Content area
                 with dpg.child_window(
-                    tag="page_container", width=-1, height=-1,
-                    border=False, no_scrollbar=True,
+                    tag="page_container",
+                    width=-1,
+                    height=-1,
+                    border=False,
+                    no_scrollbar=True,
                 ):
                     # Dashboard page
                     with dpg.child_window(
-                        tag="page_dashboard", width=-1, height=-1,
-                        border=False, no_scrollbar=True,
+                        tag="page_dashboard",
+                        width=-1,
+                        height=-1,
+                        border=False,
+                        no_scrollbar=True,
                     ):
                         create_dashboard(
                             self.bridge,
@@ -136,8 +154,11 @@ class FishingGUI:
 
                     # Settings page
                     with dpg.child_window(
-                        tag="page_settings", width=-1, height=-1,
-                        border=False, no_scrollbar=False,
+                        tag="page_settings",
+                        width=-1,
+                        height=-1,
+                        border=False,
+                        no_scrollbar=False,
                     ):
                         create_settings(
                             self.bridge,
@@ -146,8 +167,11 @@ class FishingGUI:
 
                     # Activity page
                     with dpg.child_window(
-                        tag="page_logs", width=-1, height=-1,
-                        border=False, no_scrollbar=False,
+                        tag="page_logs",
+                        width=-1,
+                        height=-1,
+                        border=False,
+                        no_scrollbar=False,
                     ):
                         create_logs(self.bridge)
 
@@ -163,8 +187,10 @@ class FishingGUI:
         """Apply sized fonts to specific widgets for typographic hierarchy."""
         font_map = {
             "metric": [
-                "state_card_value", "fish_card_value",
-                "time_card_value", "fps_card_value",
+                "state_card_value",
+                "fish_card_value",
+                "time_card_value",
+                "fps_card_value",
             ],
             "section": [],
             "caption": [],
@@ -269,7 +295,10 @@ class FishingGUI:
             try:
                 self.bot.capture.close()
             except Exception:
-                log.debug("Failed to close capture in bot thread exception path.", exc_info=True)
+                log.debug(
+                    "Failed to close capture in bot thread exception path.",
+                    exc_info=True,
+                )
             self.bot.publish_status()
             log.exception(f"Bot crashed: {exc}")
 
@@ -296,7 +325,6 @@ class FishingGUI:
         try:
             monitors = get_monitors()
             mon = monitors[min(CFG.monitor_index, len(monitors) - 1)]
-            vp_w = int(960 * self._ui_scale)
             vp_h = int(700 * self._ui_scale)
             margin = int(50 * self._ui_scale)
             x = mon.x + margin
@@ -309,6 +337,7 @@ class FishingGUI:
 
     def run(self):
         import time
+
         target_fps = 60
         frame_time = 1.0 / target_fps
         next_settings_action_poll = 0.0
@@ -318,14 +347,14 @@ class FishingGUI:
             self._start_bot(paused=True)
             while dpg.is_dearpygui_running():
                 start_t = time.perf_counter()
-                
+
                 update_dashboard_ui(self.bridge)
                 update_logs_ui(self.bridge)
                 if start_t >= next_settings_action_poll:
                     apply_pending_settings_actions()
                     next_settings_action_poll = start_t + _SETTINGS_REFRESH_INTERVAL
                 dpg.render_dearpygui_frame()
-                
+
                 elapsed = time.perf_counter() - start_t
                 sleep_time = frame_time - elapsed
                 if sleep_time > 0:

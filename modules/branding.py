@@ -51,7 +51,7 @@ def _valid_build_id(value: object) -> str:
 def load_branding() -> Branding:
     manifest_path = bundled_path(_BRANDING_MANIFEST)
     try:
-        with open(manifest_path, "r", encoding="utf-8") as handle:
+        with open(manifest_path, encoding="utf-8") as handle:
             payload = json.load(handle)
     except FileNotFoundError:
         return Branding()

@@ -40,13 +40,17 @@ class TestBranding(unittest.TestCase):
         self.assertEqual(result.build_id, "abc123")
 
     def test_runtime_names_are_scoped_by_build_without_changing_legacy_names(self):
-        namespace = branding._storage_namespace(branding.Branding("Fishing Tools", "abc123"))
+        namespace = branding._storage_namespace(
+            branding.Branding("Fishing Tools", "abc123")
+        )
         self.assertEqual(namespace, "Fishing-Tools-babc123")
         self.assertEqual(
             branding.scoped_runtime_name("settings.json", namespace),
             "settings-Fishing-Tools-babc123.json",
         )
-        self.assertEqual(branding.scoped_runtime_name("settings.json", ""), "settings.json")
+        self.assertEqual(
+            branding.scoped_runtime_name("settings.json", ""), "settings.json"
+        )
         self.assertEqual(
             branding.scoped_runtime_name("sessions", "Fishing-Tools-babc123"),
             "sessions-Fishing-Tools-babc123",
@@ -65,7 +69,7 @@ class TestWindowsBuildScript(unittest.TestCase):
         host_source = host_script.read_text(encoding="utf-8")
         self.assertIn("<ReadOnly>true</ReadOnly>", host_source)
         self.assertIn("[switch]$Manual", host_source)
-        self.assertIn('Write-Host $guestBuildCommand', host_source)
+        self.assertIn("Write-Host $guestBuildCommand", host_source)
         self.assertIn("is NOT started and this script does not wait", host_source)
         self.assertIn("build_windows.py", guest_script.read_text(encoding="utf-8"))
 

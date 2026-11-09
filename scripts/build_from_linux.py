@@ -57,8 +57,14 @@ def parse_args() -> argparse.Namespace:
         default="random",
         help="Built-in name (classic, bobber, target-fish, fisher-cat), random, or a repository .ico path",
     )
-    parser.add_argument("--build-id", default="", help="Optional stable ID; omitted generates a unique ID")
-    parser.add_argument("--ref", help="Pushed branch or tag; defaults to the current branch")
+    parser.add_argument(
+        "--build-id",
+        default="",
+        help="Optional stable ID; omitted generates a unique ID",
+    )
+    parser.add_argument(
+        "--ref", help="Pushed branch or tag; defaults to the current branch"
+    )
     parser.add_argument("--output-dir", default="dist/remote")
     return parser.parse_args()
 
@@ -74,7 +80,10 @@ def main() -> int:
     if icon_value.lower() not in {"random", *BUILTIN_ICON_NAMES}:
         icon = Path(icon_value)
         if icon.is_absolute():
-            print("error: --icon must be a built-in name or repository-relative .ico path", file=sys.stderr)
+            print(
+                "error: --icon must be a built-in name or repository-relative .ico path",
+                file=sys.stderr,
+            )
             return 2
         if icon.suffix.lower() != ".ico" or not (ROOT / icon).is_file():
             print(f"error: icon is not an existing .ico file: {icon}", file=sys.stderr)
@@ -82,12 +91,18 @@ def main() -> int:
         try:
             run("git", "ls-files", "--error-unmatch", str(icon), capture=True)
         except subprocess.CalledProcessError:
-            print("error: the icon must be committed so the Windows runner can read it", file=sys.stderr)
+            print(
+                "error: the icon must be committed so the Windows runner can read it",
+                file=sys.stderr,
+            )
             return 2
 
     ref = args.ref or run("git", "branch", "--show-current", capture=True)
     if not ref:
-        print("error: detached HEAD; pass --ref with a pushed branch or tag", file=sys.stderr)
+        print(
+            "error: detached HEAD; pass --ref with a pushed branch or tag",
+            file=sys.stderr,
+        )
         return 2
 
     run("gh", "auth", "status")
@@ -116,7 +131,10 @@ def main() -> int:
             break
         time.sleep(2)
     if not run_id:
-        print("error: timed out while locating the triggered workflow run", file=sys.stderr)
+        print(
+            "error: timed out while locating the triggered workflow run",
+            file=sys.stderr,
+        )
         return 1
 
     run("gh", "run", "watch", run_id, "--exit-status")

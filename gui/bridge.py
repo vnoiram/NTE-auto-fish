@@ -1,9 +1,9 @@
 """Thread-safe bridge between the bot worker and the DearPyGui UI."""
+
 import dataclasses
 import logging
 import queue
 import time
-from typing import Optional, Tuple
 
 from modules.logic import FishingState
 
@@ -16,11 +16,11 @@ class BotStatus:
     fish_count: int = 0
     session_secs: float = 0.0
     pid_output: float = 0.0
-    cursor_x: Optional[int] = None
-    target_x: Optional[int] = None
+    cursor_x: int | None = None
+    target_x: int | None = None
     bar_width: int = 0
-    button_roi: Tuple[int, int, int, int] = (0, 0, 0, 0)
-    bar_roi: Tuple[int, int, int, int] = (0, 0, 0, 0)
+    button_roi: tuple[int, int, int, int] = (0, 0, 0, 0)
+    bar_roi: tuple[int, int, int, int] = (0, 0, 0, 0)
     fps: float = 0.0
     lost_frames: int = 0
     lost_cursor_frames: int = 0
@@ -29,8 +29,8 @@ class BotStatus:
     is_stopped: bool = True
     scaled_min_area: float = 40.0
     current_scale: float = 1.0
-    last_fish_name: Optional[str] = None
-    last_fish_weight_g: Optional[str] = None
+    last_fish_name: str | None = None
+    last_fish_weight_g: str | None = None
 
 
 class BotBridge:
@@ -66,7 +66,7 @@ class BotBridge:
         except queue.Full:
             pass
 
-    def poll_cmd(self) -> Optional[str]:
+    def poll_cmd(self) -> str | None:
         """Return the next command for the bot thread, if any."""
         try:
             return self._cmd_q.get_nowait()

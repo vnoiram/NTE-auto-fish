@@ -1,4 +1,5 @@
 """Per-session fish catch logging with index-backed session management."""
+
 from __future__ import annotations
 
 import csv
@@ -9,7 +10,6 @@ import os
 import threading
 import time
 from dataclasses import asdict, dataclass
-from typing import Optional
 
 log = logging.getLogger("NTEFish")
 
@@ -32,6 +32,7 @@ def _synchronized(func):
     def wrapper(self, *args, **kwargs):
         with self._lock:
             return func(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -47,7 +48,7 @@ class SessionManager:
     def __init__(self, sessions_dir: str) -> None:
         self._dir = sessions_dir
         os.makedirs(self._dir, exist_ok=True)
-        self._active_meta: Optional[SessionMeta] = None
+        self._active_meta: SessionMeta | None = None
         self._csv_handle = None
         self._csv_writer = None
         # Re-entrant: public methods call each other (e.g. start_session -> end_session).
@@ -64,7 +65,9 @@ class SessionManager:
         if self._csv_handle is not None:
             self.end_session()
 
-        session_id = "session_" + time.strftime("%Y%m%d_%H%M%S") + "_" + os.urandom(3).hex()
+        session_id = (
+            "session_" + time.strftime("%Y%m%d_%H%M%S") + "_" + os.urandom(3).hex()
+        )
         filename = f"{session_id}.csv"
         start_str = time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -74,7 +77,9 @@ class SessionManager:
         self._csv_writer.writerow(_CSV_HEADER)
         self._csv_handle.flush()
 
-        meta = SessionMeta(id=session_id, start=start_str, fish_count=0, filename=filename)
+        meta = SessionMeta(
+            id=session_id, start=start_str, fish_count=0, filename=filename
+        )
         self._active_meta = meta
 
         sessions = self._read_index_strict()
@@ -108,12 +113,14 @@ class SessionManager:
                 break
         else:
             # Index was missing or corrupt; re-insert the active session.
-            sessions.append(SessionMeta(
-                id=self._active_meta.id,
-                start=self._active_meta.start,
-                fish_count=self._active_meta.fish_count,
-                filename=self._active_meta.filename,
-            ))
+            sessions.append(
+                SessionMeta(
+                    id=self._active_meta.id,
+                    start=self._active_meta.start,
+                    fish_count=self._active_meta.fish_count,
+                    filename=self._active_meta.filename,
+                )
+            )
         self._write_index(sessions)
 
     @_synchronized
@@ -169,7 +176,11 @@ class SessionManager:
         if meta is None:
             raise ValueError(f"Session not found: {session_id}")
 
-        if self._active_meta and self._active_meta.id == session_id and self._csv_handle:
+        if (
+            self._active_meta
+            and self._active_meta.id == session_id
+            and self._csv_handle
+        ):
             self._csv_handle.flush()
 
         rows = self._read_session_rows(meta.filename)
@@ -198,7 +209,7 @@ class SessionManager:
         return self._active_meta.start
 
     @_synchronized
-    def active_session_id(self) -> Optional[str]:
+    def active_session_id(self) -> str | None:
         """Return the ID of the currently active session, or None."""
         if self._active_meta is None:
             return None
@@ -211,17 +222,19 @@ class SessionManager:
     def _index_path(self) -> str:
         return os.path.join(self._dir, _INDEX_FILENAME)
 
-    def _read_index_strict(self) -> Optional[list[SessionMeta]]:
+    def _read_index_strict(self) -> list[SessionMeta] | None:
         """Return the index entries, [] if no index exists, None if it is unreadable."""
         path = self._index_path()
         if not os.path.exists(path):
             return []
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             return [SessionMeta(**entry) for entry in data]
         except Exception:
-            log.warning("Failed to read session index; it will be rebuilt.", exc_info=True)
+            log.warning(
+                "Failed to read session index; it will be rebuilt.", exc_info=True
+            )
             return None
 
     def _read_index(self) -> list[SessionMeta]:
@@ -248,19 +261,21 @@ class SessionManager:
                 rows = self._read_session_rows(fname)
                 # Parse start time from session_YYYYMMDD_HHMMSS_hex.csv
                 try:
-                    ts_part = session_id[len("session_"):][:15]
+                    ts_part = session_id[len("session_") :][:15]
                     start_str = time.strftime(
                         "%Y-%m-%d %H:%M:%S",
                         time.strptime(ts_part, "%Y%m%d_%H%M%S"),
                     )
                 except Exception:
                     start_str = rows[0]["timestamp"] if rows else "unknown"
-                sessions.append(SessionMeta(
-                    id=session_id,
-                    start=start_str,
-                    fish_count=len(rows),
-                    filename=fname,
-                ))
+                sessions.append(
+                    SessionMeta(
+                        id=session_id,
+                        start=start_str,
+                        fish_count=len(rows),
+                        filename=fname,
+                    )
+                )
         except Exception:
             log.warning("Failed to rebuild session index.", exc_info=True)
         if sessions:
@@ -290,6 +305,7 @@ class SessionManager:
 
     def _export_xlsx(self, rows: list[dict], dest_path: str) -> None:
         import openpyxl
+
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.append(_CSV_HEADER)

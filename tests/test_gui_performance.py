@@ -50,10 +50,13 @@ class TestGuiPerformance(unittest.TestCase):
 
     def test_runtime_refresh_does_not_save_settings(self):
         fake_dpg = MagicMock()
-        fake_dpg.does_item_exist.side_effect = lambda tag: tag in {
-            "page_settings",
-            "cfg_vision_min_area",
-        }
+        fake_dpg.does_item_exist.side_effect = lambda tag: (
+            tag
+            in {
+                "page_settings",
+                "cfg_vision_min_area",
+            }
+        )
         fake_dpg.is_item_shown.return_value = True
         bridge = MagicMock()
         bridge.latest_status.return_value = SimpleNamespace(current_scale=1.0)

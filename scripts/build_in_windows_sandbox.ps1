@@ -60,7 +60,7 @@ try {
         "/log", $installLog,
         "InstallAllUsers=0",
         "TargetDir=$pythonDirectory",
-        "Include_pip=1",
+        "Include_pip=0",
         "Include_test=0",
         "Include_doc=0",
         "Include_launcher=0",
@@ -86,6 +86,16 @@ try {
     if ($install.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $python)) {
         throw "Python installation failed with exit code $($install.ExitCode). See python-install.log."
     }
+
+    # The installer's pip MSI can stall in the Sandbox, so bootstrap pip directly where output is visible.
+    Write-Step "Bootstrapping pip (ensurepip)"
+    $ensure = Start-Process -FilePath $python -ArgumentList @("-m", "ensurepip", "--default-pip") `
+        -NoNewWindow -PassThru
+    if (-not $ensure.WaitForExit(180000)) {
+        $ensure | Stop-Process -Force
+        throw "ensurepip did not finish within 180 seconds."
+    }
+    if ($ensure.ExitCode -ne 0) { throw "ensurepip failed with exit code $($ensure.ExitCode)." }
 
     $env:PIP_CACHE_DIR = "C:\Cache\pip"
     Write-Step "Updating pip"

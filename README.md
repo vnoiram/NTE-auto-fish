@@ -20,6 +20,22 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 
 </div>
 
+## About This Fork
+
+This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizukuo/NTE-auto-fish). The additions below were written by the fork's author and are what make this fork the better choice for day-to-day use:
+
+- **Game monitor auto-select**: On launch the monitor that shows the game window is picked automatically (can be turned off in Settings), and the bot recalibrates if you change the monitor while paused.
+- **Auto stop from the dashboard**: Set a fish count and/or a time (minutes and seconds) and press Set. Counting starts from that moment, `0` means no limit, and a timed stop waits for the fish in progress and ends before the next cast.
+- **Start delay**: A random 1.4-2.6 s pause between pressing Start and the first cast, so the game window can take focus.
+- **Much better area editing**: A progress log for the area check, retake next to the check button, a one-click on-screen editor, per-area and all-areas reset, an explicit Save, and drag or width/height adjustment for the bite and cast check areas too.
+- **Sturdier tracking**: The cursor is still tracked when it reaches the very edge of the bar, and the default bar area is slightly wider.
+- **Faster area-check OCR** and tuned default timing / humanization values.
+- **Stable builds**: The default icon is the character artwork and builds get a plain, fixed name (no random build ID unless you ask for one).
+
+**Why there is no pull request upstream:** this fork replaces the random-name option with a fixed name and swaps the icon for a different character. That is a "religious" difference (in the engineer sense: a matter of taste, not of correctness), so I do not intend to have it merged upstream.
+
+**Support policy:** this fork is disposable. There will be no regular updates and no effort to follow upstream changes.
+
 ## Highlights
 
 - **Live control center**: Track bot state, fish count, session time, FPS, PID output, ROI data, and vision health in one GUI.

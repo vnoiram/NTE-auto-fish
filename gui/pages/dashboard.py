@@ -178,6 +178,50 @@ def create_dashboard(
             dpg.add_spacer(width=int(24 * _s))
             dpg.add_text(tr("Ready"), tag="stat_status_message", color=TEXT_MUTED)
 
+    dpg.add_spacer(height=int(6 * _s))
+    with dpg.child_window(
+        height=int(56 * _s), tag="limit_bar", border=True, no_scrollbar=True
+    ):
+        apply_glass_card_theme("limit_bar")
+        with dpg.group(horizontal=True):
+            dpg.add_text(tr("Auto stop (counted from the moment you press Set)"))
+            dpg.add_spacer(width=int(8 * _s))
+            dpg.add_input_int(
+                tag="limit_fish_input",
+                default_value=0,
+                min_value=0,
+                min_clamped=True,
+                step=0,
+                width=int(70 * _s),
+            )
+            dpg.add_text(tr("fish"))
+            dpg.add_input_int(
+                tag="limit_min_input",
+                default_value=0,
+                min_value=0,
+                min_clamped=True,
+                step=0,
+                width=int(70 * _s),
+            )
+            dpg.add_text(tr("min"))
+            styled_button(
+                "Set",
+                "btn_limit_set",
+                callback=lambda s, a, u: _set_limit(bridge),
+                variant="primary",
+                width=int(60 * _s),
+                height=int(28 * _s),
+            )
+            styled_button(
+                "Clear",
+                "btn_limit_clear",
+                callback=lambda s, a, u: _clear_limit(bridge),
+                variant="neutral",
+                width=int(60 * _s),
+                height=int(28 * _s),
+            )
+            dpg.add_text("", tag="limit_status", color=TEXT_MUTED)
+
     dpg.add_spacer(height=CARD_GAP)
 
     # ── Row 3: left = compact PID plot + telemetry, right = Vision tracker ─
@@ -259,6 +303,29 @@ def create_dashboard(
 # ---------------------------------------------------------------------------
 
 
+def _set_limit(bridge: BotBridge) -> None:
+    """Auto-stop after N fish and/or M minutes, counted from now (0 = unused)."""
+    fish = max(0, int(dpg.get_value("limit_fish_input") or 0))
+    minutes = max(0, int(dpg.get_value("limit_min_input") or 0))
+    bridge.limit_request = (fish, minutes)
+
+
+def _clear_limit(bridge: BotBridge) -> None:
+    dpg.set_value("limit_fish_input", 0)
+    dpg.set_value("limit_min_input", 0)
+    bridge.limit_request = (0, 0)
+
+
+def _limit_text(status: BotStatus) -> str:
+    parts = []
+    if status.fish_left is not None:
+        parts.append(tr("{n} fish left").format(n=status.fish_left))
+    if status.secs_left is not None:
+        mins, secs = divmod(int(status.secs_left), 60)
+        parts.append(tr("{m}:{s:02d} left").format(m=mins, s=secs))
+    return " / ".join(parts)
+
+
 def update_dashboard_ui(bridge: BotBridge):
     status = bridge.latest_status()
     bind_preview_drag(bridge)
@@ -281,6 +348,7 @@ def update_dashboard_ui(bridge: BotBridge):
 
     # Status message
     dpg.set_value("stat_status_message", _status_message(status))
+    dpg.set_value("limit_status", _limit_text(status))
 
     # Telemetry
     dpg.set_value("stat_pid_output", f"{status.pid_output:.3f}")

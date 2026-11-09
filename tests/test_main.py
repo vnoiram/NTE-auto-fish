@@ -433,21 +433,43 @@ class StartDelayTest(unittest.TestCase):
 
 
 class RunLimitTest(unittest.TestCase):
-    def _bot(self, minutes, active):
+    def _bot(self):
         bot = NTEFishingBot.__new__(NTEFishingBot)
         bot.cfg = AppConfig()
-        bot.cfg.timing.max_run_minutes = minutes
-        bot._active_secs = active
+        bot.bridge = MagicMock()
+        bot._fish_count = 5
+        bot._active_secs = 100.0
+        bot._fish_limit_target = None
+        bot._time_limit_until = None
         bot._log = MagicMock()
         bot._push_status = MagicMock()
         bot.request_stop = MagicMock()
         return bot
 
+    def test_request_counts_from_now(self):
+        bot = self._bot()
+        bot.bridge.limit_request = (3, 2)
+        bot._apply_limit_request()
+        self.assertEqual(bot._fish_limit_target, 8)
+        self.assertEqual(bot._time_limit_until, 220.0)
+        self.assertIsNone(bot.bridge.limit_request)
+
+    def test_zero_clears(self):
+        bot = self._bot()
+        bot._fish_limit_target, bot._time_limit_until = 9, 500.0
+        bot.bridge.limit_request = (0, 0)
+        bot._apply_limit_request()
+        self.assertIsNone(bot._fish_limit_target)
+        self.assertIsNone(bot._time_limit_until)
+
     def test_time_limit_stops_the_bot(self):
-        bot = self._bot(2, 120.0)
+        bot = self._bot()
+        bot._time_limit_until = 100.0
         self.assertTrue(bot._run_time_limit_reached())
         bot.request_stop.assert_called_once_with("Run time limit reached")
 
     def test_no_limit_or_not_yet_reached(self):
-        self.assertFalse(self._bot(0, 9999.0)._run_time_limit_reached())
-        self.assertFalse(self._bot(2, 119.0)._run_time_limit_reached())
+        bot = self._bot()
+        self.assertFalse(bot._run_time_limit_reached())
+        bot._time_limit_until = 101.0
+        self.assertFalse(bot._run_time_limit_reached())

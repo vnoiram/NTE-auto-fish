@@ -34,6 +34,8 @@ class BotStatus:
     stop_reason: str = ""
     bait_error_count: int = 0
     bait_error_limit: int = 3
+    fish_left: int | None = None  # fish still to catch before the auto stop
+    secs_left: float | None = None  # running seconds left before the auto stop
 
 
 from modules.calibration import BackgroundSampler, GaugeAssist  # noqa: E402
@@ -55,6 +57,9 @@ class BotBridge:
         # True while the user is checking/adjusting the scan areas with the bot stopped.
         self.preview_active = False
         self.snapshot_request = False  # take a new full-screen snapshot for the area check
+        # (fish, minutes) the user set on the dashboard; the bot counts from the moment
+        # it picks it up. (0, 0) clears the auto stop.
+        self.limit_request: tuple[int, int] | None = None
         self.snapshot_busy = False  # a snapshot is being taken right now
         # Live previews for the dashboard tracker (RGBA uint8 arrays or None).
         self.preview: dict = {

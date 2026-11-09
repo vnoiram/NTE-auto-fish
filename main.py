@@ -189,6 +189,8 @@ class NTEFishingBot:
         self._is_stopped = True
         self._start_delay_pending = False
         self._active_secs = 0.0
+        self._fish_limit_target = None
+        self._time_limit_until = None
         self._fps = 0.0
         self._last_time = time.time()
         self._last_action = "NONE"
@@ -258,6 +260,8 @@ class NTEFishingBot:
         self._is_paused = paused
         self._start_delay_pending = not paused
         self._active_secs = 0.0
+        self._fish_limit_target = None
+        self._time_limit_until = None
         self.sm = FishingStateMachine()
         self.pid.reset()
         self._fish_count = 0
@@ -332,6 +336,16 @@ class NTEFishingBot:
                 stop_reason=getattr(self, "_stop_reason", ""),
                 bait_error_count=getattr(self, "_bait_error_count", 0),
                 bait_error_limit=self.cfg.timing.bait_error_threshold,
+                fish_left=(
+                    max(0, self._fish_limit_target - self._fish_count)
+                    if self._fish_limit_target is not None
+                    else None
+                ),
+                secs_left=(
+                    max(0.0, self._time_limit_until - self._active_secs)
+                    if self._time_limit_until is not None
+                    else None
+                ),
             )
         )
 
@@ -347,6 +361,7 @@ class NTEFishingBot:
     def _poll_commands(self):
         if not self.bridge:
             return
+        self._apply_limit_request()
         while True:
             cmd = self.bridge.poll_cmd()
             if cmd is None:
@@ -862,10 +877,21 @@ class NTEFishingBot:
         self.sm.transition(FishingState.IDLE)
         self._push_status()
 
+    def _apply_limit_request(self) -> None:
+        """Start counting the dashboard's auto-stop limits from now."""
+        req = self.bridge.limit_request if self.bridge else None
+        if req is None:
+            return
+        self.bridge.limit_request = None
+        fish, minutes = req
+        self._fish_limit_target = self._fish_count + fish if fish > 0 else None
+        self._time_limit_until = self._active_secs + minutes * 60 if minutes > 0 else None
+        self._log(f"[Limit] Auto stop set: {fish or '-'} fish / {minutes or '-'} min from now.")
+
     def _run_time_limit_reached(self) -> bool:
-        limit = self.cfg.timing.max_run_minutes
-        if limit > 0 and self._active_secs >= limit * 60:
-            self._log(f"[Limit] Run time limit of {limit} min reached.")
+        until = self._time_limit_until
+        if until is not None and self._active_secs >= until:
+            self._log("[Limit] Run time limit reached.")
             self.request_stop("Run time limit reached")
             self._push_status()
             return True
@@ -1529,9 +1555,9 @@ class NTEFishingBot:
         self._append_catch(fish_name, weight_g)
         self._dismiss_result()
         self.sm.transition(FishingState.IDLE)
-        limit = self.cfg.timing.max_fish_count
-        if limit > 0 and self._fish_count >= limit:
-            self._log(f"[Limit] Fish count limit of {limit} reached.")
+        target = self._fish_limit_target
+        if target is not None and self._fish_count >= target:
+            self._log("[Limit] Fish count limit reached.")
             self.request_stop("Fish count limit reached")
             self._push_status()
 

@@ -78,6 +78,10 @@ try {
             $lastLine = (Get-Content -LiteralPath $installLog -Tail 1 -ErrorAction SilentlyContinue)
         }
         Write-Step ("Python installer still running ({0}s): {1}" -f [int]$installWatch.Elapsed.TotalSeconds, $lastLine)
+        # Show who else is using Windows Installer (only one MSI can run at a time).
+        $msi = @(Get-CimInstance Win32_Process -Filter "Name='msiexec.exe'" -ErrorAction SilentlyContinue |
+            ForEach-Object { "pid=$($_.ProcessId) cmd=$($_.CommandLine)" })
+        Write-Step ("  msiexec processes: {0}" -f $(if ($msi.Count) { $msi -join " | " } else { "none" }))
         if ($installWatch.Elapsed.TotalSeconds -gt $installTimeoutSeconds) {
             Get-Process -Name "python-*" -ErrorAction SilentlyContinue | Stop-Process -Force
             throw "Python installer did not finish within $installTimeoutSeconds seconds. See python-install.log."

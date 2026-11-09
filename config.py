@@ -64,7 +64,13 @@ def _coerce_setting(current, value, allow_negative=False):
 # Automatic scan areas as (left, top, right, bottom) ratios of the screen.
 DEFAULT_BAR_RATIOS = (0.314844, 0.05463, 0.314844 + 0.37526, 0.05463 + 0.02963)
 # Lower-right action bar with the R/Q/E/F icons (they vanish once the line is cast).
-DEFAULT_ICON_RATIOS = (1 - 515 / 1920, 1 - 154 / 1080, 1.0, 1.0)
+_ICON_MARGIN = (10 / 1920, 10 / 1080)  # small gap to the screen's right and bottom edges
+DEFAULT_ICON_RATIOS = (
+    1 - _ICON_MARGIN[0] - 515 / 1920,
+    1 - _ICON_MARGIN[1] - 154 / 1080,
+    1 - _ICON_MARGIN[0],
+    1 - _ICON_MARGIN[1],
+)
 DEFAULT_BUTTON_RATIOS = (3400 / 3840, 1760 / 2160, (3400 + 440) / 3840, (1760 + 360) / 2160)
 
 

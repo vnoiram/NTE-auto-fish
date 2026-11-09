@@ -31,7 +31,7 @@
 - **日间/傍晚/夜间配置（实验性）**：为不同时段提供检测颜色配置，并可自动识别背景来切换配置，从而提高检测率。
 - **更快的区域检查 OCR。**
 - **GUI 与 CLI 合为一个可执行文件**：不再有单独的 CLI 包；同一个 EXE 默认打开 GUI，带参数启动时则作为 CLI 运行。
-- **更多构建方式**：可在 Windows Sandbox 中本地构建，也可在 Linux 上准备后由 Windows 的 GitHub Actions 运行器构建 EXE 并下载（见下方构建章节）。
+- **更多构建方式**：可在 Windows Sandbox 中本地构建，也可在 Linux 上准备后由 Windows 的 GitHub Actions 运行器构建 EXE 并下载（详见英文版 README 的构建章节）。
 - **固定的构建**：默认图标为角色插画，构建名称固定（除非指定，否则不会带随机构建 ID）。
 
 ![区域调整示意图（图中文字为英文）](images/area-adjustment.png)

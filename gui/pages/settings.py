@@ -580,11 +580,13 @@ def _start_calibration(kind: str, bridge: BotBridge) -> None:
     scale_sq = status.current_scale * status.current_scale
     roi = {"left": roi_t[0], "top": roi_t[1], "width": roi_t[2], "height": roi_t[3]}
     threading.Thread(
-        target=_run_calibration, args=(kind, roi, scale_sq), daemon=True
+        target=_run_calibration, args=(kind, roi, scale_sq, bridge), daemon=True
     ).start()
 
 
-def _run_calibration(kind: str, roi: dict, scale_sq: float) -> None:
+def _run_calibration(
+    kind: str, roi: dict, scale_sq: float, bridge: BotBridge
+) -> None:
     from modules.calibration import describe, suggest_bite, suggest_gauge
     from modules.io_module import CaptureModule
 
@@ -617,6 +619,7 @@ def _run_calibration(kind: str, roi: dict, scale_sq: float) -> None:
                 img,
                 (CFG.hsv.safe_zone.lower, CFG.hsv.safe_zone.upper),
                 (CFG.hsv.cursor.lower, CFG.hsv.cursor.upper),
+                bridge.background,
             )
             if safe is None and cursor is None:
                 _cal_text(
@@ -632,6 +635,9 @@ def _run_calibration(kind: str, roi: dict, scale_sq: float) -> None:
                 lines.append(f"{tr('Safe Zone HSV')}: {_fmt_hsv(safe)}")
             if cursor is not None:
                 lines.append(f"{tr('Cursor HSV')}: {_fmt_hsv(cursor)}")
+            lines.append(
+                tr("Background samples: {n}").format(n=bridge.background.samples)
+            )
             _cal_text(kind, "\n".join(lines))
         dpg.configure_item(f"cal_{kind}_apply", show=True)
     except Exception as exc:

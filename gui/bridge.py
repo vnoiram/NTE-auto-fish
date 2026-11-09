@@ -33,6 +33,9 @@ class BotStatus:
     last_fish_weight_g: str | None = None
 
 
+from modules.calibration import BackgroundSampler  # noqa: E402
+
+
 class BotBridge:
     """Small queue-based boundary shared by GUI and bot threads."""
 
@@ -41,6 +44,8 @@ class BotBridge:
         self._log_q: queue.Queue[str] = queue.Queue(maxsize=500)
         self._cmd_q: queue.Queue[str] = queue.Queue(maxsize=10)
         self._current_status = BotStatus()
+        # Colours seen around the gauge while it is hidden; filled by the bot.
+        self.background = BackgroundSampler()
 
     def push_status(self, status: BotStatus) -> None:
         """Push a status frame. Older frames are dropped when the GUI lags."""

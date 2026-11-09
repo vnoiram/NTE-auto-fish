@@ -26,6 +26,7 @@ from config import (
     sample_timing,
 )
 from modules.branding import scoped_runtime_name
+from modules.calibration import BackgroundSampler
 from modules.logic import FishingState, FishingStateMachine, PIDController
 from modules.ocr import CatchOcr, ratios_to_roi
 from modules.session_manager import SessionManager
@@ -51,6 +52,7 @@ if TYPE_CHECKING:
 # CWD is set inside run() to avoid side effects on import
 _RNG = SystemRandom()
 
+_BG_SAMPLE_INTERVAL_SECS = 1.0
 _DEFAULT_SCREEN_W = 3840
 _DEFAULT_SCREEN_H = 2160
 _RESULT_CLOSE_FALLBACK_X = 960
@@ -176,6 +178,10 @@ class NTEFishingBot:
         self._battle_visible = False
         self._battle_absent_frames = 0
         self._next_spam_at = 0.0
+        self._next_bg_sample_at = 0.0
+        self._background = (
+            bridge.background if bridge is not None else BackgroundSampler()
+        )
 
         self._last_fish_name: str = ""
         self._last_fish_weight_g: str = ""
@@ -686,6 +692,21 @@ class NTEFishingBot:
         self._next_spam_at = 0.0
         self.sm.transition(FishingState.WAITING)
 
+    def _sample_background(self) -> None:
+        """While waiting the gauge is hidden: learn the colours behind it."""
+        background = getattr(self, "_background", None)
+        if background is None:
+            return
+        now = time.perf_counter()
+        if now < getattr(self, "_next_bg_sample_at", 0.0):
+            return
+        self._next_bg_sample_at = now + _BG_SAMPLE_INTERVAL_SECS
+        bar_img = self._grab(self._roi_bar)
+        cursor_x, _ = self._find_cursor(bar_img)
+        target_x, _ = self._find_target(bar_img)
+        if cursor_x is None and target_x is None:
+            background.add(bar_img)
+
     def _spam_cast_if_due(self) -> bool:
         """Press the cast key at random intervals. Returns True if the bot stopped."""
         if not self.cfg.spam_cast_enabled:
@@ -741,6 +762,8 @@ class NTEFishingBot:
             self._log("[WAITING] Fish hooked (blue trigger).")
             self._enter_struggling()
             return
+
+        self._sample_background()
 
         if self.cfg.spam_cast_enabled:
             # Spamming may already have hooked the fish without the blue prompt

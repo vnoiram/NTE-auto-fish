@@ -28,9 +28,57 @@ def _clamp(value: float, hi: int) -> int:
     return int(max(0, min(hi, round(value))))
 
 
+_BG_BINS = (45, 8, 8)  # H/4, S/32, V/32
+_BG_MIN_FRACTION = 0.002  # a bin holding this share of the area counts as background
+_BG_EMA_ALPHA = 0.3
+
+
+def _bin_index(hsv: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    return (
+        np.minimum(hsv[..., 0] // 4, _BG_BINS[0] - 1),
+        hsv[..., 1] // 32,
+        hsv[..., 2] // 32,
+    )
+
+
+class BackgroundSampler:
+    """Learns which colours the scene shows around the gauge while it is hidden.
+
+    Keeps a smoothed per-bin share of the sampled area, so the model follows
+    gradual lighting changes such as a sunset.
+    """
+
+    def __init__(self) -> None:
+        self._fraction: np.ndarray | None = None
+        self.samples = 0
+
+    def add(self, bgr: np.ndarray) -> None:
+        hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+        hist, _ = np.histogramdd(
+            np.stack([a.ravel() for a in _bin_index(hsv)], axis=1),
+            bins=[np.arange(n + 1) for n in _BG_BINS],
+        )
+        frac = hist / max(hsv.shape[0] * hsv.shape[1], 1)
+        if self._fraction is None:
+            self._fraction = frac
+        else:
+            self._fraction = (
+                _BG_EMA_ALPHA * frac + (1.0 - _BG_EMA_ALPHA) * self._fraction
+            )
+        self.samples += 1
+
+    def mask(self, hsv: np.ndarray) -> np.ndarray | None:
+        """Boolean mask of pixels whose colour is common in the background."""
+        if self._fraction is None:
+            return None
+        h, s, v = _bin_index(hsv)
+        return self._fraction[h, s, v] >= _BG_MIN_FRACTION
+
+
 def dominant_range(
     hsv: np.ndarray,
     *,
+    ignore_mask: np.ndarray | None = None,
     min_sat: int = 80,
     min_val: int = 100,
     min_pixels: int = 20,
@@ -40,6 +88,8 @@ def dominant_range(
     """Return the HSV range of the most frequent saturated hue, or None."""
     h = hsv[..., 0]
     mask = (hsv[..., 1] >= min_sat) & (hsv[..., 2] >= min_val)
+    if ignore_mask is not None:
+        mask &= ~ignore_mask
     if hue_band is not None:
         mask &= (h >= hue_band[0]) & (h <= hue_band[1])
     if exclude_hue is not None:
@@ -92,6 +142,7 @@ def suggest_gauge(
     bgr: np.ndarray,
     safe_hint=None,
     cursor_hint=None,
+    background: BackgroundSampler | None = None,
 ) -> tuple[Suggestion | None, Suggestion | None]:
     """Fishing gauge: (safe_zone, cursor).
 
@@ -99,14 +150,18 @@ def suggest_gauge(
     cursor is the brightest remaining colour, excluding the safe-zone hue.
     Hints are the current (lower, upper) ranges: when given, each element is
     searched only near its known hue so unrelated UI colours are not adopted.
-    Thresholds are relaxed step by step when nothing is found.
+    Colours the background sampler has seen are ignored. Thresholds are
+    relaxed step by step when nothing is found.
     """
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    ignore = background.mask(hsv) if background is not None else None
     safe_band = _hint_band(safe_hint)
     cursor_band = _hint_band(cursor_hint)
     safe = None
     for sat, val in _SAFE_LEVELS:
-        safe = dominant_range(hsv, min_sat=sat, min_val=val, hue_band=safe_band)
+        safe = dominant_range(
+            hsv, min_sat=sat, min_val=val, hue_band=safe_band, ignore_mask=ignore
+        )
         if safe is not None:
             break
     exclude = None
@@ -121,6 +176,7 @@ def suggest_gauge(
             min_pixels=10,
             hue_band=cursor_band,
             exclude_hue=exclude,
+            ignore_mask=ignore,
         )
         if cursor is not None:
             break

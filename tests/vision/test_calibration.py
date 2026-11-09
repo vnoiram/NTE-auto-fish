@@ -3,7 +3,12 @@ import unittest
 import cv2
 import numpy as np
 
-from modules.calibration import describe, suggest_bite, suggest_gauge
+from modules.calibration import (
+    BackgroundSampler,
+    describe,
+    suggest_bite,
+    suggest_gauge,
+)
 
 
 def _bgr(h: int, s: int, v: int) -> tuple[int, int, int]:
@@ -69,6 +74,20 @@ class TestCalibration(unittest.TestCase):
         )
         self.assertIsNone(safe)
         self.assertIsNone(cursor)
+
+    def test_background_colours_are_ignored(self):
+        bg_img = np.full((40, 200, 3), 20, np.uint8)
+        bg_img[:, 100:200] = _bgr(26, 150, 250)  # sunset-like yellow backdrop
+        img = bg_img.copy()
+        img[:, 40:60] = _bgr(88, 230, 230)  # safe zone
+        img[:, 90:94] = _bgr(28, 130, 250)  # cursor (distinct saturation bin)
+        hints = ((75, 190, 190), (100, 255, 255)), ((18, 115, 240), (40, 150, 255))
+        sampler = BackgroundSampler()
+        sampler.add(bg_img)
+        _, without = suggest_gauge(img, *hints)
+        _, with_bg = suggest_gauge(img, *hints, sampler)
+        self.assertIsNotNone(without)
+        self.assertLess(with_bg.pixels if with_bg else 0, without.pixels)
 
     def test_describe_reports_size(self):
         self.assertIn("200x40", describe(np.zeros((40, 200, 3), np.uint8)))

@@ -77,6 +77,7 @@ _JA = {
     "Max": "最大",
     "Edge ignore ratio": "端の除外率",
     "Blue pixel trigger": "青色ピクセルしきい値",
+    "Background samples: {n}":"背景サンプル数: {n}",
     "Adjust from current screen": "現在の画面で調整",
     "Show the target on screen, press the button, and the colors are measured after a short countdown. Nothing changes until you apply.": "対象を画面に表示してボタンを押すと、数秒後に色を測定します。適用するまで設定は変わりません。",
     "Bite detection": "アタリ判定",

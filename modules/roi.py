@@ -27,7 +27,9 @@ def _from_ratios(ratios, mon) -> dict:
 def compute_rois(cfg, mon) -> tuple[dict, dict]:
     """Return (bar, bite) areas in screen coordinates for a monitor."""
     bar = _from_ratios(
-        cfg.bar_roi_ratios if ratios_are_set(cfg.bar_roi_ratios) else DEFAULT_BAR_RATIOS,
+        cfg.bar_roi_ratios
+        if ratios_are_set(cfg.bar_roi_ratios)
+        else DEFAULT_BAR_RATIOS,
         mon,
     )
     button = _from_ratios(

@@ -7,10 +7,10 @@ import numpy as np
 from modules.calibration import (
     BackgroundSampler,
     GaugeAssist,
-    suggest_gauge_at_start,
     describe,
     suggest_bite,
     suggest_gauge,
+    suggest_gauge_at_start,
 )
 
 

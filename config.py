@@ -28,7 +28,9 @@ def detect_system_language() -> str:
             import ctypes
 
             lang_id = ctypes.windll.kernel32.GetUserDefaultUILanguage()
-            return "ja" if (lang_id & _LANGID_PRIMARY_MASK) == _LANGID_JAPANESE else "en"
+            return (
+                "ja" if (lang_id & _LANGID_PRIMARY_MASK) == _LANGID_JAPANESE else "en"
+            )
         except Exception:
             log.debug("Windows UI language lookup failed.", exc_info=True)
     for var in ("LC_ALL", "LC_MESSAGES", "LANG"):
@@ -40,6 +42,8 @@ def detect_system_language() -> str:
     except (ValueError, TypeError):
         pass
     return "en"
+
+
 log = logging.getLogger("NTEFish")
 _RNG = SystemRandom()
 
@@ -96,14 +100,22 @@ DEFAULT_BAR_RATIOS = (
     0.05463 + 0.02963,
 )
 # Lower-right action bar with the R/Q/E/F icons (they vanish once the line is cast).
-_ICON_MARGIN = (10 / 1920, 10 / 1080)  # small gap to the screen's right and bottom edges
+_ICON_MARGIN = (
+    10 / 1920,
+    10 / 1080,
+)  # small gap to the screen's right and bottom edges
 DEFAULT_ICON_RATIOS = (
     1 - _ICON_MARGIN[0] - 515 / 1920,
     1 - _ICON_MARGIN[1] - 154 / 1080,
     1 - _ICON_MARGIN[0],
     1 - _ICON_MARGIN[1],
 )
-DEFAULT_BUTTON_RATIOS = (3400 / 3840, 1760 / 2160, (3400 + 440) / 3840, (1760 + 360) / 2160)
+DEFAULT_BUTTON_RATIOS = (
+    3400 / 3840,
+    1760 / 2160,
+    (3400 + 440) / 3840,
+    (1760 + 360) / 2160,
+)
 
 
 def ratios_are_set(ratios) -> bool:
@@ -378,7 +390,9 @@ class AppConfig:
                         value = _coerce_setting(
                             attr,
                             value,
-                            allow_negative=key.endswith(("_offset_x", "_offset_y", "_delta")),
+                            allow_negative=key.endswith(
+                                ("_offset_x", "_offset_y", "_delta")
+                            ),
                         )
                     if value is _INVALID:
                         log.warning("Ignoring invalid setting %s=%r", name, values[key])

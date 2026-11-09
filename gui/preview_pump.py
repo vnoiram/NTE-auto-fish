@@ -106,11 +106,15 @@ class PreviewPump:
                     hidden = True
                     time.sleep(_HIDE_SETTLE_SECS)
                 except Exception:
-                    log.debug("Failed to hide the window for the snapshot.", exc_info=True)
+                    log.debug(
+                        "Failed to hide the window for the snapshot.", exc_info=True
+                    )
             self._status("Capturing the game screen...")
             t0 = time.monotonic()
             image = capture.grab_bgr(region)
-            self._status(f"Captured in {time.monotonic() - t0:.1f}s. Restoring the window...")
+            self._status(
+                f"Captured in {time.monotonic() - t0:.1f}s. Restoring the window..."
+            )
         finally:
             self._bridge.snapshot_busy = False
             capture.close()
@@ -118,7 +122,9 @@ class PreviewPump:
                 try:
                     self._show_ui()
                 except Exception:
-                    log.debug("Failed to show the window after the snapshot.", exc_info=True)
+                    log.debug(
+                        "Failed to show the window after the snapshot.", exc_info=True
+                    )
         with self._lock:
             self._snapshot = SnapshotCapture(image, mon.x, mon.y)
             self._mon = SimpleNamespace(
@@ -210,7 +216,10 @@ class PreviewPump:
 
     def _active(self) -> bool:
         """The area check works on its own; it does not depend on the live-view toggle."""
-        return bool(self._bridge.latest_status().is_running is False and self._bridge.preview_active)
+        return bool(
+            self._bridge.latest_status().is_running is False
+            and self._bridge.preview_active
+        )
 
     def _status(self, text: str) -> None:
         pv = self._bridge.preview

@@ -166,7 +166,9 @@ def suggest_gauge(
     """
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     ignore = background.mask(hsv) if background is not None else None
-    cols = slice(int(hsv.shape[1] * _ICON_MARGIN), int(hsv.shape[1] * (1 - _ICON_MARGIN)))
+    cols = slice(
+        int(hsv.shape[1] * _ICON_MARGIN), int(hsv.shape[1] * (1 - _ICON_MARGIN))
+    )
     hsv = hsv[:, cols]
     if ignore is not None:
         ignore = ignore[:, cols]
@@ -328,5 +330,7 @@ def describe(bgr: np.ndarray) -> str:
     if colourful.any():
         hist = np.bincount(hsv[..., 0][colourful].ravel(), minlength=_HUE_SPAN)
         top = np.argsort(hist)[::-1][:3]
-        text += ", top H " + "/".join(f"{int(h)}({int(hist[h])})" for h in top if hist[h])
+        text += ", top H " + "/".join(
+            f"{int(h)}({int(hist[h])})" for h in top if hist[h]
+        )
     return text

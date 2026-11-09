@@ -62,7 +62,9 @@ class TestProfiles(unittest.TestCase):
             return pick_profile(profiles, sampler.signature())
 
         self.assertEqual(pick("bar/negative/bar_negative_4k_1.png")["name"], "Evening")
-        self.assertEqual(pick("bar/positive/bar_positive_fhd_nigh_1.png")["name"], "Night")
+        self.assertEqual(
+            pick("bar/positive/bar_positive_fhd_nigh_1.png")["name"], "Night"
+        )
         # gauge-visible evening samples must never be mistaken for day or night
         for path in sorted(glob.glob(str(_DATA / "bar/positive/*4k*.png"))):
             picked = pick(Path(path).relative_to(_DATA))

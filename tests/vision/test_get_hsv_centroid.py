@@ -125,8 +125,12 @@ class TestEdgeTracking(unittest.TestCase):
 
     def _find(self, img, last):
         return VisionModule.get_hsv_centroid_x(
-            img, (18, 115, 200), (40, 255, 255), min_area=20,
-            ignore_margin_ratio=0.02, last_known_x=last,
+            img,
+            (18, 115, 200),
+            (40, 255, 255),
+            min_area=20,
+            ignore_margin_ratio=0.02,
+            last_known_x=last,
         )[0]
 
     def test_cursor_in_the_edge_margin_is_ignored_without_history(self):

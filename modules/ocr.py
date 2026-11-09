@@ -82,7 +82,9 @@ class CatchOcr:
                 # Big (4K) crops make detection needlessly slow; text stays legible.
                 scale = _MAX_CROP_H / h
                 img = cv2.resize(
-                    img, (max(1, int(w * scale)), _MAX_CROP_H), interpolation=cv2.INTER_AREA
+                    img,
+                    (max(1, int(w * scale)), _MAX_CROP_H),
+                    interpolation=cv2.INTER_AREA,
                 )
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # Otsu picks the optimal split per-image; works for both
@@ -92,7 +94,9 @@ class CatchOcr:
             if cv2.countNonZero(thresh) > thresh.size * 0.5:
                 thresh = cv2.bitwise_not(thresh)
             bgr = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
-            result = self._engine(bgr, use_cls=False)  # one upright line: skip angle classifier
+            result = self._engine(
+                bgr, use_cls=False
+            )  # one upright line: skip angle classifier
             text = " ".join(result.txts).strip() if result.txts else ""
             if key:
                 self.last_regions[key] = (img, thresh, text)

@@ -56,7 +56,13 @@ def render_bar_preview(
     src_w = max(bar_bgr.shape[1], 1)
     if target_x is not None:
         x = int(np.clip(target_x / src_w * width, 0, width - 1))
-        cv2.rectangle(rgba, (max(x - 2, 0), 0), (min(x + 2, width - 1), height - 1), (0, 255, 0, 255), 1)
+        cv2.rectangle(
+            rgba,
+            (max(x - 2, 0), 0),
+            (min(x + 2, width - 1), height - 1),
+            (0, 255, 0, 255),
+            1,
+        )
     if cursor_x is not None:
         x = int(np.clip(cursor_x / src_w * width, 0, width - 1))
         cv2.line(rgba, (x, 0), (x, height - 1), (255, 0, 0, 255), 1)
@@ -72,7 +78,9 @@ def render_button_preview(button_bgr: np.ndarray, blue_range) -> tuple[np.ndarra
     rgba = _to_rgba(small)
     small_mask = cv2.resize(mask_full, BUTTON_SIZE, interpolation=cv2.INTER_NEAREST)
     _tint(rgba, small_mask, _BLUE_TINT, 0.85)
-    cv2.rectangle(rgba, (0, 0), (BUTTON_SIZE[0] - 1, BUTTON_SIZE[1] - 1), (255, 255, 255, 120), 1)
+    cv2.rectangle(
+        rgba, (0, 0), (BUTTON_SIZE[0] - 1, BUTTON_SIZE[1] - 1), (255, 255, 255, 120), 1
+    )
     return rgba, count
 
 
@@ -88,10 +96,11 @@ def render_ocr_preview(raw_bgr: np.ndarray, binary: np.ndarray) -> np.ndarray:
     return rgba
 
 
-
 def render_icon_preview(icon_bgr: np.ndarray) -> np.ndarray:
     """The lower-right action-bar strip used for the cast check."""
     small = cv2.resize(icon_bgr, ICON_SIZE, interpolation=cv2.INTER_AREA)
     rgba = _to_rgba(small)
-    cv2.rectangle(rgba, (0, 0), (ICON_SIZE[0] - 1, ICON_SIZE[1] - 1), (255, 255, 255, 120), 1)
+    cv2.rectangle(
+        rgba, (0, 0), (ICON_SIZE[0] - 1, ICON_SIZE[1] - 1), (255, 255, 255, 120), 1
+    )
     return rgba

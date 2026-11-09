@@ -56,7 +56,9 @@ class BotBridge:
         self.assist_callback = None  # called after each new measurement
         # True while the user is checking/adjusting the scan areas with the bot stopped.
         self.preview_active = False
-        self.snapshot_request = False  # take a new full-screen snapshot for the area check
+        self.snapshot_request = (
+            False  # take a new full-screen snapshot for the area check
+        )
         # (fish, seconds) the user set on the dashboard; the bot counts from the moment
         # it picks it up. (0, 0) clears the auto stop.
         self.limit_request: tuple[int, int] | None = None

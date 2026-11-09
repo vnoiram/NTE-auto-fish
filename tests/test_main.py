@@ -296,7 +296,12 @@ class TestRoiOffsets(unittest.TestCase):
         bot.cfg = AppConfig()
         bot._log = MagicMock()
         bot._roi_bar_default = {"left": 100, "top": 50, "width": 1000, "height": 60}
-        bot._roi_button_default = {"left": 3000, "top": 1700, "width": 400, "height": 300}
+        bot._roi_button_default = {
+            "left": 3000,
+            "top": 1700,
+            "width": 400,
+            "height": 300,
+        }
         bot._roi_offsets_applied = None
         bot._screen_w, bot._screen_h = 3840, 2160
         bot._mon_x = bot._mon_y = 0
@@ -308,7 +313,9 @@ class TestRoiOffsets(unittest.TestCase):
         bot.cfg.roi.bar_width_delta = 50
         bot.cfg.roi.button_offset_x = 15
         bot._apply_roi_offsets()
-        self.assertEqual(bot._roi_bar, {"left": 100, "top": 30, "width": 1050, "height": 60})
+        self.assertEqual(
+            bot._roi_bar, {"left": 100, "top": 30, "width": 1050, "height": 60}
+        )
         self.assertEqual(bot._roi_button["left"], 3015)
 
     def test_saved_drag_areas_replace_the_defaults(self):
@@ -326,7 +333,6 @@ class TestRoiOffsets(unittest.TestCase):
         )
 
     def test_zero_offsets_keep_base_and_negative_values_load(self):
-        import json
         import os
         import tempfile
 
@@ -474,7 +480,11 @@ class RunLimitTest(unittest.TestCase):
     def test_time_limit_waits_for_the_fish_in_progress(self):
         bot = self._bot()
         bot._time_limit_until = 100.0
-        for state in (FishingState.WAITING, FishingState.STRUGGLING, FishingState.RESULT):
+        for state in (
+            FishingState.WAITING,
+            FishingState.STRUGGLING,
+            FishingState.RESULT,
+        ):
             bot.sm.state = state
             self.assertFalse(bot._run_time_limit_reached())
         bot.request_stop.assert_not_called()

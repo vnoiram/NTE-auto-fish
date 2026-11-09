@@ -29,7 +29,9 @@ class TestCountIcons(unittest.TestCase):
     def test_counts_hold_at_4k_scale(self):
         for sub, expected in (("negative", 4), ("positive", 1)):
             for path in sorted((_DATA / sub).glob("*.png")):
-                big = cv2.resize(_load(path), None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+                big = cv2.resize(
+                    _load(path), None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC
+                )
                 with self.subTest(image=path.name):
                     self.assertEqual(VisionModule.count_icons(big, 1.0), expected)
 

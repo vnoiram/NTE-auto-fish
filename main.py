@@ -19,9 +19,9 @@ from typing import TYPE_CHECKING, Optional
 
 from config import (
     CFG,
+    DEFAULT_ICON_RATIOS,
     AppConfig,
     ensure_settings_loaded,
-    DEFAULT_ICON_RATIOS,
     ratios_are_set,
     sample_movement_pulse,
     sample_noise,
@@ -900,7 +900,9 @@ class NTEFishingBot:
         self._fish_limit_target = self._fish_count + fish if fish > 0 else None
         self._time_limit_until = self._active_secs + secs if secs > 0 else None
         self._time_limit_notified = False
-        self._log(f"[Limit] Auto stop set: {fish or '-'} fish / {secs or '-'} s from now.")
+        self._log(
+            f"[Limit] Auto stop set: {fish or '-'} fish / {secs or '-'} s from now."
+        )
 
     def _run_time_limit_reached(self) -> bool:
         until = self._time_limit_until
@@ -986,7 +988,9 @@ class NTEFishingBot:
             return
         self._assist_done = True
         assist.add(safe, cursor, cursor_x is not None and target_x is not None)
-        callback = getattr(self.bridge, "assist_callback", None) if self.bridge else None
+        callback = (
+            getattr(self.bridge, "assist_callback", None) if self.bridge else None
+        )
         if callback is not None:
             try:
                 callback()
@@ -1020,7 +1024,9 @@ class NTEFishingBot:
             f"used for battle: {' + '.join(used)} | {detail}"
         )
 
-    def _publish_bar_preview(self, bar_img, cursor_x, target_x, detail: str = "") -> None:
+    def _publish_bar_preview(
+        self, bar_img, cursor_x, target_x, detail: str = ""
+    ) -> None:
         bridge = self._preview_due()
         if bridge is None:
             return
@@ -1110,7 +1116,9 @@ class NTEFishingBot:
         now = time.perf_counter()
         if now < self._next_spam_at:
             return
-        lo, hi = sorted((self.cfg.spam_cast_interval_min, self.cfg.spam_cast_interval_max))
+        lo, hi = sorted(
+            (self.cfg.spam_cast_interval_min, self.cfg.spam_cast_interval_max)
+        )
         lo = max(lo, 0.1)
         self._next_spam_at = now + _RNG.uniform(lo, max(hi, lo))
         dur = self.cfg.timing.key_press_duration

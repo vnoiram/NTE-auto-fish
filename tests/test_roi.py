@@ -66,7 +66,9 @@ class TestAreaReset(unittest.TestCase):
         base = compute_icon_roi(cfg, mon)
         cfg.roi.icon_offset_x, cfg.roi.icon_offset_y = 15, -7
         moved = compute_icon_roi(cfg, mon)
-        self.assertEqual((moved["left"] - base["left"], moved["top"] - base["top"]), (15, -7))
+        self.assertEqual(
+            (moved["left"] - base["left"], moved["top"] - base["top"]), (15, -7)
+        )
 
 
 class TestAreaResize(unittest.TestCase):
@@ -80,5 +82,9 @@ class TestAreaResize(unittest.TestCase):
         cfg.roi.button_width_delta, cfg.roi.button_height_delta = -20, 10
         cfg.roi.icon_width_delta, cfg.roi.icon_height_delta = 30, -5
         b1, i1 = compute_rois(cfg, mon)[1], compute_icon_roi(cfg, mon)
-        self.assertEqual((b1["width"] - b0["width"], b1["height"] - b0["height"]), (-20, 10))
-        self.assertEqual((i1["width"] - i0["width"], i1["height"] - i0["height"]), (30, -5))
+        self.assertEqual(
+            (b1["width"] - b0["width"], b1["height"] - b0["height"]), (-20, 10)
+        )
+        self.assertEqual(
+            (i1["width"] - i0["width"], i1["height"] - i0["height"]), (30, -5)
+        )

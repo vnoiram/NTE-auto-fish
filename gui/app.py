@@ -20,9 +20,9 @@ from gui.pages.settings import (
     init_session_manager,
     update_settings_ui,
 )
+from gui.preview_pump import PreviewPump
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import FONT_SIZES, build_global_theme, get_font_path, set_ui_scale
-from gui.preview_pump import PreviewPump
 from main import NTEFishingBot, log
 from modules.branding import APP_NAME, BUILD_ID, app_icon_path
 from modules.utils import VERSION

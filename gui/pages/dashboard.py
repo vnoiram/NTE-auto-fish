@@ -20,7 +20,6 @@ from gui.components import (
 )
 from gui.i18n import tr
 from gui.preview_pump import add_pump_log
-from modules.preview import BAR_SIZE, BUTTON_SIZE, ICON_SIZE, OCR_SIZE
 from gui.theme import (
     ACCENT,
     ACCENT_BLUE,
@@ -47,6 +46,7 @@ from gui.theme import (
 )
 from gui.theme import _ui_scale as _s
 from modules.logic import FishingState
+from modules.preview import BAR_SIZE, BUTTON_SIZE, ICON_SIZE, OCR_SIZE
 
 # ---------------------------------------------------------------------------
 # Module state
@@ -184,7 +184,9 @@ def create_dashboard(
     ):
         apply_glass_card_theme("limit_bar")
         with dpg.group(horizontal=True):
-            dpg.add_text(tr("Auto stop (0 = no limit; counted from when you press Set)"))
+            dpg.add_text(
+                tr("Auto stop (0 = no limit; counted from when you press Set)")
+            )
             dpg.add_spacer(width=int(8 * _s))
             dpg.add_input_int(
                 tag="limit_fish_input",
@@ -447,7 +449,9 @@ def _create_previews():
             callback=_toggle_area_check,
         )
         dpg.add_button(
-            label=tr("Retake snapshot"), tag="btn_area_retake", callback=_retake_snapshot
+            label=tr("Retake snapshot"),
+            tag="btn_area_retake",
+            callback=_retake_snapshot,
         )
     dpg.add_text("", tag="pv_pump_status", wrap=int(480 * _s))
     dpg.add_slider_float(
@@ -462,7 +466,7 @@ def _create_previews():
     )
     dpg.add_spacer(height=int(6 * _s))
     caption_text(
-        "Press \"Check and adjust areas\" while the bot is stopped, then drag a preview "
+        'Press "Check and adjust areas" while the bot is stopped, then drag a preview '
         "image to shift its scan area (the area follows your drag). "
         "Fine tuning and resizing: Settings > Vision & Detection."
     )
@@ -476,23 +480,32 @@ def _create_previews():
             tag="btn_reset_all_areas",
             callback=_reset_all_areas,
         )
-        dpg.add_button(label=tr("Save areas"), tag="btn_save_areas", callback=_save_areas)
+        dpg.add_button(
+            label=tr("Save areas"), tag="btn_save_areas", callback=_save_areas
+        )
         dpg.add_button(
             label=tr("Edit all areas on screen"),
             tag="btn_edit_areas_overlay",
             callback=_open_area_overlay,
         )
     dpg.add_text(tr("Bar area"), color=TEXT_MUTED)
-    dpg.add_button(label=tr("Reset"), tag="btn_reset_bar", callback=lambda: _reset_area("bar"))
+    dpg.add_button(
+        label=tr("Reset"), tag="btn_reset_bar", callback=lambda: _reset_area("bar")
+    )
     dpg.add_image("pv_bar_tex", tag="pv_bar", width=BAR_SIZE[0], height=BAR_SIZE[1])
     dpg.add_text("", tag="pv_judge_text", wrap=int(480 * _s))
     dpg.add_text(tr("Bite prompt area"), color=TEXT_MUTED)
     dpg.add_button(
-        label=tr("Reset"), tag="btn_reset_button", callback=lambda: _reset_area("button")
+        label=tr("Reset"),
+        tag="btn_reset_button",
+        callback=lambda: _reset_area("button"),
     )
     with dpg.group(horizontal=True):
         dpg.add_image(
-            "pv_button_tex", tag="pv_button", width=BUTTON_SIZE[0], height=BUTTON_SIZE[1]
+            "pv_button_tex",
+            tag="pv_button",
+            width=BUTTON_SIZE[0],
+            height=BUTTON_SIZE[1],
         )
         dpg.add_text("", tag="pv_blue_text")
     dpg.add_text(tr("Cast check area (action-bar icons)"), color=TEXT_MUTED)
@@ -518,7 +531,10 @@ def _create_previews():
     with dpg.group(horizontal=True):
         with dpg.group():
             dpg.add_image(
-                "pv_ocr_name_tex", tag="pv_ocr_name", width=OCR_SIZE[0], height=OCR_SIZE[1]
+                "pv_ocr_name_tex",
+                tag="pv_ocr_name",
+                width=OCR_SIZE[0],
+                height=OCR_SIZE[1],
             )
             dpg.add_text("", tag="pv_ocr_name_text")
         with dpg.group():
@@ -534,7 +550,13 @@ def _create_previews():
 
 # Drag a preview to shift its scan area: key -> (config attrs for x/y offsets, size)
 _DRAG_AREAS = {
-    "pv_bar": ("bar_offset_x", "bar_offset_y", "cfg_roi_bar_x", "cfg_roi_bar_y", BAR_SIZE),
+    "pv_bar": (
+        "bar_offset_x",
+        "bar_offset_y",
+        "cfg_roi_bar_x",
+        "cfg_roi_bar_y",
+        BAR_SIZE,
+    ),
     "pv_button": (
         "button_offset_x",
         "button_offset_y",
@@ -542,9 +564,19 @@ _DRAG_AREAS = {
         "cfg_roi_btn_y",
         BUTTON_SIZE,
     ),
-    "pv_icons": ("icon_offset_x", "icon_offset_y", "cfg_roi_icon_x", "cfg_roi_icon_y", ICON_SIZE),
+    "pv_icons": (
+        "icon_offset_x",
+        "icon_offset_y",
+        "cfg_roi_icon_x",
+        "cfg_roi_icon_y",
+        ICON_SIZE,
+    ),
 }
-_PREVIEW_ROI_KEYS = {"pv_bar": "bar_roi", "pv_button": "button_roi", "pv_icons": "icon_roi"}
+_PREVIEW_ROI_KEYS = {
+    "pv_bar": "bar_roi",
+    "pv_button": "button_roi",
+    "pv_icons": "icon_roi",
+}
 _drag_state: dict = {"target": None, "start": None}
 _drag_bridge: BotBridge | None = None
 
@@ -593,9 +625,7 @@ def _set_zoom(value: float) -> None:
 
 def _on_preview_wheel(sender, app_data) -> None:
     """Mouse wheel over a preview image zooms all previews."""
-    if any(
-        dpg.does_item_exist(tag) and _over_preview(tag) for tag in _PREVIEW_IMAGES
-    ):
+    if any(dpg.does_item_exist(tag) and _over_preview(tag) for tag in _PREVIEW_IMAGES):
         _set_zoom(_zoom() + 0.1 * (1 if app_data > 0 else -1))
 
 
@@ -605,7 +635,9 @@ def _toggle_area_check(sender=None, app_data=None) -> None:
         return  # a second press while the snapshot is being taken must not switch it off
     _drag_bridge.preview_active = not _drag_bridge.preview_active
     if _drag_bridge.preview_active:
-        _drag_bridge.snapshot_request = True  # one screenshot; adjusting then needs no capture
+        _drag_bridge.snapshot_request = (
+            True  # one screenshot; adjusting then needs no capture
+        )
     if _drag_bridge.preview_active:
         _drag_bridge.preview["pump_log"] = []
         _drag_bridge.preview["pump_status"] = (
@@ -626,7 +658,12 @@ _AREA_RESETS = {
     ),
     "button": (
         {"button_roi_ratios": (0.0, 0.0, 0.0, 0.0)},
-        ("button_offset_x", "button_offset_y", "button_width_delta", "button_height_delta"),
+        (
+            "button_offset_x",
+            "button_offset_y",
+            "button_width_delta",
+            "button_height_delta",
+        ),
     ),
     "icons": (
         {"icon_roi_ratios": (0.0, 0.0, 0.0, 0.0)},
@@ -730,9 +767,11 @@ def _tr_status(text: str) -> str:
     if len(stamp) == 8 and stamp[2] == ":":  # "HH:MM:SS message" log line
         return f"{stamp} {_tr_status(body)}"
     if text.startswith("Snapshot ready"):
-        return tr("Snapshot ready") + text[len("Snapshot ready"):]
+        return tr("Snapshot ready") + text[len("Snapshot ready") :]
     if text.startswith("Captured in "):
-        return tr("Captured in {secs}s. Restoring the window...", secs=text.split()[2][:-2])
+        return tr(
+            "Captured in {secs}s. Restoring the window...", secs=text.split()[2][:-2]
+        )
     if text.startswith("OCR finished in "):
         return tr("OCR finished in {secs}s.", secs=text.split()[3][:-2])
     if text.startswith(("Areas reset", "Areas saved")):
@@ -781,7 +820,9 @@ def _on_preview_drag(sender, app_data) -> None:
     tag = _drag_state["target"]
     x_attr, y_attr, x_tag, y_tag, size = _DRAG_AREAS[tag]
     status = _drag_bridge.latest_status()
-    roi = {"pv_bar": status.bar_roi, "pv_button": status.button_roi}.get(tag, (0, 0, 0, 0))
+    roi = {"pv_bar": status.bar_roi, "pv_button": status.button_roi}.get(
+        tag, (0, 0, 0, 0)
+    )
     if roi[2] <= 0 or roi[3] <= 0:
         # the bot has not been calibrated yet: use the preview pump's geometry
         roi = _drag_bridge.preview[_PREVIEW_ROI_KEYS[tag]]

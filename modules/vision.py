@@ -70,9 +70,7 @@ class VisionModule:
                 right_limit = img_width * (1.0 - ignore_margin_ratio)
                 # The border is normally ignored, but a target that was already
                 # heading for an edge may genuinely reach it: keep tracking there.
-                near_left = (
-                    last_known_x is not None and last_known_x <= left_limit * 6
-                )
+                near_left = last_known_x is not None and last_known_x <= left_limit * 6
                 near_right = (
                     last_known_x is not None
                     and last_known_x >= img_width - (img_width - right_limit) * 6
@@ -150,9 +148,9 @@ class VisionModule:
         relative to 4K (FHD = 0.5).
         """
         hsv = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
-        mask = (
-            (hsv[..., 1] <= _ICON_MAX_SAT) & (hsv[..., 2] >= _ICON_MIN_VAL)
-        ).astype(np.uint8) * 255
+        mask = ((hsv[..., 1] <= _ICON_MAX_SAT) & (hsv[..., 2] >= _ICON_MIN_VAL)).astype(
+            np.uint8
+        ) * 255
         k = max(3, int(round(_ICON_CLOSE_KERNEL_4K * scale)) | 1)
         mask = cv2.morphologyEx(
             mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))

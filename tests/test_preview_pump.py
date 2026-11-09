@@ -42,7 +42,9 @@ class TestPreviewPumpOcr(unittest.TestCase):
 
 class TestIconRoi(unittest.TestCase):
     def test_default_icon_area_sits_in_the_lower_right_with_a_small_margin(self):
-        roi = compute_icon_roi(AppConfig(), SimpleNamespace(x=0, y=0, width=1920, height=1080))
+        roi = compute_icon_roi(
+            AppConfig(), SimpleNamespace(x=0, y=0, width=1920, height=1080)
+        )
         self.assertLess(roi["left"] + roi["width"], 1920)
         self.assertGreater(roi["left"] + roi["width"], 1900)
         self.assertLess(roi["top"] + roi["height"], 1080)
@@ -63,7 +65,9 @@ class TestSnapshotAdjusting(unittest.TestCase):
     def test_snapshot_capture_honours_the_monitor_origin_and_clamps(self):
         image = np.zeros((1080, 1920, 3), np.uint8)
         snap = SnapshotCapture(image, 1920, 0)
-        crop = snap.grab_bgr({"left": 1920 + 1900, "top": 1070, "width": 500, "height": 500})
+        crop = snap.grab_bgr(
+            {"left": 1920 + 1900, "top": 1070, "width": 500, "height": 500}
+        )
         self.assertEqual(crop.shape[:2], (10, 20))
 
     def test_render_uses_the_snapshot_without_capturing(self):

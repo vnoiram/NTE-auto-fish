@@ -17,7 +17,6 @@ from screeninfo import get_monitors
 
 from config import CFG
 from gui.bridge import BotBridge
-from modules.roi import compute_icon_roi, compute_rois
 from gui.components import (
     apply_glass_card_theme,
     caption_text,
@@ -35,6 +34,7 @@ from gui.theme import (
     build_settings_cat_theme,
 )
 from gui.theme import _ui_scale as _s
+from modules.roi import compute_icon_roi, compute_rois
 from modules.utils import VERSION
 
 log = logging.getLogger("NTEFish")
@@ -585,9 +585,7 @@ def _start_calibration(kind: str, bridge: BotBridge) -> None:
     ).start()
 
 
-def _run_calibration(
-    kind: str, roi: dict, scale_sq: float, bridge: BotBridge
-) -> None:
+def _run_calibration(kind: str, roi: dict, scale_sq: float, bridge: BotBridge) -> None:
     from modules.calibration import describe, suggest_bite, suggest_gauge
     from modules.io_module import CaptureModule
 
@@ -684,7 +682,9 @@ def _apply_assist(bridge: BotBridge) -> None:
     if safe is None and cursor is None:
         return
     if any(s is not None and not _plausible(s) for s in (safe, cursor)):
-        dpg.set_value("cal_assist_text", tr("Suggestion is too wide to be safe; not applied."))
+        dpg.set_value(
+            "cal_assist_text", tr("Suggestion is too wide to be safe; not applied.")
+        )
         return
     if safe is not None:
         _apply_hsv("cfg_hsv_sz", CFG.hsv.safe_zone, safe)
@@ -704,7 +704,9 @@ _MIN_SAT_LOWER = 30
 
 def _plausible(sug) -> bool:
     """Reject suggestions so wide or washed-out that they would match background."""
-    return (sug.upper[0] - sug.lower[0]) <= _MAX_HUE_SPAN and sug.lower[1] >= _MIN_SAT_LOWER
+    return (sug.upper[0] - sug.lower[0]) <= _MAX_HUE_SPAN and sug.lower[
+        1
+    ] >= _MIN_SAT_LOWER
 
 
 def _reset_detection_colors() -> None:
@@ -716,7 +718,9 @@ def _reset_detection_colors() -> None:
         source = getattr(defaults, key)
         target.lower, target.upper = source.lower, source.upper
     _sync_detection_widgets()
-    _profile_msg(tr("Detection colors reset to default. Press Save Settings to keep them."))
+    _profile_msg(
+        tr("Detection colors reset to default. Press Save Settings to keep them.")
+    )
 
 
 def _apply_hsv(prefix: str, target, sug) -> None:
@@ -752,9 +756,7 @@ def _apply_calibration(kind: str) -> None:
 
 
 def _profile_names() -> list[str]:
-    return [
-        p["name"] for p in CFG.profiles if isinstance(p, dict) and "name" in p
-    ]
+    return [p["name"] for p in CFG.profiles if isinstance(p, dict) and "name" in p]
 
 
 def _profile_msg(msg: str) -> None:
@@ -767,7 +769,9 @@ def _profile_msg(msg: str) -> None:
 def _refresh_profile_combo(select: str | None = None) -> None:
     names = _profile_names()
     dpg.configure_item("cfg_profile_combo", items=names)
-    dpg.set_value("cfg_profile_combo", select if select in names else (names or [""])[0])
+    dpg.set_value(
+        "cfg_profile_combo", select if select in names else (names or [""])[0]
+    )
 
 
 def _sync_detection_widgets() -> None:
@@ -804,12 +808,16 @@ def _save_profile(bridge: BotBridge) -> None:
         return
     signature = bridge.background.signature()
     if signature is None:
-        _profile_msg(tr("No background samples yet. Let the bot wait for a bite first."))
+        _profile_msg(
+            tr("No background samples yet. Let the bot wait for a bite first.")
+        )
         return
     upsert_profile(CFG.profiles, make_profile(name, CFG, signature))
     CFG.active_profile = name
     _refresh_profile_combo(name)
-    _profile_msg(tr("Saved profile: {name}. Remember to press Save Settings.").format(name=name))
+    _profile_msg(
+        tr("Saved profile: {name}. Remember to press Save Settings.").format(name=name)
+    )
 
 
 def _delete_selected_profile() -> None:
@@ -884,7 +892,12 @@ def _build_vision_settings(bridge: BotBridge):
             ("Cast check area X offset", "cfg_roi_icon_x", "icon_offset_x", 600),
             ("Cast check area Y offset", "cfg_roi_icon_y", "icon_offset_y", 600),
             ("Cast check area width change", "cfg_roi_icon_w", "icon_width_delta", 800),
-            ("Cast check area height change", "cfg_roi_icon_h", "icon_height_delta", 400),
+            (
+                "Cast check area height change",
+                "cfg_roi_icon_h",
+                "icon_height_delta",
+                400,
+            ),
         ):
             dpg.add_slider_int(
                 label=tr(label),

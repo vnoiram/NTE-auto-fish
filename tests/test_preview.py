@@ -1,12 +1,11 @@
 import unittest
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import cv2
 import numpy as np
 
 from config import HsvConfig
-from types import SimpleNamespace
-from unittest.mock import MagicMock
-
 from modules.ocr import CatchOcr
 from modules.preview import (
     BAR_SIZE,
@@ -19,7 +18,9 @@ from modules.preview import (
 
 
 def _bgr(h, s, v):
-    return tuple(int(c) for c in cv2.cvtColor(np.uint8([[[h, s, v]]]), cv2.COLOR_HSV2BGR)[0, 0])
+    return tuple(
+        int(c) for c in cv2.cvtColor(np.uint8([[[h, s, v]]]), cv2.COLOR_HSV2BGR)[0, 0]
+    )
 
 
 class TestPreview(unittest.TestCase):
@@ -35,7 +36,9 @@ class TestPreview(unittest.TestCase):
 
     def test_bar_preview_without_detections(self):
         hsv = HsvConfig()
-        out = render_bar_preview(np.zeros((64, 1441, 3), np.uint8), None, None, hsv.safe_zone, hsv.cursor)
+        out = render_bar_preview(
+            np.zeros((64, 1441, 3), np.uint8), None, None, hsv.safe_zone, hsv.cursor
+        )
         self.assertEqual(out.shape[2], 4)
 
     def test_button_preview_counts_blue_pixels(self):

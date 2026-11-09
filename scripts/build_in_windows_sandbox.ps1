@@ -60,6 +60,11 @@ try {
         "TargetDir=$pythonDirectory",
         "Include_pip=1",
         "Include_test=0",
+        "Include_doc=0",
+        "Include_launcher=0",
+        "Include_dev=0",
+        "Include_symbols=0",
+        "Include_debug=0",
         "PrependPath=0"
     ) -Wait -PassThru
     if ($install.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $python)) {

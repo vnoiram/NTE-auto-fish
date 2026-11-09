@@ -30,7 +30,7 @@
 - **更好的缺饵/抛竿失败检测**：不再依赖对话框文字或等待时间，而是检查抛竿后动作栏图标是否仍然可见。它不依赖游戏语言，也不依赖时间，因此更稳定。
 - **日间/傍晚/夜间配置（实验性）**：为不同时段提供检测颜色配置，并可自动识别背景来切换配置，从而提高检测率。
 - **更快的区域检查 OCR。**
-- **GUI 与 CLI 合为一个可执行文件**：不再有单独的 CLI 包；同一个 EXE 默认打开 GUI，带参数启动时则作为 CLI 运行。
+- **GUI 与 CLI 合为一个可执行文件**：同一个 EXE 默认打开 GUI，带参数启动时则作为 CLI 运行；同时仍照常发布单独的 CLI 源码包。
 - **更多构建方式**：可在 Windows Sandbox 中本地构建，也可在 Linux 上准备后由 Windows 的 GitHub Actions 运行器构建 EXE 并下载（详见英文版 README 的构建章节）。
 - **角色图标与随机构建名称**：默认图标为角色插画，每次构建的名称中都带有随机构建 ID（可用 `--build-id none` 得到不带 ID 的名称）。
 
@@ -73,7 +73,13 @@
    （命令：`start`、`calibrate`、`config show/set`、`reset`）。不带参数时打开 GUI。由于 EXE 会请求管理员权限，
    如需在同一窗口查看输出，请在管理员终端中运行；否则会弹出新的控制台窗口。
 
-### 方式二：从源码运行
+### 方式二：CLI 包
+
+1. 从 [Releases](https://github.com/vnoiram/NTE-auto-fish/releases) 下载 `NTE-Auto-Fish-v*.*.*-CLI.zip` 并解压。
+2. 先执行 `python -m pip install -r requirements.txt` 安装依赖。
+3. 更多用法请在终端运行 `python main.py --help`。可用命令：`start`、`calibrate`、`config show/set`、`reset`。
+
+### 方式三：从源码运行
 
 ```bash
 git clone https://github.com/vnoiram/NTE-auto-fish.git

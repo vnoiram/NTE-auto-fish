@@ -33,7 +33,7 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 - **Better bait-exhausted / failed-cast detection**: Instead of reading dialog text or relying on waiting times, it checks whether the action-bar icons are still visible after a cast. It does not depend on the game language or on timing, so it is stable.
 - **Day / evening / night profiles (experimental)**: Detection colour profiles for each time of day, plus automatic recognition of the background to switch profiles and raise the detection rate.
 - **Faster area-check OCR.**
-- **One executable for GUI and CLI**: There is no separate CLI package; the same EXE opens the GUI, or runs the CLI when started with arguments.
+- **GUI and CLI in one executable**: The same EXE opens the GUI, or runs the CLI when started with arguments. The separate CLI source package is still published as well.
 - **More ways to build**: Build locally in Windows Sandbox, or prepare on Linux and let the Windows GitHub Actions runner build the EXE and download it (see the build sections below).
 - **Character icon and random build names**: The default icon is the character artwork, and every build gets a random build ID in its name (pass `--build-id none` for a plain name).
 
@@ -76,7 +76,13 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
    (commands: `start`, `calibrate`, `config show/set`, `reset`). With no arguments it opens the GUI. Because the EXE requests
    administrator rights, run it from an elevated terminal to see output in the same window; otherwise a new console window opens.
 
-### Option 2: Run From Source
+### Option 2: CLI Package
+
+1. Download `NTE-Auto-Fish-v*.*.*-CLI.zip` from [Releases](https://github.com/vnoiram/NTE-auto-fish/releases) and extract it.
+2. Install dependencies once with `python -m pip install -r requirements.txt`.
+3. For more options, run `python main.py --help` in a terminal. Available commands: `start`, `calibrate`, `config show/set`, `reset`.
+
+### Option 3: Run From Source
 
 ```bash
 git clone https://github.com/vnoiram/NTE-auto-fish.git

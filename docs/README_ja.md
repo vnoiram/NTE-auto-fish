@@ -30,7 +30,7 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 - **エサ不足・キャスト失敗の検知を改善**：ダイアログの文字や待ち時間に頼らず、キャスト後にアクションバーのアイコンが残っているかで判定します。ゲームの言語にも時間的なタイミングにも依存しないので、安定して検知できます。
 - **昼・夕・夜のプロファイル(実験的)**：時間帯ごとの検知色のプロファイルを用意し、背景を自動で認識してプロファイルを切り替えることで、検知率を高める機能を追加しました。
 - **領域確認の OCR を高速化**しました。
-- **GUI と CLI を 1 つの実行ファイルに統合**：CLI 専用のパッケージはありません。同じ EXE が GUI として開き、引数付きで起動すると CLI として動きます。
+- **GUI と CLI を 1 つの実行ファイルに統合**：同じ EXE が GUI として開き、引数付きで起動すると CLI として動きます。CLI 用のソースパッケージも、従来どおり別に配布しています。
 - **ビルド方法の追加**：Windows Sandbox でのローカルビルドと、Linux で準備して Windows の GitHub Actions ランナーでビルドし、EXE をダウンロードする方法を追加しました(下のビルドの節を参照)。
 - **キャラクターのアイコンとランダムなビルド名**：既定のアイコンはキャラクターのイラストで、ビルドごとにランダムなビルド ID が名前に付きます(`--build-id none` で ID なしの名前にできます)。
 
@@ -73,7 +73,13 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
    (コマンド：`start`、`calibrate`、`config show/set`、`reset`)。引数なしで起動すると GUI が開きます。EXE は管理者権限を要求するため、
    同じウィンドウに出力を表示するには、管理者権限のターミナルから実行してください。そうでない場合は、新しいコンソールウィンドウが開きます。
 
-### 方法 2：ソースから実行
+### 方法 2：CLI パッケージ
+
+1. [Releases](https://github.com/vnoiram/NTE-auto-fish/releases) から `NTE-Auto-Fish-v*.*.*-CLI.zip` をダウンロードして展開します。
+2. 事前に `python -m pip install -r requirements.txt` を実行して依存関係をインストールしてください。
+3. 詳細はターミナルで `python main.py --help` を実行してください。利用可能なコマンド：`start`、`calibrate`、`config show/set`、`reset`。
+
+### 方法 3：ソースから実行
 
 ```bash
 git clone https://github.com/vnoiram/NTE-auto-fish.git

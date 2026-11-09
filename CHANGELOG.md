@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.13.0](https://github.com/vnoiram/NTE-auto-fish/compare/v0.12.0...v0.13.0) (2026-11-09)
+
+
+### Features
+
+* add a reset for detection colors and refuse overly wide calibration results ([4de0f47](https://github.com/vnoiram/NTE-auto-fish/commit/4de0f470791d2777b19570316ac1318a25395f2c))
+* add background-colour detection profiles with built-in day and evening presets ([908a513](https://github.com/vnoiram/NTE-auto-fish/commit/908a5133a358e5062d397ac18dc1f2b11b52dacd))
+* add cast check area offset sliders to the settings ([cba713a](https://github.com/vnoiram/NTE-auto-fish/commit/cba713ab6d6aa63377fc8acde7c2e0b851d011d0))
+* allow the auto stop time to be set in seconds as well as minutes ([63b8d24](https://github.com/vnoiram/NTE-auto-fish/commit/63b8d24c46ab7db8a382c72542e6d3a00652b190))
+* area check takes one game snapshot and updates the previews locally from it ([b2b3fc8](https://github.com/vnoiram/NTE-auto-fish/commit/b2b3fc897dbe30c4166b392182e147d946661e27))
+* auto-select the monitor showing the game window on launch, with an opt-out setting ([551b4b9](https://github.com/vnoiram/NTE-auto-fish/commit/551b4b98baf20ce7e90c049f6fde04873108bd88))
+* detect failed casts by the action-bar icons that vanish after a successful cast ([8ef6449](https://github.com/vnoiram/NTE-auto-fish/commit/8ef64491c062ac3c81fb9ea673bedc3c213e43a6))
+* drag-and-drop bar and bite areas in the scan area editor and a compact PID panel ([ff27fd9](https://github.com/vnoiram/NTE-auto-fish/commit/ff27fd99d23e5e3583f3c8e2cb9b9b3149066c11))
+* follow the OS language on first launch and always load a Japanese-capable font; clearer area check feedback ([9d0b501](https://github.com/vnoiram/NTE-auto-fish/commit/9d0b501e348d451206ac3c9451af1932b4552a2e))
+* judge bait exhaustion only by repeated failed casts (icons) and run OCR in the area check ([df0b48b](https://github.com/vnoiram/NTE-auto-fish/commit/df0b48b0cc79114743ce21d378268e127664e2f2))
+* keep tracker previews and drag adjustment working while the bot is stopped; confirm and capture cast-error matches ([aff23fd](https://github.com/vnoiram/NTE-auto-fish/commit/aff23fdb966194c33db44eb9e5f75399bdbd523d))
+* learn background colors while waiting and ignore them in gauge calibration ([c3e7d93](https://github.com/vnoiram/NTE-auto-fish/commit/c3e7d934c8fcddb9864df89ce2e1ea8ef71f45bf))
+* let the GUI executable run the CLI when started with arguments ([f958f7d](https://github.com/vnoiram/NTE-auto-fish/commit/f958f7da61476cbf47c2bc08390fd8d57e304f2a))
+* live tracker toggle with a one-line explanation of how the bars are judged ([5a1c4ed](https://github.com/vnoiram/NTE-auto-fish/commit/5a1c4ed754fbffe8338f9f796cbb4f2e88282c1f))
+* measure bite and gauge colors from the current screen ([144bee0](https://github.com/vnoiram/NTE-auto-fish/commit/144bee0f759e94a106d99f0da7049eadf457a356))
+* measure the gauge at the start of every fight as a non-invasive assist ([a57fbd6](https://github.com/vnoiram/NTE-auto-fish/commit/a57fbd617232099dc58a4ae3b6fa4c68022b7d45))
+* open the on-screen area editor from the dashboard and make it start from the effective areas ([6d1e311](https://github.com/vnoiram/NTE-auto-fish/commit/6d1e311ffb2053d3affe7f03d5ad6ab5946f50f0))
+* per-area and all-areas reset, draggable cast check area, explicit save of area changes ([5e3221e](https://github.com/vnoiram/NTE-auto-fish/commit/5e3221ed005369c607597d9c6f90f617814941e7))
+* set the auto stop (fish count / minutes) from the dashboard, counted from the moment it is set ([ee4ad8b](https://github.com/vnoiram/NTE-auto-fish/commit/ee4ad8ba3a5a9e558c83e48ea35f2a54d9ca3f56))
+* shift scan areas by dragging the tracker preview images ([d49588a](https://github.com/vnoiram/NTE-auto-fish/commit/d49588a1bbcb73171e50e9035a789fcdf03cbafb))
+* show cast-error retries in the status and allow turning off bait exhaustion detection ([f54064d](https://github.com/vnoiram/NTE-auto-fish/commit/f54064d8b2e77c74bfa46942bcbf06264ada5be9))
+* show live capture previews and OCR source images in the dashboard tracker ([7b6dad1](https://github.com/vnoiram/NTE-auto-fish/commit/7b6dad15fb9caafafb6bfd885419985e9f61fe7d))
+* show why the bot stopped next to the start button ([6b22332](https://github.com/vnoiram/NTE-auto-fish/commit/6b2233210b7a16553c8cf4bfaf88d97ebf43fac0))
+* start the area preview and drag adjustment with a button while the bot is stopped ([5540cba](https://github.com/vnoiram/NTE-auto-fish/commit/5540cbaf50534e388f4598c7d45a4f768c370cb8))
+* state on the dashboard that 0 means no limit for the auto stop ([817a729](https://github.com/vnoiram/NTE-auto-fish/commit/817a7290c627aeb98f0f1e76d8de969f8542cd94))
+* stay in the fishing battle while selected bars are visible and add cast-key spam ([98323b5](https://github.com/vnoiram/NTE-auto-fish/commit/98323b52e30ba9ff32ae588cff8ea82729e564f2))
+* stop automatically after a set fish count or running time ([f2feaab](https://github.com/vnoiram/NTE-auto-fish/commit/f2feaab0ab3fa6008d1c03f6f131479c052df288))
+* tuned default timing and humanization, plus a random pause before the first cast after start ([2a94fe5](https://github.com/vnoiram/NTE-auto-fish/commit/2a94fe5fda7aa82cfc690b60b76a836941d3e885))
+* widen the default bar area by 20 px per side at 4K, keeping its centre ([e6ed9ad](https://github.com/vnoiram/NTE-auto-fish/commit/e6ed9ad22ad1c90baba9e9685228fac6986d7455))
+* width and height adjustment for the bite and cast check areas ([1a97d50](https://github.com/vnoiram/NTE-auto-fish/commit/1a97d505eceec956d60a0cc84f160c0ac11b0a74))
+
+
+### Bug Fixes
+
+* allow the area check while the bot is paused, not only after it is stopped ([03b1039](https://github.com/vnoiram/NTE-auto-fish/commit/03b1039a0d6124ce99b1e1d6d9eb30d8fc3e8ce3))
+* end the timed auto stop at a clean point, after the fish in progress, before the next cast ([3c0a5d2](https://github.com/vnoiram/NTE-auto-fish/commit/3c0a5d200a3b6e6cece3abcedfded3874c8226fd))
+* keep the night sky and gauge icons out of gauge calibration; add night profile and samples ([12f976b](https://github.com/vnoiram/NTE-auto-fish/commit/12f976b05871c089ee9aa044dab2c5265735e25d))
+* keep tracking the cursor when it reaches the very edge of the bar area ([7c969e1](https://github.com/vnoiram/NTE-auto-fish/commit/7c969e12f14c1fe4c096e7ed9dcac8eaf5b9153e))
+* leave a small margin to the screen edges in the default icon area ([ca66531](https://github.com/vnoiram/NTE-auto-fish/commit/ca6653111f8d612f3c5ee4c569b774caef3e4537))
+* limit gauge calibration to hues near the current safe zone and cursor ranges ([c472f83](https://github.com/vnoiram/NTE-auto-fish/commit/c472f83eb059faac5e9db681fe47247f7c61df16))
+* recalibrate on start when the game monitor was changed while the bot was paused ([f5b625a](https://github.com/vnoiram/NTE-auto-fish/commit/f5b625abe03ff0324d7d3c914f9e61e656baa201))
+* relax gauge calibration thresholds and report diagnostics on failure ([9e4a106](https://github.com/vnoiram/NTE-auto-fish/commit/9e4a10642a7c5e81b1725ff66d28c7ea2e0e7d5e))
+* require error dialog text to be centered so edge hints in dark scenes do not count as bait exhaustion ([52a121c](https://github.com/vnoiram/NTE-auto-fish/commit/52a121c614df2171f782adeb41cfc1d706c9ff20))
+* restore global battle-bar detection so visible bars start the fight from any state ([6f5ee13](https://github.com/vnoiram/NTE-auto-fish/commit/6f5ee136d64bd0467e5d5705a2b629d0ed4b6b9f))
+* show area check progress log under the buttons and place retake next to check ([82a683c](https://github.com/vnoiram/NTE-auto-fish/commit/82a683c0cfa6f1062fda5f619febbb296e925c7b))
+* stop false bar matches from pre-empting the bite and add scan area adjustment ([c4bbf02](https://github.com/vnoiram/NTE-auto-fish/commit/c4bbf02c189c1949dbc26b3038af215e657ee104))
+
+
+### Performance Improvements
+
+* lighter tracker previews with OCR in its own thread, plus preview zoom ([711dff7](https://github.com/vnoiram/NTE-auto-fish/commit/711dff7cd78974a8c50382d557cde3ec012d868b))
+* speed up area-check OCR by pre-loading the engine, skipping the angle classifier and downscaling large crops ([13d9151](https://github.com/vnoiram/NTE-auto-fish/commit/13d91515dee0be55d22344901e4a5a5295342900))
+
 ## [0.12.0](https://github.com/vnoiram/NTE-auto-fish/compare/v0.11.0...v0.12.0) (2026-11-09)
 
 

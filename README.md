@@ -35,7 +35,7 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 - **Faster area-check OCR.**
 - **Stable builds**: The default icon is the character artwork and builds get a plain, fixed name (no random build ID unless you ask for one).
 
-**Why there is no pull request upstream:** this fork replaces the random-name option with a fixed name, swaps the icon for a different character, and moves the Python version (CI and builds) from 3.11 to 3.14. These are "religious" differences (in the engineer sense: matters of taste, not of correctness), so I do not intend to have them merged upstream.
+**Why there is no pull request upstream:** there are "religious" differences (in the engineer sense: matters of taste, not of correctness) between upstream and this fork: a fixed name instead of a random one, a different character as the icon, and Python 3.14 instead of 3.11. This fork implements them, I prefer them, and I do not want to push them onto upstream.
 
 **Support policy:** this fork is disposable. There will be no regular updates and no effort to follow upstream changes.
 

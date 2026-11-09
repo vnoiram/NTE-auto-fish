@@ -24,7 +24,7 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 
 This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizukuo/NTE-auto-fish). The additions below were written by the fork's author and are what make this fork the better choice for day-to-day use:
 
-- **Game monitor auto-select**: On launch the monitor that shows the game window is picked automatically (can be turned off in Settings), and the bot recalibrates if you change the monitor while paused.
+- **Game monitor auto-select (experimental)**: On launch the monitor that shows the game window is picked automatically (can be turned off in Settings), and the bot recalibrates if you change the monitor while paused.
 - **Auto stop from the dashboard**: Set a fish count and/or a time (minutes and seconds) and press Set. Counting starts from that moment, `0` means no limit, and a timed stop waits for the fish in progress and ends before the next cast.
 - **Start delay**: A random 1.4-2.6 s pause between pressing Start and the first cast, so the game window can take focus.
 - **Much better area editing**: A progress log for the area check, retake next to the check button, a one-click on-screen editor, per-area and all-areas reset, an explicit Save, and drag or width/height adjustment for the bite and cast check areas too.

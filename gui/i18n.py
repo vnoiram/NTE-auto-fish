@@ -117,6 +117,8 @@ _JA = {
     "Bar area width change": "バー領域 幅の増減",
     "Bar area height change": "バー領域 高さの増減",
     "Bite area X offset": "アタリ領域 X位置",
+    "Cast check area X offset": "キャスト判定領域 X位置",
+    "Cast check area Y offset": "キャスト判定領域 Y位置",
     "Bite area Y offset": "アタリ領域 Y位置",
     "Stopped: {reason}": "停止: {reason}",
     "Screen capture failed at calibration": "キャリブレーション時の画面キャプチャに失敗",

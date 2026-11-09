@@ -458,7 +458,7 @@ _DRAG_AREAS = {
         "cfg_roi_btn_y",
         BUTTON_SIZE,
     ),
-    "pv_icons": ("icon_offset_x", "icon_offset_y", "", "", ICON_SIZE),
+    "pv_icons": ("icon_offset_x", "icon_offset_y", "cfg_roi_icon_x", "cfg_roi_icon_y", ICON_SIZE),
 }
 _PREVIEW_ROI_KEYS = {"pv_bar": "bar_roi", "pv_button": "button_roi", "pv_icons": "icon_roi"}
 _drag_state: dict = {"target": None, "start": None}
@@ -559,6 +559,8 @@ _OFFSET_WIDGETS = {
     "bar_height_delta": "cfg_roi_bar_h",
     "button_offset_x": "cfg_roi_btn_x",
     "button_offset_y": "cfg_roi_btn_y",
+    "icon_offset_x": "cfg_roi_icon_x",
+    "icon_offset_y": "cfg_roi_icon_y",
 }
 
 

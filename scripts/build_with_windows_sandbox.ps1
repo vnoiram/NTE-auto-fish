@@ -107,18 +107,24 @@ $logonCommand
     Write-Host "The first build downloads Python and dependencies; later builds reuse the local download cache."
     if ($Manual) {
         Write-Host ""
-        Write-Host "Manual mode: open PowerShell inside Windows Sandbox and run this command:"
+        Write-Host "Manual mode: Windows Sandbox is NOT started automatically."
+        Write-Host "1. Start Windows Sandbox by opening this file (double-click it in Explorer):"
+        Write-Host $configurationPath -ForegroundColor Cyan
+        Write-Host "2. Open PowerShell inside Windows Sandbox and run this command:"
         Write-Host $guestBuildCommand -ForegroundColor Cyan
+        Write-Host "This script keeps waiting (up to $TimeoutMinutes minutes) and collects the EXE when the build finishes."
+        Write-Host ""
         try {
             Set-Clipboard -Value $guestBuildCommand
-            Write-Host "(Copied to the clipboard; paste it with Ctrl+V inside the Sandbox.)"
+            Write-Host "(The command was copied to the clipboard; paste it with Ctrl+V inside the Sandbox.)"
         }
         catch {
             # Clipboard access is a convenience only.
         }
-        Write-Host ""
     }
-    $sandboxProcess = Start-Process -FilePath $sandboxCommand.Source -ArgumentList "`"$configurationPath`"" -PassThru
+    else {
+        $sandboxProcess = Start-Process -FilePath $sandboxCommand.Source -ArgumentList "`"$configurationPath`"" -PassThru
+    }
     $successMarker = Join-Path $stagedOutput "build-success.txt"
     $errorMarker = Join-Path $stagedOutput "build-error.txt"
     $deadline = [DateTime]::UtcNow.AddMinutes($TimeoutMinutes)
@@ -128,7 +134,7 @@ $logonCommand
     while ([DateTime]::UtcNow -lt $deadline) {
         if (Test-Path -LiteralPath $successMarker) { break }
         if (Test-Path -LiteralPath $errorMarker) {
-            if (-not $sandboxProcess.HasExited) {
+            if ($null -ne $sandboxProcess -and -not $sandboxProcess.HasExited) {
                 [void]$sandboxProcess.WaitForExit(30000)
             }
             Copy-Item -LiteralPath $errorMarker -Destination $OutputDirectory -Force
@@ -138,7 +144,7 @@ $logonCommand
             }
             throw (Get-Content -LiteralPath $errorMarker -Raw)
         }
-        if ($sandboxProcess.HasExited) {
+        if ($null -ne $sandboxProcess -and $sandboxProcess.HasExited) {
             # WindowsSandbox.exe can be a short-lived launcher, so also check the Sandbox session processes.
             $sessionProcesses = @(Get-Process -Name "WindowsSandboxClient", "WindowsSandboxRemoteSession" -ErrorAction SilentlyContinue)
             if ($sessionProcesses.Count -eq 0) {
@@ -151,12 +157,12 @@ $logonCommand
             }
         }
         Start-Sleep -Seconds 2
-        $sandboxProcess.Refresh()
+        if ($null -ne $sandboxProcess) { $sandboxProcess.Refresh() }
     }
     if (-not (Test-Path -LiteralPath $successMarker)) {
         throw "Windows Sandbox build timed out after $TimeoutMinutes minutes."
     }
-    if (-not $sandboxProcess.HasExited) {
+    if ($null -ne $sandboxProcess -and -not $sandboxProcess.HasExited) {
         [void]$sandboxProcess.WaitForExit(30000)
     }
 

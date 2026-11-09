@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = "build.yml"
 ARTIFACT = "NTE-Auto-Fish-GUI-Windows"
+BUILTIN_ICON_NAMES = frozenset({"classic", "bobber", "target-fish", "fisher-cat"})
 
 
 def run(*args: str, capture: bool = False) -> str:
@@ -51,7 +52,11 @@ def workflow_run_ids(ref: str) -> set[str]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-name", default="NTE Auto-Fish")
-    parser.add_argument("--icon", default="assets/icons/app.ico")
+    parser.add_argument(
+        "--icon",
+        default="random",
+        help="Built-in name (classic, bobber, target-fish, fisher-cat), random, or a repository .ico path",
+    )
     parser.add_argument("--build-id", default="", help="Optional stable ID; omitted generates a unique ID")
     parser.add_argument("--ref", help="Pushed branch or tag; defaults to the current branch")
     parser.add_argument("--output-dir", default="dist/remote")
@@ -65,18 +70,20 @@ def main() -> int:
             print(f"error: required command not found: {command}", file=sys.stderr)
             return 2
 
-    icon = Path(args.icon)
-    if icon.is_absolute():
-        print("error: --icon must be a repository-relative .ico path", file=sys.stderr)
-        return 2
-    if icon.suffix.lower() != ".ico" or not (ROOT / icon).is_file():
-        print(f"error: icon is not an existing .ico file: {icon}", file=sys.stderr)
-        return 2
-    try:
-        run("git", "ls-files", "--error-unmatch", str(icon), capture=True)
-    except subprocess.CalledProcessError:
-        print("error: the icon must be committed so the Windows runner can read it", file=sys.stderr)
-        return 2
+    icon_value = args.icon.strip()
+    if icon_value.lower() not in {"random", *BUILTIN_ICON_NAMES}:
+        icon = Path(icon_value)
+        if icon.is_absolute():
+            print("error: --icon must be a built-in name or repository-relative .ico path", file=sys.stderr)
+            return 2
+        if icon.suffix.lower() != ".ico" or not (ROOT / icon).is_file():
+            print(f"error: icon is not an existing .ico file: {icon}", file=sys.stderr)
+            return 2
+        try:
+            run("git", "ls-files", "--error-unmatch", str(icon), capture=True)
+        except subprocess.CalledProcessError:
+            print("error: the icon must be committed so the Windows runner can read it", file=sys.stderr)
+            return 2
 
     ref = args.ref or run("git", "branch", "--show-current", capture=True)
     if not ref:
@@ -95,7 +102,7 @@ def main() -> int:
         "-f",
         f"app_name={args.app_name}",
         "-f",
-        f"icon_path={icon.as_posix()}",
+        f"icon_path={icon_value}",
         "-f",
         f"build_id={args.build_id}",
     )

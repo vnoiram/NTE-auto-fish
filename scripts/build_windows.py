@@ -8,6 +8,7 @@ import importlib.util
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -17,7 +18,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_APP_NAME = "NTE Auto-Fish"
-DEFAULT_ICON = Path("assets/icons/app.ico")
+DEFAULT_ICON = "random"
+BUILTIN_ICONS = {
+    "classic": Path("assets/icons/app.ico"),
+    "bobber": Path("assets/icons/bobber.ico"),
+    "target-fish": Path("assets/icons/target-fish.ico"),
+    "fisher-cat": Path("assets/icons/fisher-cat.ico"),
+}
 
 EXCLUDED_MODULES = (
     "unittest",
@@ -70,6 +77,11 @@ def new_build_id() -> str:
 
 
 def resolve_icon(value: str) -> Path:
+    choice = value.strip().lower()
+    if choice == "random":
+        choice = secrets.choice(tuple(BUILTIN_ICONS))
+    if choice in BUILTIN_ICONS:
+        value = str(BUILTIN_ICONS[choice])
     path = Path(value)
     if not path.is_absolute():
         path = ROOT / path
@@ -145,7 +157,11 @@ def prepare_branding(app_name: str, build_id: str, icon_path: Path) -> tuple[Pat
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-name", default=DEFAULT_APP_NAME)
-    parser.add_argument("--icon", default=str(DEFAULT_ICON))
+    parser.add_argument(
+        "--icon",
+        default=DEFAULT_ICON,
+        help="Built-in name (classic, bobber, target-fish, fisher-cat), random, or an .ico path",
+    )
     parser.add_argument("--build-id", help="Unique ID; defaults to a random 12-character value")
     parser.add_argument("--dist-dir", default="dist")
     parser.add_argument("--github-env", help="Append FILENAME to a GitHub Actions env file")
@@ -162,6 +178,12 @@ def main() -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+    try:
+        selected_icon = icon_path.relative_to(ROOT)
+    except ValueError:
+        selected_icon = icon_path
+    print(f"Selected icon: {selected_icon}", file=sys.stderr)
 
     dist_dir = Path(args.dist_dir)
     if not dist_dir.is_absolute():

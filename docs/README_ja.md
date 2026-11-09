@@ -80,12 +80,14 @@ Linux 用スクリプトは GitHub Actions の Windows runner を起動し、生
 ```bash
 ./scripts/build-from-linux.sh \
   --app-name "Fishing Tools" \
-  --icon assets/icons/app.ico
+  --icon random
 ```
 
 成果物は `dist/remote/` に保存されます。`--app-name` は EXE・ウィンドウ・サイドバー名へ、`--icon` は
-EXE とウィンドウアイコンへ反映されます。Windows 上で直接ビルドする場合は
-`python scripts/build_windows.py --app-name "Fishing Tools" --icon path/to/app.ico` を実行します。Windowsの
+EXE とウィンドウアイコンへ反映されます。組み込みアイコンは `classic`、`bobber`、`target-fish`、
+`fisher-cat` の4種類で、既定の `random` はビルドごとに1種類を選びます。独自の `.ico` パスも指定できます。
+Windows 上で直接ビルドする場合は
+`python scripts/build_windows.py --app-name "Fishing Tools" --icon random` を実行します。Windowsの
 タイトルバー文字化けを避けるため、アプリ名はASCII文字のみ指定できます。
 各ビルドには衝突防止用の12文字ビルドIDが自動生成され、EXE名とウィンドウタイトルへ反映されます。
 固定IDが必要な場合は `--build-id my-id` を指定します。

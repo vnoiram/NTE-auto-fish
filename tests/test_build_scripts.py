@@ -6,9 +6,12 @@ from unittest.mock import patch
 
 from modules import branding
 from scripts.build_windows import (
+    BUILTIN_ICONS,
+    ROOT,
     filename_slug,
     new_build_id,
     pyinstaller_command,
+    resolve_icon,
     validate_app_name,
     validate_build_id,
 )
@@ -69,6 +72,21 @@ class TestWindowsBuildScript(unittest.TestCase):
         self.assertNotEqual(first, second)
         self.assertEqual(validate_build_id(first), first)
         self.assertEqual(len(first), 12)
+
+    def test_all_builtin_icons_exist_and_are_windows_icons(self):
+        self.assertEqual(
+            set(BUILTIN_ICONS),
+            {"classic", "bobber", "target-fish", "fisher-cat"},
+        )
+        for name, relative_path in BUILTIN_ICONS.items():
+            with self.subTest(name=name):
+                resolved = resolve_icon(name)
+                self.assertEqual(resolved, (ROOT / relative_path).resolve())
+                self.assertEqual(resolved.read_bytes()[:4], b"\x00\x00\x01\x00")
+
+    def test_random_icon_uses_a_builtin_choice(self):
+        with patch("scripts.build_windows.secrets.choice", return_value="fisher-cat"):
+            self.assertEqual(resolve_icon("random"), resolve_icon("fisher-cat"))
 
     def test_pyinstaller_command_contains_branding_resources(self):
         command = pyinstaller_command(

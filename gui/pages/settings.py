@@ -6,6 +6,7 @@ import json
 import logging
 import queue
 import threading
+import time
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -553,6 +554,109 @@ def _do_export(session_id: str, fmt: str, modal_tag: str) -> None:
             )
 
 
+_CAL_COUNTDOWN_SECS = 3
+_cal_pending: dict[str, object] = {}
+
+
+def _cal_text(kind: str, msg: str) -> None:
+    try:
+        dpg.set_value(f"cal_{kind}_result", msg)
+    except Exception:
+        log.debug("Calibration text update failed", exc_info=True)
+
+
+def _fmt_hsv(sug) -> str:
+    return f"H {sug.lower[0]}-{sug.upper[0]}, S {sug.lower[1]}-{sug.upper[1]}, V {sug.lower[2]}-{sug.upper[2]}"
+
+
+def _start_calibration(kind: str, bridge: BotBridge) -> None:
+    status = bridge.latest_status()
+    roi_t = status.button_roi if kind == "bite" else status.bar_roi
+    if not roi_t or roi_t[2] <= 0 or roi_t[3] <= 0:
+        _cal_text(kind, tr("Start the bot once so the scan areas are known."))
+        return
+    dpg.configure_item(f"cal_{kind}_apply", show=False)
+    dpg.configure_item(f"cal_{kind}_btn", enabled=False)
+    scale_sq = status.current_scale * status.current_scale
+    roi = {"left": roi_t[0], "top": roi_t[1], "width": roi_t[2], "height": roi_t[3]}
+    threading.Thread(
+        target=_run_calibration, args=(kind, roi, scale_sq), daemon=True
+    ).start()
+
+
+def _run_calibration(kind: str, roi: dict, scale_sq: float) -> None:
+    from modules.calibration import suggest_bite, suggest_gauge
+    from modules.io_module import CaptureModule
+
+    capture = CaptureModule()
+    try:
+        for left in range(_CAL_COUNTDOWN_SECS, 0, -1):
+            _cal_text(kind, tr("Measuring in {n}s...").format(n=left))
+            time.sleep(1.0)
+        img = capture.grab_bgr(roi)
+        if kind == "bite":
+            sug = suggest_bite(img)
+            if sug is None:
+                _cal_text(kind, tr("No matching color found. Is the prompt visible?"))
+                return
+            min_px = max(1, int(sug.pixels * 0.5 / max(scale_sq, 1e-6)))
+            _cal_pending["bite"] = (sug, min_px)
+            _cal_text(
+                kind,
+                f"{_fmt_hsv(sug)} / {sug.pixels}px -> "
+                + tr("pixel trigger {n}").format(n=min_px),
+            )
+        else:
+            safe, cursor = suggest_gauge(img)
+            if safe is None and cursor is None:
+                _cal_text(kind, tr("No matching color found. Is the gauge visible?"))
+                return
+            _cal_pending["gauge"] = (safe, cursor)
+            lines = []
+            if safe is not None:
+                lines.append(f"{tr('Safe Zone HSV')}: {_fmt_hsv(safe)}")
+            if cursor is not None:
+                lines.append(f"{tr('Cursor HSV')}: {_fmt_hsv(cursor)}")
+            _cal_text(kind, "\n".join(lines))
+        dpg.configure_item(f"cal_{kind}_apply", show=True)
+    except Exception as exc:
+        log.warning("Calibration failed: %s", exc, exc_info=True)
+        _cal_text(kind, tr("Measurement failed: {e}").format(e=exc))
+    finally:
+        capture.close()
+        try:
+            dpg.configure_item(f"cal_{kind}_btn", enabled=True)
+        except Exception:
+            log.debug("Calibration button re-enable failed", exc_info=True)
+
+
+def _apply_hsv(prefix: str, target, sug) -> None:
+    target.lower = tuple(sug.lower)
+    target.upper = tuple(sug.upper)
+    dpg.set_value(f"{prefix}_lower", list(target.lower))
+    dpg.set_value(f"{prefix}_upper", list(target.upper))
+    update_hsv_preview(prefix, target)
+
+
+def _apply_calibration(kind: str) -> None:
+    pending = _cal_pending.pop(kind, None)
+    if pending is None:
+        return
+    if kind == "bite":
+        sug, min_px = pending
+        _apply_hsv("cfg_hsv_bl", CFG.hsv.blue, sug)
+        CFG.min_blue_pixels = min_px
+        dpg.set_value("cfg_min_blue", min_px)
+    else:
+        safe, cursor = pending
+        if safe is not None:
+            _apply_hsv("cfg_hsv_sz", CFG.hsv.safe_zone, safe)
+        if cursor is not None:
+            _apply_hsv("cfg_hsv_cur", CFG.hsv.cursor, cursor)
+    dpg.configure_item(f"cal_{kind}_apply", show=False)
+    _cal_text(kind, tr("Applied. Remember to press Save Settings."))
+
+
 def _build_vision_settings(bridge: BotBridge):
     with dpg.group(tag="settings_group_vision"):
         section_header("Vision & Detection", color=ACCENT)
@@ -598,6 +702,43 @@ def _build_vision_settings(bridge: BotBridge):
             width=140,
             default=CFG.min_blue_pixels,
             cb=lambda s, d: _set_int(CFG, "min_blue_pixels", d, "cfg_min_blue", 1),
+        )
+
+        dpg.add_spacer(height=int(12 * _s))
+        dpg.add_separator()
+        dpg.add_spacer(height=int(8 * _s))
+        dpg.add_text(tr("Adjust from current screen"), color=TEXT_MUTED)
+        caption_text(
+            "Show the target on screen, press the button, and the colors are "
+            "measured after a short countdown. Nothing changes until you apply."
+        )
+        dpg.add_spacer(height=int(4 * _s))
+        dpg.add_text(tr("Bite detection"))
+        dpg.add_button(
+            label=tr("Measure bite prompt"),
+            tag="cal_bite_btn",
+            callback=lambda: _start_calibration("bite", bridge),
+        )
+        dpg.add_text("", tag="cal_bite_result", wrap=int(420 * _s))
+        dpg.add_button(
+            label=tr("Apply bite result"),
+            tag="cal_bite_apply",
+            show=False,
+            callback=lambda: _apply_calibration("bite"),
+        )
+        dpg.add_spacer(height=int(6 * _s))
+        dpg.add_text(tr("Fishing gauge"))
+        dpg.add_button(
+            label=tr("Measure fishing gauge"),
+            tag="cal_gauge_btn",
+            callback=lambda: _start_calibration("gauge", bridge),
+        )
+        dpg.add_text("", tag="cal_gauge_result", wrap=int(420 * _s))
+        dpg.add_button(
+            label=tr("Apply gauge result"),
+            tag="cal_gauge_apply",
+            show=False,
+            callback=lambda: _apply_calibration("gauge"),
         )
         dpg.add_spacer(height=int(4 * _s))
         dpg.add_text(tr("Fishing battle detection bars"), color=TEXT_MUTED)

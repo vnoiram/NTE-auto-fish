@@ -54,8 +54,10 @@ try {
     }
 
     Write-Step "Installing Python (silent, takes a few minutes)"
+    $installLog = Join-Path $outputDirectory "python-install.log"
     $install = Start-Process -FilePath $installer -ArgumentList @(
         "/quiet",
+        "/log", $installLog,
         "InstallAllUsers=0",
         "TargetDir=$pythonDirectory",
         "Include_pip=1",
@@ -66,9 +68,23 @@ try {
         "Include_symbols=0",
         "Include_debug=0",
         "PrependPath=0"
-    ) -Wait -PassThru
+    ) -PassThru
+    # Poll instead of -Wait so a stalled installer is reported and eventually aborted.
+    $installTimeoutSeconds = 600
+    $installWatch = [System.Diagnostics.Stopwatch]::StartNew()
+    while (-not $install.WaitForExit(30000)) {
+        $lastLine = ""
+        if (Test-Path -LiteralPath $installLog) {
+            $lastLine = (Get-Content -LiteralPath $installLog -Tail 1 -ErrorAction SilentlyContinue)
+        }
+        Write-Step ("Python installer still running ({0}s): {1}" -f [int]$installWatch.Elapsed.TotalSeconds, $lastLine)
+        if ($installWatch.Elapsed.TotalSeconds -gt $installTimeoutSeconds) {
+            Get-Process -Name "python-*" -ErrorAction SilentlyContinue | Stop-Process -Force
+            throw "Python installer did not finish within $installTimeoutSeconds seconds. See python-install.log."
+        }
+    }
     if ($install.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $python)) {
-        throw "Python installation failed with exit code $($install.ExitCode)."
+        throw "Python installation failed with exit code $($install.ExitCode). See python-install.log."
     }
 
     $env:PIP_CACHE_DIR = "C:\Cache\pip"

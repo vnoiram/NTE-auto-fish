@@ -39,59 +39,28 @@ try {
 
     $pythonDirectory = "C:\Python"
     $python = Join-Path $pythonDirectory "python.exe"
+    # The NuGet package is a plain archive: no Windows Installer, which can stall in the Sandbox.
+    # It does not ship tkinter, so the scanning area editor is disabled in the built EXE.
     Write-Step "Preparing Python (download on first run)"
-    $installerName = "python-$($request.python_version)-amd64.exe"
-    $installer = Join-Path "C:\Cache" $installerName
-    if (-not (Test-Path -LiteralPath $installer)) {
-        $partialInstaller = "$installer.partial"
-        $downloadUrl = "https://www.python.org/ftp/python/$($request.python_version)/$installerName"
-        Invoke-WebRequest -Uri $downloadUrl -OutFile $partialInstaller
-        Move-Item -LiteralPath $partialInstaller -Destination $installer -Force
-    }
-    $installerSignature = Get-AuthenticodeSignature -LiteralPath $installer
-    if ($installerSignature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
-        throw "Python installer signature validation failed: $($installerSignature.Status)."
+    $packageName = "python.$($request.python_version).zip"
+    $package = Join-Path "C:\Cache" $packageName
+    if (-not (Test-Path -LiteralPath $package)) {
+        $partialPackage = "$package.partial"
+        $downloadUrl = "https://www.nuget.org/api/v2/package/python/$($request.python_version)"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $partialPackage
+        Move-Item -LiteralPath $partialPackage -Destination $package -Force
     }
 
-    Write-Step "Installing Python (silent, takes a few minutes)"
-    $installLog = Join-Path $outputDirectory "python-install.log"
-    $install = Start-Process -FilePath $installer -ArgumentList @(
-        "/quiet",
-        "/log", $installLog,
-        "InstallAllUsers=0",
-        "TargetDir=$pythonDirectory",
-        "Include_pip=0",
-        "Include_test=0",
-        "Include_doc=0",
-        "Include_launcher=0",
-        "Include_dev=0",
-        "Include_symbols=0",
-        "Include_debug=0",
-        "PrependPath=0"
-    ) -PassThru
-    # Poll instead of -Wait so a stalled installer is reported and eventually aborted.
-    $installTimeoutSeconds = 600
-    $installWatch = [System.Diagnostics.Stopwatch]::StartNew()
-    while (-not $install.WaitForExit(30000)) {
-        $lastLine = ""
-        if (Test-Path -LiteralPath $installLog) {
-            $lastLine = (Get-Content -LiteralPath $installLog -Tail 1 -ErrorAction SilentlyContinue)
-        }
-        Write-Step ("Python installer still running ({0}s): {1}" -f [int]$installWatch.Elapsed.TotalSeconds, $lastLine)
-        # Show who else is using Windows Installer (only one MSI can run at a time).
-        $msi = @(Get-CimInstance Win32_Process -Filter "Name='msiexec.exe'" -ErrorAction SilentlyContinue |
-            ForEach-Object { "pid=$($_.ProcessId) cmd=$($_.CommandLine)" })
-        Write-Step ("  msiexec processes: {0}" -f $(if ($msi.Count) { $msi -join " | " } else { "none" }))
-        if ($installWatch.Elapsed.TotalSeconds -gt $installTimeoutSeconds) {
-            Get-Process -Name "python-*" -ErrorAction SilentlyContinue | Stop-Process -Force
-            throw "Python installer did not finish within $installTimeoutSeconds seconds. See python-install.log."
-        }
-    }
-    if ($install.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $python)) {
-        throw "Python installation failed with exit code $($install.ExitCode). See python-install.log."
+    Write-Step "Extracting Python"
+    $extractDirectory = "C:\PythonPackage"
+    Remove-Item -LiteralPath $extractDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    Expand-Archive -LiteralPath $package -DestinationPath $extractDirectory -Force
+    Move-Item -LiteralPath (Join-Path $extractDirectory "tools") -Destination $pythonDirectory -Force
+    if (-not (Test-Path -LiteralPath $python)) {
+        throw "python.exe was not found in the extracted Python package."
     }
 
-    # The installer's pip MSI can stall in the Sandbox, so bootstrap pip directly where output is visible.
+    # The package ships ensurepip but no pip; bootstrap it with a timeout.
     Write-Step "Bootstrapping pip (ensurepip)"
     $ensure = Start-Process -FilePath $python -ArgumentList @("-m", "ensurepip", "--default-pip") `
         -NoNewWindow -PassThru

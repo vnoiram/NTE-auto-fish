@@ -103,7 +103,7 @@ $logonCommand
 "@
     $configuration | Set-Content -LiteralPath $configurationPath -Encoding UTF8
 
-    Write-Host "Starting Windows Sandbox build..."
+    Write-Host ("Starting Windows Sandbox build... (mode: " + $(if ($Manual) { "manual" } else { "automatic" }) + ")")
     Write-Host "The first build downloads Python and dependencies; later builds reuse the local download cache."
     if ($Manual) {
         Write-Host ""
@@ -122,6 +122,8 @@ $logonCommand
     $successMarker = Join-Path $stagedOutput "build-success.txt"
     $errorMarker = Join-Path $stagedOutput "build-error.txt"
     $deadline = [DateTime]::UtcNow.AddMinutes($TimeoutMinutes)
+    $startedAt = [DateTime]::UtcNow
+    $sessionSeen = $false
 
     while ([DateTime]::UtcNow -lt $deadline) {
         if (Test-Path -LiteralPath $successMarker) { break }
@@ -137,7 +139,16 @@ $logonCommand
             throw (Get-Content -LiteralPath $errorMarker -Raw)
         }
         if ($sandboxProcess.HasExited) {
-            throw "Windows Sandbox closed before the build completed."
+            # WindowsSandbox.exe can be a short-lived launcher, so also check the Sandbox session processes.
+            $sessionProcesses = @(Get-Process -Name "WindowsSandboxClient", "WindowsSandboxRemoteSession" -ErrorAction SilentlyContinue)
+            if ($sessionProcesses.Count -eq 0) {
+                if ($sessionSeen -or ([DateTime]::UtcNow - $startedAt).TotalSeconds -gt 60) {
+                    throw "Windows Sandbox closed before the build completed."
+                }
+            }
+            else {
+                $sessionSeen = $true
+            }
         }
         Start-Sleep -Seconds 2
         $sandboxProcess.Refresh()

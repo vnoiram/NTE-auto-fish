@@ -10,10 +10,10 @@
 
 ---
 
-[![GitHub License](https://img.shields.io/github/license/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/blob/main/LICENSE)
-[![GitHub Release](https://img.shields.io/github/v/release/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/releases)
-[![Build Status](https://github.com/Chizukuo/NTE-auto-fish/actions/workflows/build.yml/badge.svg)](https://github.com/Chizukuo/NTE-auto-fish/actions)
-[![GitHub Stars](https://img.shields.io/github/stars/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/stargazers)
+[![GitHub License](https://img.shields.io/github/license/vnoiram/NTE-auto-fish)](https://github.com/vnoiram/NTE-auto-fish/blob/main/LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/vnoiram/NTE-auto-fish)](https://github.com/vnoiram/NTE-auto-fish/releases)
+[![Build Status](https://github.com/vnoiram/NTE-auto-fish/actions/workflows/build.yml/badge.svg)](https://github.com/vnoiram/NTE-auto-fish/actions)
+[![GitHub Stars](https://img.shields.io/github/stars/vnoiram/NTE-auto-fish)](https://github.com/vnoiram/NTE-auto-fish/stargazers)
 
 </div>
 
@@ -67,7 +67,7 @@
 
 ### 方式一：使用预构建程序（GUI 与 CLI 合为一个文件）
 
-1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 下载最新的 `NTE-Auto-Fish-v*.*.*-Windows-x64.exe`。
+1. 从 [Releases](https://github.com/vnoiram/NTE-auto-fish/releases) 下载最新的 `NTE-Auto-Fish-v*.*.*-Windows-x64.exe`。
 2. 以管理员身份运行，确保模拟输入可以进入游戏。
 3. 同一个 EXE 在终端中带参数启动时会作为 CLI 运行，例如 `NTE-Auto-Fish.exe start`、`NTE-Auto-Fish.exe --help`
    （命令：`start`、`calibrate`、`config show/set`、`reset`）。不带参数时打开 GUI。由于 EXE 会请求管理员权限，
@@ -76,7 +76,7 @@
 ### 方式二：从源码运行
 
 ```bash
-git clone https://github.com/Chizukuo/NTE-auto-fish.git
+git clone https://github.com/vnoiram/NTE-auto-fish.git
 cd NTE-auto-fish
 pip install -r requirements.txt
 ```

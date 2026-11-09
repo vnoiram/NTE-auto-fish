@@ -12,7 +12,7 @@ Thanks for your interest in contributing! This guide will help you get started.
 ## Setup
 
 ```bash
-git clone https://github.com/Chizukuo/NTE-auto-fish.git
+git clone https://github.com/vnoiram/NTE-auto-fish.git
 cd NTE-auto-fish
 pip install -r requirements.txt
 ```
@@ -91,4 +91,4 @@ Vision tests use real screenshots in `tests/vision/data/`. When adding vision fe
 
 ## Reporting Bugs
 
-Use the [Bug Report](https://github.com/Chizukuo/NTE-auto-fish/issues/new?template=bug_report.md) issue template. Include your `settings.json`, screen resolution, and steps to reproduce.
+Use the [Bug Report](https://github.com/vnoiram/NTE-auto-fish/issues/new?template=bug_report.md) issue template. Include your `settings.json`, screen resolution, and steps to reproduce.

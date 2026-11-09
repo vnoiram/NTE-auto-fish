@@ -12,11 +12,11 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 
 ---
 
-[![GitHub License](https://img.shields.io/github/license/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/blob/main/LICENSE)
-[![GitHub Release](https://img.shields.io/github/v/release/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/releases)
-[![GitHub Downloads](https://img.shields.io/github/downloads/Chizukuo/NTE-auto-fish/total)](https://github.com/Chizukuo/NTE-auto-fish/releases)
-[![Build Status](https://github.com/Chizukuo/NTE-auto-fish/actions/workflows/build.yml/badge.svg)](https://github.com/Chizukuo/NTE-auto-fish/actions)
-[![GitHub Stars](https://img.shields.io/github/stars/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/stargazers)
+[![GitHub License](https://img.shields.io/github/license/vnoiram/NTE-auto-fish)](https://github.com/vnoiram/NTE-auto-fish/blob/main/LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/vnoiram/NTE-auto-fish)](https://github.com/vnoiram/NTE-auto-fish/releases)
+[![GitHub Downloads](https://img.shields.io/github/downloads/vnoiram/NTE-auto-fish/total)](https://github.com/vnoiram/NTE-auto-fish/releases)
+[![Build Status](https://github.com/vnoiram/NTE-auto-fish/actions/workflows/build.yml/badge.svg)](https://github.com/vnoiram/NTE-auto-fish/actions)
+[![GitHub Stars](https://img.shields.io/github/stars/vnoiram/NTE-auto-fish)](https://github.com/vnoiram/NTE-auto-fish/stargazers)
 
 </div>
 
@@ -70,7 +70,7 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 
 ### Option 1: Prebuilt Executable (GUI and CLI in one file)
 
-1. Download the latest `NTE-Auto-Fish-v*.*.*-Windows-x64.exe` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases).
+1. Download the latest `NTE-Auto-Fish-v*.*.*-Windows-x64.exe` from [Releases](https://github.com/vnoiram/NTE-auto-fish/releases).
 2. Run it as Administrator so simulated input can reach the game.
 3. The same EXE also runs the CLI when started with arguments from a terminal, e.g. `NTE-Auto-Fish.exe start` or `NTE-Auto-Fish.exe --help`
    (commands: `start`, `calibrate`, `config show/set`, `reset`). With no arguments it opens the GUI. Because the EXE requests
@@ -79,7 +79,7 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 ### Option 2: Run From Source
 
 ```bash
-git clone https://github.com/Chizukuo/NTE-auto-fish.git
+git clone https://github.com/vnoiram/NTE-auto-fish.git
 cd NTE-auto-fish
 pip install -r requirements.txt
 ```

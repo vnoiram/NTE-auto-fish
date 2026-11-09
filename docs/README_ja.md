@@ -10,10 +10,10 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 
 ---
 
-[![GitHub License](https://img.shields.io/github/license/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/blob/main/LICENSE)
-[![GitHub Release](https://img.shields.io/github/v/release/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/releases)
-[![Build Status](https://github.com/Chizukuo/NTE-auto-fish/actions/workflows/build.yml/badge.svg)](https://github.com/Chizukuo/NTE-auto-fish/actions)
-[![GitHub Stars](https://img.shields.io/github/stars/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/stargazers)
+[![GitHub License](https://img.shields.io/github/license/vnoiram/NTE-auto-fish)](https://github.com/vnoiram/NTE-auto-fish/blob/main/LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/vnoiram/NTE-auto-fish)](https://github.com/vnoiram/NTE-auto-fish/releases)
+[![Build Status](https://github.com/vnoiram/NTE-auto-fish/actions/workflows/build.yml/badge.svg)](https://github.com/vnoiram/NTE-auto-fish/actions)
+[![GitHub Stars](https://img.shields.io/github/stars/vnoiram/NTE-auto-fish)](https://github.com/vnoiram/NTE-auto-fish/stargazers)
 
 </div>
 
@@ -67,7 +67,7 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 
 ### 方法 1：ビルド済み実行ファイル（GUI と CLI を 1 つに統合）
 
-1. [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) から最新の `NTE-Auto-Fish-v*.*.*-Windows-x64.exe` をダウンロードします。
+1. [Releases](https://github.com/vnoiram/NTE-auto-fish/releases) から最新の `NTE-Auto-Fish-v*.*.*-Windows-x64.exe` をダウンロードします。
 2. ゲームへ入力を届けるため、管理者権限で実行します。
 3. 同じ EXE を、ターミナルから引数付きで起動すると CLI として動きます。例：`NTE-Auto-Fish.exe start`、`NTE-Auto-Fish.exe --help`
    (コマンド：`start`、`calibrate`、`config show/set`、`reset`)。引数なしで起動すると GUI が開きます。EXE は管理者権限を要求するため、
@@ -76,7 +76,7 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 ### 方法 2：ソースから実行
 
 ```bash
-git clone https://github.com/Chizukuo/NTE-auto-fish.git
+git clone https://github.com/vnoiram/NTE-auto-fish.git
 cd NTE-auto-fish
 pip install -r requirements.txt
 ```

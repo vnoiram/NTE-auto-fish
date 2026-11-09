@@ -17,7 +17,7 @@ We actively support and patch security issues for the following versions:
 | **Latest Stable Release** | :white_check_mark: Yes | Only the most recent stable release is actively supported. |
 | **Older Releases** | :x: No | Please upgrade to the latest release to receive updates. |
 
-We recommend always running the latest version available on the [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) page to ensure you have the latest performance, usability, and security improvements.
+We recommend always running the latest version available on the [Releases](https://github.com/vnoiram/NTE-auto-fish/releases) page to ensure you have the latest performance, usability, and security improvements.
 
 ---
 
@@ -28,7 +28,7 @@ Because **NTE Auto-Fishing** is a local automation tool, there are specific secu
 ### 1. Elevated Privileges (Administrator Mode)
 - **Context**: On Windows, the bot requires Administrator privileges to simulate inputs successfully (via `PyDirectInput` and `ctypes.windll`) so that they are registered by elevated game windows.
 - **Risk**: Running *any* software as Administrator grants it full access to your operating system. A vulnerability in the bot's input processing, GUI parsing, or dependencies could potentially be exploited for local privilege escalation (LPE).
-- **Mitigation**: We keep our dependencies minimal, avoid parsing untrusted external inputs, and run fully locally. Always verify that you download official builds directly from [Chizukuo/NTE-auto-fish](https://github.com/Chizukuo/NTE-auto-fish).
+- **Mitigation**: We keep our dependencies minimal, avoid parsing untrusted external inputs, and run fully locally. Always verify that you download official builds directly from [vnoiram/NTE-auto-fish](https://github.com/vnoiram/NTE-auto-fish).
 
 ### 2. Fully Local Operation (Air-Gapped)
 - **Context**: The core bot ([main.py](../main.py) and the DearPyGui interface in [gui/](../gui/)) executes fully on your local machine.
@@ -56,7 +56,7 @@ If you believe you have discovered a security vulnerability in this project, ple
    - Provide a detailed description of the vulnerability, including step-by-step reproduction instructions, affected platform/OS details, and a working proof-of-concept (PoC) if possible.
 
 2. **Alternative Contact**:
-   - If Private Vulnerability Reporting is unavailable, you can open an issue requesting a secure contact method, or submit details via a secure, private communication channel with the maintainer **Chizukuo** on GitHub.
+   - If Private Vulnerability Reporting is unavailable, you can open an issue requesting a secure contact method, or submit details via a secure, private communication channel with the maintainer **vnoiram** on GitHub.
 
 ### Our Response Process
 

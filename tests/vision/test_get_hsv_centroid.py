@@ -115,3 +115,26 @@ class TestHSVCentroid(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEdgeTracking(unittest.TestCase):
+    def _bar_with_cursor_at(self, x):
+        img = np.zeros((60, 1000, 3), np.uint8)
+        img[:, x : x + 6] = (0, 255, 255)  # yellow line (BGR) -> HSV hue ~30
+        return img
+
+    def _find(self, img, last):
+        return VisionModule.get_hsv_centroid_x(
+            img, (18, 115, 200), (40, 255, 255), min_area=20,
+            ignore_margin_ratio=0.02, last_known_x=last,
+        )[0]
+
+    def test_cursor_in_the_edge_margin_is_ignored_without_history(self):
+        self.assertIsNone(self._find(self._bar_with_cursor_at(2), None))
+
+    def test_cursor_reaching_the_edge_is_tracked_when_it_was_heading_there(self):
+        self.assertIsNotNone(self._find(self._bar_with_cursor_at(2), 40.0))
+        self.assertIsNotNone(self._find(self._bar_with_cursor_at(992), 960.0))
+
+    def test_margin_still_applies_when_the_cursor_was_far_from_the_edge(self):
+        self.assertIsNone(self._find(self._bar_with_cursor_at(2), 500.0))

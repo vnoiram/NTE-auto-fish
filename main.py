@@ -273,6 +273,7 @@ class NTEFishingBot:
         self._lost_target_frames = 0
         self._last_pid_out = 0.0
         self._cursor_x_rel = None
+        self._cursor_last_seen = None
         self._target_x_rel = None
         self._fps = 0.0
         self._session_start = time.time()
@@ -843,6 +844,7 @@ class NTEFishingBot:
         self._lost_cursor_frames = 0
         self._lost_target_frames = 0
         self._cursor_x_rel = None
+        self._cursor_last_seen = None
         self._target_x_rel = None
         self.sm.transition(FishingState.STRUGGLING)
 
@@ -1175,10 +1177,17 @@ class NTEFishingBot:
         bar_img = self._grab(self._roi_bar)
         hsv_img = self.vision.to_hsv(bar_img)
 
-        cursor_x, _ = self._find_cursor(bar_img, hsv_img, self._cursor_x_rel)
+        last_cursor = (
+            self._cursor_x_rel
+            if self._cursor_x_rel is not None
+            else getattr(self, "_cursor_last_seen", None)
+        )
+        cursor_x, _ = self._find_cursor(bar_img, hsv_img, last_cursor)
         target_x, _ = self._find_target(bar_img, hsv_img, self._target_x_rel)
 
         self._cursor_x_rel = cursor_x
+        if cursor_x is not None:
+            self._cursor_last_seen = cursor_x
         self._target_x_rel = target_x
         self._gauge_assist_step(bar_img, cursor_x, target_x)
         self._publish_bar_preview(

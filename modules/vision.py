@@ -68,7 +68,18 @@ class VisionModule:
             if ignore_margin_ratio > 0.0:
                 left_limit = img_width * ignore_margin_ratio
                 right_limit = img_width * (1.0 - ignore_margin_ratio)
-                if x < left_limit or (x + w) > right_limit:
+                # The border is normally ignored, but a target that was already
+                # heading for an edge may genuinely reach it: keep tracking there.
+                near_left = (
+                    last_known_x is not None and last_known_x <= left_limit * 6
+                )
+                near_right = (
+                    last_known_x is not None
+                    and last_known_x >= img_width - (img_width - right_limit) * 6
+                )
+                if (x < left_limit and not near_left) or (
+                    (x + w) > right_limit and not near_right
+                ):
                     continue
 
             valid_contours.append(contour)

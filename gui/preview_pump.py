@@ -30,6 +30,17 @@ _HIDE_SETTLE_SECS = 0.35  # let the window disappear before capturing
 _REFERENCE_W, _REFERENCE_H = 3840, 2160
 
 
+_PUMP_LOG_MAX = 12
+
+
+def add_pump_log(pv: dict, text: str) -> None:
+    """Append a timestamped progress line for the dashboard and redraw it."""
+    lines = pv.setdefault("pump_log", [])
+    lines.append(f"{time.strftime('%H:%M:%S')} {text}")
+    del lines[:-_PUMP_LOG_MAX]
+    pv["version"] += 1
+
+
 class SnapshotCapture:
     """grab_bgr() over a stored screenshot, so OCR and previews can reuse it."""
 
@@ -96,7 +107,10 @@ class PreviewPump:
                     time.sleep(_HIDE_SETTLE_SECS)
                 except Exception:
                     log.debug("Failed to hide the window for the snapshot.", exc_info=True)
+            self._status("Capturing the game screen...")
+            t0 = time.monotonic()
             image = capture.grab_bgr(region)
+            self._status(f"Captured in {time.monotonic() - t0:.1f}s. Restoring the window...")
         finally:
             self._bridge.snapshot_busy = False
             capture.close()
@@ -195,7 +209,7 @@ class PreviewPump:
         pv = self._bridge.preview
         if pv["pump_status"] != text:
             pv["pump_status"] = text
-            pv["version"] += 1
+            add_pump_log(pv, text)
 
     def _run(self) -> None:
         last_key = None
@@ -231,7 +245,7 @@ class PreviewPump:
                     last_error = message
                     log.warning("Area check failed: %s", message, exc_info=True)
                 self._bridge.preview["pump_status"] = f"ERROR {message}"
-                self._bridge.preview["version"] += 1
+                add_pump_log(self._bridge.preview, f"ERROR {message}")
 
     # -- OCR ----------------------------------------------------------------
 
@@ -261,7 +275,12 @@ class PreviewPump:
         from modules.preview import render_ocr_preview
 
         ocr = CatchOcr()
+        add_pump_log(self._bridge.preview, "Loading the OCR engine...")
         ocr.warm_up()
+        add_pump_log(
+            self._bridge.preview,
+            "OCR engine ready." if ocr.available else "OCR unavailable.",
+        )
         done_key = None
         pending_key, pending_since = None, 0.0
         while not self._stop.wait(_POLL_SECS):
@@ -287,8 +306,10 @@ class PreviewPump:
                 if now - pending_since < _OCR_SETTLE_SECS:
                     continue
                 pv = self._bridge.preview
+                add_pump_log(pv, "Reading the fish name / weight (OCR)...")
+                t0 = time.monotonic()
                 self._read_ocr(ocr, snap, mon, pv, render_ocr_preview)
-                pv["version"] += 1
+                add_pump_log(pv, f"OCR finished in {time.monotonic() - t0:.1f}s.")
                 done_key = key
             except Exception:
                 log.debug("Area check OCR failed.", exc_info=True)

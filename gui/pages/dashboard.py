@@ -19,6 +19,7 @@ from gui.components import (
     styled_button,
 )
 from gui.i18n import tr
+from gui.preview_pump import add_pump_log
 from modules.preview import BAR_SIZE, BUTTON_SIZE, ICON_SIZE, OCR_SIZE
 from gui.theme import (
     ACCENT,
@@ -360,15 +361,16 @@ def _create_previews():
         default_value=CFG.tracker_preview_enabled,
         callback=lambda s, v: setattr(CFG, "tracker_preview_enabled", bool(v)),
     )
-    dpg.add_button(
-        label=tr("Check and adjust areas"),
-        tag="btn_area_check",
-        callback=_toggle_area_check,
-    )
-    dpg.add_button(
-        label=tr("Retake snapshot"), tag="btn_area_retake", callback=_retake_snapshot
-    )
-    dpg.add_text("", tag="pv_pump_status")
+    with dpg.group(horizontal=True):
+        dpg.add_button(
+            label=tr("Check and adjust areas"),
+            tag="btn_area_check",
+            callback=_toggle_area_check,
+        )
+        dpg.add_button(
+            label=tr("Retake snapshot"), tag="btn_area_retake", callback=_retake_snapshot
+        )
+    dpg.add_text("", tag="pv_pump_status", wrap=int(480 * _s))
     dpg.add_slider_float(
         label=tr("Preview zoom"),
         tag="pv_zoom",
@@ -493,12 +495,16 @@ def _toggle_area_check(sender=None, app_data=None) -> None:
     _drag_bridge.preview_active = not _drag_bridge.preview_active
     if _drag_bridge.preview_active:
         _drag_bridge.snapshot_request = True  # one screenshot; adjusting then needs no capture
-    _drag_bridge.preview["pump_status"] = (
-        "Request sent. Hiding the window and capturing (a few seconds)..."
-        if _drag_bridge.preview_active
-        else ""
-    )
-    _drag_bridge.preview["version"] += 1
+    if _drag_bridge.preview_active:
+        _drag_bridge.preview["pump_log"] = []
+        _drag_bridge.preview["pump_status"] = (
+            "Request sent. Hiding the window and capturing (a few seconds)..."
+        )
+        add_pump_log(_drag_bridge.preview, _drag_bridge.preview["pump_status"])
+    else:
+        _drag_bridge.preview["pump_status"] = ""
+        _drag_bridge.preview["pump_log"] = []
+        _drag_bridge.preview["version"] += 1
     _refresh_area_check_button()
 
 
@@ -508,7 +514,7 @@ def _retake_snapshot(sender=None, app_data=None) -> None:
             return
         _drag_bridge.snapshot_request = True
         _drag_bridge.preview["pump_status"] = "Request sent. Capturing again..."
-        _drag_bridge.preview["version"] += 1
+        add_pump_log(_drag_bridge.preview, "Request sent. Capturing again...")
 
 
 def _refresh_area_check_button() -> None:
@@ -523,8 +529,17 @@ def _refresh_area_check_button() -> None:
 
 def _tr_status(text: str) -> str:
     """Translate the pump's status line (it may end with a size and a time)."""
+    stamp, _, body = text.partition(" ")
+    if len(stamp) == 8 and stamp[2] == ":":  # "HH:MM:SS message" log line
+        return f"{stamp} {_tr_status(body)}"
     if text.startswith("Snapshot ready"):
         return tr("Snapshot ready") + text[len("Snapshot ready"):]
+    if text.startswith("Captured in "):
+        return tr("Captured in {secs}s. Restoring the window...", secs=text.split()[2][:-2])
+    if text.startswith("OCR finished in "):
+        return tr("OCR finished in {secs}s.", secs=text.split()[3][:-2])
+    if text.startswith("ERROR"):
+        return text
     return tr(text) if text else text
 
 
@@ -618,6 +633,9 @@ def _update_previews(bridge: BotBridge) -> None:
         dpg.set_value("pv_icons_text", pv["icons_text"])
         dpg.set_value("pv_ocr_name_text", pv["ocr_name_text"])
         dpg.set_value("pv_ocr_weight_text", pv["ocr_weight_text"])
+        dpg.set_value(
+            "pv_pump_status", "\n".join(_tr_status(t) for t in pv.get("pump_log", []))
+        )
     except Exception:
         log.debug("Failed to update tracker previews.", exc_info=True)
 

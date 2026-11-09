@@ -884,8 +884,12 @@ def _build_vision_settings(bridge: BotBridge):
             ("Bar area height change", "cfg_roi_bar_h", "bar_height_delta", 200),
             ("Bite area X offset", "cfg_roi_btn_x", "button_offset_x", 600),
             ("Bite area Y offset", "cfg_roi_btn_y", "button_offset_y", 600),
+            ("Bite area width change", "cfg_roi_btn_w", "button_width_delta", 800),
+            ("Bite area height change", "cfg_roi_btn_h", "button_height_delta", 400),
             ("Cast check area X offset", "cfg_roi_icon_x", "icon_offset_x", 600),
             ("Cast check area Y offset", "cfg_roi_icon_y", "icon_offset_y", 600),
+            ("Cast check area width change", "cfg_roi_icon_w", "icon_width_delta", 800),
+            ("Cast check area height change", "cfg_roi_icon_h", "icon_height_delta", 400),
         ):
             dpg.add_slider_int(
                 label=tr(label),
@@ -2273,6 +2277,10 @@ def update_settings_ui(bridge: BotBridge):
         ("cfg_roi_btn_y", "button_offset_y"),
         ("cfg_roi_icon_x", "icon_offset_x"),
         ("cfg_roi_icon_y", "icon_offset_y"),
+        ("cfg_roi_btn_w", "button_width_delta"),
+        ("cfg_roi_btn_h", "button_height_delta"),
+        ("cfg_roi_icon_w", "icon_width_delta"),
+        ("cfg_roi_icon_h", "icon_height_delta"),
     ):
         dpg.set_value(_tag, getattr(CFG.roi, _attr))
     dpg.set_value("cfg_battle_cursor", CFG.battle_detect_cursor)

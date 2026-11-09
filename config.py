@@ -163,6 +163,10 @@ class RoiConfig:
     bar_height_delta: int = 0
     button_offset_x: int = 0
     button_offset_y: int = 0
+    button_width_delta: int = 0
+    button_height_delta: int = 0
+    icon_width_delta: int = 0
+    icon_height_delta: int = 0
     icon_offset_x: int = 0
     icon_offset_y: int = 0
 

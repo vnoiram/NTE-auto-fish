@@ -46,8 +46,8 @@ def compute_rois(cfg, mon) -> tuple[dict, dict]:
     button = {
         "left": button["left"] + r.button_offset_x,
         "top": button["top"] + r.button_offset_y,
-        "width": button["width"],
-        "height": button["height"],
+        "width": max(8, button["width"] + r.button_width_delta),
+        "height": max(4, button["height"] + r.button_height_delta),
     }
     return bar, button
 
@@ -62,4 +62,6 @@ def compute_icon_roi(cfg, mon) -> dict:
     icon = _from_ratios(ratios, mon)
     icon["left"] += cfg.roi.icon_offset_x
     icon["top"] += cfg.roi.icon_offset_y
+    icon["width"] = max(8, icon["width"] + cfg.roi.icon_width_delta)
+    icon["height"] = max(4, icon["height"] + cfg.roi.icon_height_delta)
     return icon

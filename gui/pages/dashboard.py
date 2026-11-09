@@ -542,11 +542,11 @@ _AREA_RESETS = {
     ),
     "button": (
         {"button_roi_ratios": (0.0, 0.0, 0.0, 0.0)},
-        ("button_offset_x", "button_offset_y"),
+        ("button_offset_x", "button_offset_y", "button_width_delta", "button_height_delta"),
     ),
     "icons": (
         {"icon_roi_ratios": (0.0, 0.0, 0.0, 0.0)},
-        ("icon_offset_x", "icon_offset_y"),
+        ("icon_offset_x", "icon_offset_y", "icon_width_delta", "icon_height_delta"),
     ),
     "ocr_name": ({"ocr_name_roi_ratios": "default"}, ()),
     "ocr_weight": ({"ocr_weight_roi_ratios": "default"}, ()),
@@ -561,6 +561,10 @@ _OFFSET_WIDGETS = {
     "button_offset_y": "cfg_roi_btn_y",
     "icon_offset_x": "cfg_roi_icon_x",
     "icon_offset_y": "cfg_roi_icon_y",
+    "button_width_delta": "cfg_roi_btn_w",
+    "button_height_delta": "cfg_roi_btn_h",
+    "icon_width_delta": "cfg_roi_icon_w",
+    "icon_height_delta": "cfg_roi_icon_h",
 }
 
 

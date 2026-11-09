@@ -21,7 +21,8 @@ from gui.pages.settings import (
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import FONT_SIZES, build_global_theme, get_font_path, set_ui_scale
 from main import NTEFishingBot, log
-from modules.utils import VERSION, bundled_path
+from modules.branding import APP_NAME, app_icon_path
+from modules.utils import VERSION
 from screeninfo import get_monitors
 
 
@@ -32,7 +33,7 @@ def _get_primary_monitor_size() -> tuple[int, int]:
     h = user32.GetSystemMetrics(1)
     return w, h
 
-APP_TITLE = f"NTE Auto-Fish v{VERSION}"
+APP_TITLE = f"{APP_NAME} v{VERSION}"
 _SETTINGS_REFRESH_INTERVAL = 0.25
 
 
@@ -97,8 +98,8 @@ class FishingGUI:
             min_width=int(800 * self._ui_scale),
             min_height=int(560 * self._ui_scale),
             always_on_top=CFG.always_on_top,
-            small_icon=bundled_path("assets", "icons", "app.ico"),
-            large_icon=bundled_path("assets", "icons", "app.ico"),
+            small_icon=app_icon_path(),
+            large_icon=app_icon_path(),
         )
         dpg.setup_dearpygui()
 

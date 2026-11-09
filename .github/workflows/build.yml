@@ -6,6 +6,17 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      app_name:
+        description: "Application display name"
+        required: false
+        default: "NTE Auto-Fish"
+        type: string
+      icon_path:
+        description: "Repository-relative .ico path"
+        required: false
+        default: "assets/icons/app.ico"
+        type: string
 
 permissions:
   contents: write
@@ -76,34 +87,15 @@ jobs:
 
     - name: Build GUI (single EXE)
       shell: bash
+      env:
+        APP_NAME: ${{ inputs.app_name || 'NTE Auto-Fish' }}
+        ICON_PATH: ${{ inputs.icon_path || 'assets/icons/app.ico' }}
       run: |
-        VERSION=$(cat version.txt)
-        FILENAME="NTE-Auto-Fish-v${VERSION}-Windows-x64.exe"
-        echo "FILENAME=$FILENAME" >> "$GITHUB_ENV"
-        
-        pyinstaller --noconfirm --onefile --windowed --icon="assets/icons/app.ico" \
-          --uac-admin \
-          --add-data "templates;templates" \
-          --add-data "assets;assets" \
-          --add-data "version.txt;." \
-          --collect-data rapidocr \
-          --hidden-import openpyxl \
-          --exclude-module unittest \
-          --exclude-module test \
-          --exclude-module pydoc \
-          --exclude-module multiprocessing \
-          --exclude-module asyncio \
-          --exclude-module sqlite3 \
-          --exclude-module lib2to3 \
-          --exclude-module distutils \
-          --exclude-module setuptools \
-          --exclude-module _decimal \
-          --exclude-module _lzma \
-          --exclude-module _bz2 \
-          --name "NTE-Auto-Fish" \
-          start_gui.py
-        
-        mv "dist/NTE-Auto-Fish.exe" "dist/$FILENAME"
+        python scripts/build_windows.py \
+          --app-name "$APP_NAME" \
+          --icon "$ICON_PATH" \
+          --dist-dir dist \
+          --github-env "$GITHUB_ENV"
 
     - name: Check OCR and XLSX dependencies are available to the bundler
       shell: bash

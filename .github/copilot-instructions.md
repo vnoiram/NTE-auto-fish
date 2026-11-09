@@ -64,19 +64,13 @@ This is the command CI runs. Tests cover vision pipeline outcomes using screensh
 
 ## PyInstaller Build
 
-The CI builds the GUI EXE with this command (authoritative — match it exactly):
+The CI builds the GUI EXE through the shared build script (authoritative — keep CI and local builds on this path):
 
 ```bash
-pyinstaller --noconfirm --onefile --windowed --icon="assets/icons/app.ico" \
-  --add-data "templates;templates" \
-  --add-data "version.txt;." \
-  --exclude-module tkinter --exclude-module unittest --exclude-module test \
-  --exclude-module email --exclude-module http --exclude-module xml \
-  --exclude-module pydoc --exclude-module multiprocessing --exclude-module asyncio \
-  --exclude-module sqlite3 --exclude-module lib2to3 --exclude-module distutils \
-  --exclude-module setuptools --exclude-module _decimal --exclude-module _lzma \
-  --exclude-module _bz2 \
-  --name NTE-Auto-Fish start_gui.py
+python scripts/build_windows.py \
+  --app-name "NTE Auto-Fish" \
+  --icon assets/icons/app.ico \
+  --dist-dir dist
 ```
 
 ## Review Checklist

@@ -71,6 +71,23 @@ python start_gui.py
 python main.py
 ```
 
+### Linux から Windows EXE をビルド
+
+PyInstaller はクロスコンパイラではなく、このアプリも Windows 専用入力 API を使用します。そのため、
+Linux 用スクリプトは GitHub Actions の Windows runner を起動し、生成物をダウンロードします。
+事前に [GitHub CLI](https://cli.github.com/) をインストールして認証し、対象ブランチとアイコンを push してください。
+
+```bash
+./scripts/build-from-linux.sh \
+  --app-name "Fishing Tools" \
+  --icon assets/icons/app.ico
+```
+
+成果物は `dist/remote/` に保存されます。`--app-name` は EXE・ウィンドウ・サイドバー名へ、`--icon` は
+EXE とウィンドウアイコンへ反映されます。Windows 上で直接ビルドする場合は
+`python scripts/build_windows.py --app-name "Fishing Tools" --icon path/to/app.ico` を実行します。Windowsの
+タイトルバー文字化けを避けるため、アプリ名はASCII文字のみ指定できます。
+
 ## 注意
 
 - Windows では管理者権限のターミナルから実行することを推奨します。

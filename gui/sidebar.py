@@ -6,6 +6,7 @@ from typing import Callable
 import dearpygui.dearpygui as dpg
 
 from gui.i18n import tr
+from modules.branding import APP_NAME
 from gui.theme import (
     ACCENT,
     GLASS_HIGHLIGHT,
@@ -68,7 +69,7 @@ def create_sidebar(on_navigate: Callable[[str], None]):
         dpg.add_spacer(height=int(20 * s))
         with dpg.group(horizontal=True):
             dpg.add_spacer(width=margin)
-            dpg.add_text("NTE Auto-Fish", color=TEXT_PRIMARY)
+            dpg.add_text(APP_NAME, color=TEXT_PRIMARY)
         with dpg.group(horizontal=True):
             dpg.add_spacer(width=margin)
             dpg.add_text(tr("Control Center"), color=TEXT_VERY_MUTED)

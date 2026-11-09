@@ -74,6 +74,23 @@ Launch headless mode:
 python main.py
 ```
 
+### Build a Windows EXE from Linux
+
+PyInstaller is not a cross-compiler, and this application uses Windows-only input APIs. The Linux helper therefore
+starts the repository's Windows GitHub Actions runner and downloads its artifact. Install and authenticate the
+[GitHub CLI](https://cli.github.com/) first, and push the branch and icon file before building.
+
+```bash
+./scripts/build-from-linux.sh \
+  --app-name "Fishing Tools" \
+  --icon assets/icons/app.ico
+```
+
+The artifact is downloaded to `dist/remote/`. Branding is explicit and reproducible: `--app-name` changes the EXE,
+window, and sidebar name, while `--icon` changes the EXE and window icon. On Windows, run the same build directly
+with `python scripts/build_windows.py --app-name "Fishing Tools" --icon path/to/app.ico`. App names are ASCII-only
+to avoid native Windows title-bar encoding problems.
+
 ## Notes
 
 - Run from an elevated terminal on Windows.

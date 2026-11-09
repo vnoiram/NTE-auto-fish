@@ -29,7 +29,10 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 - **Start delay**: A random 1.4-2.6 s pause between pressing Start and the first cast, so the game window can take focus.
 - **Much better area editing**: A progress log for the area check, retake next to the check button, a one-click on-screen editor, per-area and all-areas reset, an explicit Save, and drag or width/height adjustment for the bite and cast check areas too.
 - **Sturdier tracking**: The cursor is still tracked when it reaches the very edge of the bar, and the default bar area is slightly wider.
-- **Faster area-check OCR** and tuned default timing / humanization values.
+- **Human-like input (new)**: The original had no humanized behaviour. This fork adds randomized key hold/release pulses, reaction latency, small corrections, and timing variation, with tuned defaults.
+- **Better bait-exhausted / failed-cast detection**: Instead of reading dialog text or relying on waiting times, it checks whether the action-bar icons are still visible after a cast. It does not depend on the game language or on timing, so it is stable.
+- **Day / evening / night profiles (experimental)**: Detection colour profiles for each time of day, plus automatic recognition of the background to switch profiles and raise the detection rate.
+- **Faster area-check OCR.**
 - **Stable builds**: The default icon is the character artwork and builds get a plain, fixed name (no random build ID unless you ask for one).
 
 **Why there is no pull request upstream:** this fork replaces the random-name option with a fixed name and swaps the icon for a different character. That is a "religious" difference (in the engineer sense: a matter of taste, not of correctness), so I do not intend to have it merged upstream.

@@ -1,4 +1,5 @@
 """Compatibility smoke tests for the Dear PyGui version pinned by the app."""
+
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -6,6 +7,7 @@ from unittest.mock import patch
 import dearpygui.dearpygui as dpg
 
 from gui.bridge import BotBridge
+from gui.i18n import set_language
 from gui.pages.dashboard import create_dashboard
 from gui.pages.logs import create_logs
 from gui.pages.settings import create_settings
@@ -18,6 +20,7 @@ class TestDearPyGuiCompatibility(unittest.TestCase):
         bridge = BotBridge()
         monitor = SimpleNamespace(is_primary=True, width=1920, height=1080)
 
+        set_language("ja")
         dpg.create_context()
         try:
             dpg.bind_theme(build_global_theme())
@@ -39,8 +42,17 @@ class TestDearPyGuiCompatibility(unittest.TestCase):
             self.assertTrue(dpg.does_item_exist("cfg_hum_flick_chance"))
             self.assertTrue(dpg.does_item_exist("cfg_hum_random_action_chance"))
             self.assertTrue(dpg.does_item_exist("log_container"))
+            self.assertEqual(
+                dpg.get_item_configuration("btn_save")["label"],
+                "設定を保存",
+            )
+            self.assertEqual(
+                dpg.get_item_configuration("cfg_language")["items"],
+                ["English", "日本語"],
+            )
         finally:
             dpg.destroy_context()
+            set_language("en")
 
 
 if __name__ == "__main__":

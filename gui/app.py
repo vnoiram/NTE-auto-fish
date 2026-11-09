@@ -9,11 +9,12 @@ import keyboard
 
 from config import CFG
 from gui.bridge import BotBridge
+from gui.i18n import set_language, tr
 from gui.pages.dashboard import create_dashboard, update_dashboard_ui
 from gui.pages.logs import create_logs, update_logs_ui
 from gui.pages.settings import create_settings, update_settings_ui, init_session_manager
 from gui.sidebar import create_sidebar, set_active_page
-from gui.theme import _FONT_PATH, FONT_SIZES, build_global_theme, set_ui_scale
+from gui.theme import FONT_SIZES, build_global_theme, get_font_path, set_ui_scale
 from main import NTEFishingBot, log
 from modules.utils import VERSION, bundled_path
 from screeninfo import get_monitors
@@ -38,6 +39,7 @@ class FishingGUI:
             hide_ui_callback=lambda: dpg.hide_item("PrimaryWindow"),
             show_ui_callback=lambda: dpg.show_item("PrimaryWindow"),
         )
+        set_language(CFG.language)
         init_session_manager(self.bot._session_manager)
         self.bot_thread: threading.Thread | None = None
         self._bot_lock = threading.Lock()
@@ -63,20 +65,24 @@ class FishingGUI:
         # Use pure 1.0 scale to keep base fonts crisp. OS DPI handles display size.
         self._ui_scale = 1.0
 
-        # Font registry — load Segoe UI at scaled sizes
+        # Font registry — use a Japanese-capable Windows font when needed.
         self._fonts: dict[str, int | None] = {}
+        font_path = get_font_path(CFG.language)
         with dpg.font_registry():
             for name, size in FONT_SIZES.items():
                 try:
                     # Scale font size at rasterization for crisp text and correct widget layout
                     scaled_size = max(8, int(size * self._ui_scale))
-                    self._fonts[name] = dpg.add_font(_FONT_PATH, scaled_size)
+                    font = dpg.add_font(font_path, scaled_size)
+                    if CFG.language == "ja":
+                        dpg.add_font_range_hint(dpg.mvFontRangeHint_Japanese, parent=font)
+                    self._fonts[name] = font
                 except Exception:
                     self._fonts[name] = None
                     log.debug("Failed to load font '%s' at size %s.", name, size, exc_info=True)
 
         dpg.create_viewport(
-            title=f"{APP_TITLE} Control Center",
+            title=f"{APP_TITLE} {tr('Control Center')}",
             width=int(960 * self._ui_scale),
             height=int(700 * self._ui_scale),
             min_width=int(800 * self._ui_scale),

@@ -15,6 +15,7 @@ from screeninfo import get_monitors
 
 from config import CFG
 from gui.bridge import BotBridge
+from gui.i18n import LANGUAGE_LABELS, language_from_label, language_label, tr
 from modules.utils import VERSION
 from gui.components import (apply_glass_card_theme, caption_text, hsv_editor,
                             section_header, styled_button, update_hsv_preview)
@@ -239,7 +240,7 @@ def _create_category_item(key: str, label: str):
                 )
 
         dpg.add_button(
-            label=f"  {label}",
+            label=f"  {tr(label)}",
             tag=btn_tag,
             width=int(168 * _s),
             height=item_h,
@@ -328,13 +329,13 @@ def _rebuild_session_list() -> None:
     active_id = _session_manager.active_session_id()
 
     if not sessions:
-        dpg.add_text("No sessions yet.", parent="session_list_window", color=TEXT_MUTED)
+        dpg.add_text(tr("No sessions yet."), parent="session_list_window", color=TEXT_MUTED)
         return
 
     for meta in reversed(sessions):
         is_active = meta.id == active_id
         prefix = "● " if is_active else "  "
-        label = f"{prefix}{meta.start[:16]} · {meta.fish_count} fish"
+        label = f"{prefix}{meta.start[:16]} · {tr('{count} fish', count=meta.fish_count)}"
         row_tag = f"session_row_{meta.id}"
 
         with dpg.group(horizontal=True, parent="session_list_window", tag=row_tag):
@@ -375,7 +376,7 @@ def _on_export_session(session_id: str) -> None:
         dpg.delete_item(modal_tag)
 
     with dpg.window(
-        label="Export Session",
+        label=tr("Export Session"),
         tag=modal_tag,
         modal=True,
         no_resize=True,
@@ -386,7 +387,7 @@ def _on_export_session(session_id: str) -> None:
             dpg.get_viewport_height() // 2 - int(65 * _s),
         ),
     ):
-        dpg.add_text("Choose export format:", color=TEXT_MUTED)
+        dpg.add_text(tr("Choose export format:"), color=TEXT_MUTED)
         dpg.add_spacer(height=int(6 * _s))
         with dpg.group(horizontal=True):
             for fmt, ext in [("CSV", "csv"), ("JSON", "json"), ("XLSX", "xlsx")]:
@@ -424,7 +425,7 @@ def _do_export(session_id: str, fmt: str, modal_tag: str) -> None:
             log.warning("Session export failed.", exc_info=True)
 
     with dpg.window(
-        label=f"Export as {fmt.upper()}",
+        label=tr("Export as {format}", format=fmt.upper()),
         tag=path_modal,
         modal=True,
         no_resize=True,
@@ -435,7 +436,7 @@ def _do_export(session_id: str, fmt: str, modal_tag: str) -> None:
             dpg.get_viewport_height() // 2 - int(55 * _s),
         ),
     ):
-        dpg.add_text("Save path:", color=TEXT_MUTED)
+        dpg.add_text(tr("Save path:"), color=TEXT_MUTED)
         dpg.add_input_text(
             tag="export_path_input",
             default_value=default_name,
@@ -496,12 +497,12 @@ def _build_vision_settings(bridge: BotBridge):
         dpg.add_spacer(height=int(12 * _s))
         dpg.add_separator()
         dpg.add_spacer(height=int(8 * _s))
-        dpg.add_text("Fish Logging", color=TEXT_MUTED)
+        dpg.add_text(tr("Fish Logging"), color=TEXT_MUTED)
         dpg.add_spacer(height=int(4 * _s))
         caption_text("Record each caught fish (name + weight) to a per-session CSV file.")
         dpg.add_spacer(height=int(4 * _s))
         dpg.add_checkbox(
-            label="Enable fish logging",
+            label=tr("Enable fish logging"),
             tag="cfg_fish_logging_enabled",
             default_value=CFG.fish_logging_enabled,
             callback=lambda s, d: _set(CFG, "fish_logging_enabled", d),
@@ -513,7 +514,7 @@ def _build_vision_settings(bridge: BotBridge):
             variant="neutral", width=int(190 * _s), height=int(28 * _s),
         )
         dpg.add_spacer(height=int(10 * _s))
-        dpg.add_text("Sessions", color=TEXT_MUTED)
+        dpg.add_text(tr("Sessions"), color=TEXT_MUTED)
         dpg.add_spacer(height=int(4 * _s))
         with dpg.child_window(
             tag="session_list_window",
@@ -605,7 +606,7 @@ def _open_scanning_area_editor() -> None:
                 x1, y1, x2, y2 = state[which]
                 lx, rx = min(x1, x2), max(x1, x2)
                 ty, by = min(y1, y2), max(y1, y2)
-                label = "Fish Name" if which == "name" else "Weight (g)"
+                label = tr("Fish Name") if which == "name" else tr("Weight (g)")
                 # Rectangle border (no fill — game shows through)
                 canvas.create_rectangle(lx, ty, rx, by, outline=color,
                                         width=_BORDER, tags="overlay")
@@ -617,7 +618,7 @@ def _open_scanning_area_editor() -> None:
                                         tags="overlay")
                 canvas.create_text(tx, text_y + 7, text=label,
                                    fill=color, anchor="w",
-                                   font=("Arial", 11, "bold"), tags="overlay")
+                                   font=("Yu Gothic UI", 11, "bold"), tags="overlay")
                 # Corner handles
                 for cx, cy in [(lx, ty), (rx, ty), (lx, by), (rx, by)]:
                     canvas.create_rectangle(
@@ -627,13 +628,15 @@ def _open_scanning_area_editor() -> None:
                     )
 
         # ── Instruction banner ────────────────────────────────────────────
-        banner = ("Drag to move  •  Drag corner squares to resize  "
-                  "•  Red = Fish Name  |  Blue = Weight (g)")
+        banner = tr(
+            "Drag to move  •  Drag corner squares to resize  "
+            "•  Red = Fish Name  |  Blue = Weight (g)"
+        )
         bx = sw // 2
         canvas.create_rectangle(bx - 370, 10, bx + 370, 40,
                                  fill="#1a1a2e", outline="#444444", width=1)
         canvas.create_text(bx, 25, text=banner, fill="white",
-                           font=("Arial", 12))
+                           font=("Yu Gothic UI", 12))
 
         # ── OK / Cancel buttons (bottom-right) ────────────────────────────
         btn_frame = tk.Frame(root, bg="#1a1a2e", bd=0)
@@ -657,13 +660,13 @@ def _open_scanning_area_editor() -> None:
         tk.Button(
             btn_frame, text="OK", bg="#4CAF50", fg="white",
             activebackground="#45a049", activeforeground="white",
-            font=("Arial", 12, "bold"), padx=22, pady=8, bd=0,
+            font=("Yu Gothic UI", 12, "bold"), padx=22, pady=8, bd=0,
             command=do_apply,
         ).pack(side=tk.LEFT, padx=(0, 6))
         tk.Button(
-            btn_frame, text="Cancel", bg="#555555", fg="white",
+            btn_frame, text=tr("Cancel"), bg="#555555", fg="white",
             activebackground="#666666", activeforeground="white",
-            font=("Arial", 12), padx=22, pady=8, bd=0,
+            font=("Yu Gothic UI", 12), padx=22, pady=8, bd=0,
             command=root.destroy,
         ).pack(side=tk.LEFT)
         btn_frame.place(x=sw - 270, y=sh - 64)
@@ -797,7 +800,7 @@ def _build_input_settings(
         caption_text("Key bindings for in-game actions and global hotkeys.")
         dpg.add_spacer(height=8)
 
-        dpg.add_text("Key Bindings", color=TEXT_MUTED)
+        dpg.add_text(tr("Key Bindings"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _key_input("Cast key", "cfg_key_cast", CFG.keys.cast, "cast")
         _key_input("Move left", "cfg_key_left", CFG.keys.left, "left")
@@ -805,18 +808,18 @@ def _build_input_settings(
         _key_input("Exit key", "cfg_key_exit", CFG.keys.exit, "exit")
 
         dpg.add_combo(
-            label="Result close", items=list(_RESULT_METHODS.keys()),
+            label=tr("Result close"), items=[tr(label) for label in _RESULT_METHODS],
             default_value=_result_method_label(CFG.result_close_method),
             width=160, tag="cfg_result_close_method",
-            callback=lambda s, d: _set(CFG, "result_close_method", _RESULT_METHODS[d]),
+            callback=lambda s, d: _set_result_method(d),
         )
         dpg.add_checkbox(
-            label="Always on top", tag="cfg_always_on_top",
+            label=tr("Always on top"), tag="cfg_always_on_top",
             default_value=CFG.always_on_top,
             callback=lambda s, d: _on_top_changed(d),
         )
         dpg.add_checkbox(
-            label="Debug logging", tag="cfg_debug_mode",
+            label=tr("Debug logging"), tag="cfg_debug_mode",
             default_value=CFG.debug_mode,
             callback=lambda s, d: _set(CFG, "debug_mode", d),
         )
@@ -825,7 +828,7 @@ def _build_input_settings(
         default_monitor = min(CFG.monitor_index, len(monitors) - 1)
 
         dpg.add_combo(
-            label="Monitor",
+            label=tr("Monitor"),
             tag="cfg_monitor_index",
             items=monitors,
             default_value=monitors[default_monitor],
@@ -834,7 +837,7 @@ def _build_input_settings(
         )
 
         dpg.add_spacer(height=12)
-        dpg.add_text("Global Hotkeys", color=TEXT_MUTED)
+        dpg.add_text(tr("Global Hotkeys"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _text_input_with_tooltip(
             "Toggle", tag="cfg_hotkey_toggle", width=200,
@@ -861,7 +864,7 @@ def _build_humanization_settings():
         )
 
         dpg.add_spacer(height=8)
-        dpg.add_text("Key Pulse Timing", color=TEXT_MUTED)
+        dpg.add_text(tr("Key Pulse Timing"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
             "Button hold min (s)", tag="cfg_hum_pulse_hold_min",
@@ -889,7 +892,7 @@ def _build_humanization_settings():
         )
 
         dpg.add_spacer(height=8)
-        dpg.add_text("Deadband Micro-corrections", color=TEXT_MUTED)
+        dpg.add_text(tr("Deadband Micro-corrections"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _checkbox_with_tooltip(
             "Deadband taps", tag="cfg_hum_db_tap",
@@ -904,7 +907,7 @@ def _build_humanization_settings():
         )
 
         dpg.add_spacer(height=8)
-        dpg.add_text("Reaction Latency", color=TEXT_MUTED)
+        dpg.add_text(tr("Reaction Latency"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
             "Reaction min (s)", tag="cfg_hum_react_min",
@@ -926,7 +929,7 @@ def _build_humanization_settings():
         )
 
         dpg.add_spacer(height=8)
-        dpg.add_text("PID Noise", color=TEXT_MUTED)
+        dpg.add_text(tr("PID Noise"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _checkbox_with_tooltip(
             "PID noise", tag="cfg_hum_noise_enabled",
@@ -947,7 +950,7 @@ def _build_humanization_settings():
         )
 
         dpg.add_spacer(height=8)
-        dpg.add_text("Cursor Movement Styles", color=TEXT_MUTED)
+        dpg.add_text(tr("Cursor Movement Styles"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
@@ -1008,7 +1011,7 @@ def _build_humanization_settings():
         )
 
         dpg.add_spacer(height=8)
-        dpg.add_text("Timing Jitter", color=TEXT_MUTED)
+        dpg.add_text(tr("Timing Jitter"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
             "Cast jitter (s)", tag="cfg_hum_cast_jitter",
@@ -1024,7 +1027,7 @@ def _build_humanization_settings():
         )
 
         dpg.add_spacer(height=8)
-        dpg.add_text("Mouse Trajectory (RESULT Stage)", color=TEXT_MUTED)
+        dpg.add_text(tr("Mouse Trajectory (RESULT Stage)"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _slider_with_tooltip(
             "Curve amp (px)", tag="cfg_hum_mouse_amp",
@@ -1058,7 +1061,7 @@ def _build_humanization_settings():
             )
 
         dpg.add_spacer(height=8)
-        dpg.add_text("Hook Reaction (WAITING Stage)", color=TEXT_MUTED)
+        dpg.add_text(tr("Hook Reaction (WAITING Stage)"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         with dpg.group(horizontal=True):
             _slider_with_tooltip(
@@ -1075,7 +1078,7 @@ def _build_humanization_settings():
             )
         
         dpg.add_spacer(height=8)
-        dpg.add_text("Adaptive Focus (Dynamic Speedup)", color=TEXT_MUTED)
+        dpg.add_text(tr("Adaptive Focus (Dynamic Speedup)"), color=TEXT_MUTED)
         dpg.add_spacer(height=4)
         _checkbox_with_tooltip(
             "Adaptive focus", tag="cfg_hum_adaptive_enabled",
@@ -1103,7 +1106,7 @@ def _build_humanization_settings():
 
 
 def _check_for_updates():
-    dpg.set_value("cfg_system_update_status", "Checking for updates...")
+    dpg.set_value("cfg_system_update_status", tr("Checking for updates..."))
     dpg.hide_item("cfg_system_update_open")
 
     def _do_check():
@@ -1123,19 +1126,19 @@ def _check_for_updates():
 
                 if current_ver != "Unknown" and latest_tag:
                     if _version_tuple(latest_tag) > _version_tuple(current_ver):
-                        msg = f"New version available: v{latest_tag}!"
+                        msg = tr("New version available: v{version}!", version=latest_tag)
                         update_url = html_url if _is_trusted_release_url(html_url) else ""
                     else:
-                        msg = f"You are up to date! (v{current_ver})"
+                        msg = tr("You are up to date! (v{version})", version=current_ver)
                         update_url = ""
                 else:
-                    msg = "Failed to parse versions."
+                    msg = tr("Failed to parse versions.")
                     update_url = ""
 
                 _update_check_results.put((msg, update_url))
         except Exception as e:
             log.warning("Update check failed: %s", e)
-            _update_check_results.put((f"Check failed: {e}", ""))
+            _update_check_results.put((tr("Check failed: {error}", error=e), ""))
 
     threading.Thread(target=_do_check, daemon=True).start()
 
@@ -1161,6 +1164,15 @@ def _build_system_settings():
         caption_text("Application updates and system settings.")
         dpg.add_spacer(height=8)
 
+        _combo_with_tooltip(
+            "Language", tag="cfg_language",
+            items=list(LANGUAGE_LABELS.values()),
+            default=language_label(CFG.language),
+            cb=lambda s, d: _set_language_selection(d),
+        )
+        caption_text("Language changes take effect after restarting the application.")
+        dpg.add_spacer(height=12)
+
         with dpg.group(horizontal=True):
             styled_button(
                 "Check for Updates", "cfg_system_update_btn",
@@ -1178,7 +1190,7 @@ def _build_system_settings():
         dpg.add_text("", tag="cfg_system_update_status", color=TEXT_MUTED)
 
         dpg.add_spacer(height=12)
-        dpg.add_text("Project Links", color=TEXT_MUTED)
+        dpg.add_text(tr("Project Links"), color=TEXT_MUTED)
         with dpg.group(horizontal=True):
             styled_button(
                 "View Releases", "btn_gh_releases",
@@ -1203,7 +1215,7 @@ def _slider_with_tooltip(
     fmt: str, default: float, cb: Callable,
 ):
     dpg.add_slider_float(
-        label=f"{label}", tag=tag, min_value=min_val, max_value=max_val,
+        label=tr(label), tag=tag, min_value=min_val, max_value=max_val,
         format=fmt, width=-int(180 * _s), default_value=default, callback=cb,
     )
     _add_tooltip(tag, label)
@@ -1214,7 +1226,7 @@ def _slider_with_tooltip(
 
 
 def _checkbox_with_tooltip(label: str, tag: str, default: bool, cb: Callable):
-    dpg.add_checkbox(label=label, tag=tag, default_value=default, callback=cb)
+    dpg.add_checkbox(label=tr(label), tag=tag, default_value=default, callback=cb)
     _add_tooltip(tag, label)
     tip = _TOOLTIPS.get(label)
     if tip:
@@ -1225,7 +1237,7 @@ def _checkbox_with_tooltip(label: str, tag: str, default: bool, cb: Callable):
 def _input_with_tooltip(
     label: str, tag: str, width: int, default, cb: Callable,
 ):
-    dpg.add_input_int(label=label, tag=tag, width=width, default_value=default, callback=cb)
+    dpg.add_input_int(label=tr(label), tag=tag, width=width, default_value=default, callback=cb)
     _add_tooltip(tag, label)
     tip = _TOOLTIPS.get(label)
     if tip:
@@ -1237,7 +1249,7 @@ def _text_input_with_tooltip(
     label: str, tag: str, width: int, default: str, cb: Callable,
 ):
     dpg.add_input_text(
-        label=label, tag=tag, width=width,
+        label=tr(label), tag=tag, width=width,
         default_value=default, on_enter=True, callback=cb,
     )
     _add_tooltip(tag, label)
@@ -1251,7 +1263,7 @@ def _combo_with_tooltip(
     label: str, tag: str, items: list[str], default: str, cb: Callable,
 ):
     dpg.add_combo(
-        label=label, tag=tag, items=items,
+        label=tr(label), tag=tag, items=items,
         default_value=default, width=160, callback=cb,
     )
     _add_tooltip(tag, label)
@@ -1266,12 +1278,12 @@ def _add_tooltip(tag: str, label: str):
     if not tip:
         return
     with dpg.tooltip(tag):
-        dpg.add_text(tip, color=(200, 200, 210))
+        dpg.add_text(tr(tip), color=(200, 200, 210))
 
 
 def _key_input(label: str, tag: str, default: str, attr: str):
     dpg.add_input_text(
-        label=label, tag=tag, width=140,
+        label=tr(label), tag=tag, width=140,
         default_value=default, on_enter=True,
         callback=lambda s, d: _set_key(attr, d, tag),
     )
@@ -1338,7 +1350,7 @@ def update_settings_ui(bridge: BotBridge):
         elif active_id and dpg.does_item_exist(f"session_text_{active_id}"):
             count = _session_manager.active_fish_count()
             start = _session_manager.active_session_start()
-            label = f"● {start[:16]} · {count} fish"
+            label = f"● {start[:16]} · {tr('{count} fish', count=count)}"
             dpg.set_value(f"session_text_{active_id}", label)
 
     dpg.set_value("cfg_timing_cast", CFG.timing.cast_animation_secs)
@@ -1358,6 +1370,9 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_always_on_top", CFG.always_on_top)
     dpg.set_value("cfg_debug_mode", CFG.debug_mode)
     dpg.configure_viewport(0, always_on_top=CFG.always_on_top)
+
+    if dpg.does_item_exist("cfg_language"):
+        dpg.set_value("cfg_language", language_label(CFG.language))
 
 
     monitors = _monitor_labels()
@@ -1445,6 +1460,17 @@ def _set_monitor(selected: str, monitors: list[str]):
         CFG.monitor_index = 0
 
 
+def _set_language_selection(label: str) -> None:
+    CFG.language = language_from_label(label)
+
+
+def _set_result_method(label: str) -> None:
+    for source_label, method in _RESULT_METHODS.items():
+        if tr(source_label) == label:
+            CFG.result_close_method = method
+            return
+
+
 def _set_hotkey(
     attr: str,
     val: str,
@@ -1461,18 +1487,18 @@ def _set_hotkey(
 def _result_method_label(value: str) -> str:
     for label, method in _RESULT_METHODS.items():
         if method == value:
-            return label
-    return "Click center"
+            return tr(label)
+    return tr("Click center")
 
 
 def _monitor_labels():
     labels = []
 
     for i, m in enumerate(get_monitors()):
-        primary = " (Primary)" if m.is_primary else ""
+        primary = f" ({tr('Primary')})" if m.is_primary else ""
 
         labels.append(
-            f"Monitor {i}{primary} - {m.width}x{m.height}"
+            f"{tr('Monitor {index}', index=i)}{primary} - {m.width}x{m.height}"
         )
 
     return labels

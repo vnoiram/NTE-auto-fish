@@ -5,6 +5,7 @@ from typing import Callable
 
 import dearpygui.dearpygui as dpg
 
+from gui.i18n import tr
 from gui.theme import (
     ACCENT,
     GLASS_HIGHLIGHT,
@@ -70,7 +71,7 @@ def create_sidebar(on_navigate: Callable[[str], None]):
             dpg.add_text("NTE Auto-Fish", color=TEXT_PRIMARY)
         with dpg.group(horizontal=True):
             dpg.add_spacer(width=margin)
-            dpg.add_text("Control Center", color=TEXT_VERY_MUTED)
+            dpg.add_text(tr("Control Center"), color=TEXT_VERY_MUTED)
 
         dpg.add_spacer(height=int(8 * s))
         with dpg.group(horizontal=True):
@@ -88,7 +89,7 @@ def create_sidebar(on_navigate: Callable[[str], None]):
         # Hotkey hints at bottom
         with dpg.group(horizontal=True):
             dpg.add_spacer(width=margin)
-            dpg.add_text("F8 Toggle  |  F12 Stop", color=TEXT_VERY_MUTED)
+            dpg.add_text(tr("F8 Toggle  |  F12 Stop"), color=TEXT_VERY_MUTED)
         dpg.add_spacer(height=int(16 * s))
 
 
@@ -141,7 +142,7 @@ def _create_nav_item(name: str, label: str, on_navigate: Callable[[str], None]):
 
         # Nav button
         dpg.add_button(
-            label=f"  {label}",
+            label=f"  {tr(label)}",
             tag=btn_tag,
             width=sidebar_w - int(24 * _s),
             height=nav_h,

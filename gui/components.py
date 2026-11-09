@@ -6,6 +6,7 @@ from typing import Callable
 
 import dearpygui.dearpygui as dpg
 
+from gui.i18n import tr
 from gui.theme import (
     ACCENT,
     ACCENT_BLUE,
@@ -66,7 +67,7 @@ def styled_button(
 ):
     """Create a button with the appropriate variant theme."""
     dpg.add_button(
-        label=label, tag=tag, width=width, height=height, callback=callback, **kwargs
+        label=tr(label), tag=tag, width=width, height=height, callback=callback, **kwargs
     )
     dpg.bind_item_theme(tag, _get_button_theme(variant))
 
@@ -78,21 +79,21 @@ def styled_button(
 
 def section_header(text: str, color: tuple = ACCENT):
     """Accent-colored section title."""
-    dpg.add_text(text, color=color)
+    dpg.add_text(tr(text), color=color)
     dpg.add_spacer(height=8)
 
 
 def caption_text(text: str):
     """Muted caption text."""
-    dpg.add_text(text, color=TEXT_VERY_MUTED)
+    dpg.add_text(tr(text), color=TEXT_VERY_MUTED)
 
 
 def metric_row(label: str, value_tag: str, default: str = "N/A"):
     """Horizontal label + value for telemetry-style readouts."""
     with dpg.group(horizontal=True):
-        dpg.add_text(label, color=TEXT_MUTED)
+        dpg.add_text(tr(label), color=TEXT_MUTED)
         dpg.add_spacer(width=8)
-        dpg.add_text(default, tag=value_tag, color=TEXT_PRIMARY)
+        dpg.add_text(tr(default), tag=value_tag, color=TEXT_PRIMARY)
 
 
 # ---------------------------------------------------------------------------
@@ -104,17 +105,17 @@ def hsv_editor(prefix: str, hsv_range, label: str | None = None, default_open: b
     """HSV range editor with Min/Max sliders and a live color preview swatch."""
     if label is None:
         label = f"{prefix.split('_')[-1].upper()} HSV"
-    with dpg.tree_node(label=label, default_open=default_open):
+    with dpg.tree_node(label=tr(label), default_open=default_open):
         with dpg.group(horizontal=True):
             with dpg.group():
                 dpg.add_slider_intx(
-                    label="Min", size=3, min_value=0, max_value=255,
+                    label=tr("Min"), size=3, min_value=0, max_value=255,
                     width=-int(60 * _s), tag=f"{prefix}_lower",
                     default_value=list(hsv_range.lower),
                     callback=lambda s, d: _on_hsv_changed(prefix, hsv_range, "lower", d),
                 )
                 dpg.add_slider_intx(
-                    label="Max", size=3, min_value=0, max_value=255,
+                    label=tr("Max"), size=3, min_value=0, max_value=255,
                     width=-int(60 * _s), tag=f"{prefix}_upper",
                     default_value=list(hsv_range.upper),
                     callback=lambda s, d: _on_hsv_changed(prefix, hsv_range, "upper", d),

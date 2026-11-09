@@ -9,6 +9,7 @@ import dearpygui.dearpygui as dpg
 
 from gui.bridge import BotBridge, BotStatus
 from gui.components import apply_glass_card_theme, metric_row, section_header, styled_button
+from gui.i18n import tr
 from gui.theme import (
     ACCENT,
     ACCENT_BLUE,
@@ -143,7 +144,7 @@ def create_dashboard(
                 variant="neutral", width=int(90 * _s), height=int(28 * _s),
             )
             dpg.add_spacer(width=int(24 * _s))
-            dpg.add_text("Ready", tag="stat_status_message", color=TEXT_MUTED)
+            dpg.add_text(tr("Ready"), tag="stat_status_message", color=TEXT_MUTED)
 
     dpg.add_spacer(height=CARD_GAP)
 
@@ -166,7 +167,7 @@ def create_dashboard(
                 with dpg.plot_axis(dpg.mvYAxis, tag="pid_y"):
                     dpg.add_line_series(
                         list(range(120)), list(_pid_history),
-                        label="Output", tag="pid_series",
+                        label=tr("Output"), tag="pid_series",
                     )
                 dpg.set_axis_limits("pid_y", -110, 110)
 
@@ -370,9 +371,9 @@ def _create_stat_card(tag: str, label: str, default: str, width: int = 200):
         width=width, height=int(100 * _s), tag=tag, border=True, no_scrollbar=True,
     ):
         apply_glass_card_theme(tag)
-        dpg.add_text(label, color=TEXT_VERY_MUTED)
+        dpg.add_text(tr(label), color=TEXT_VERY_MUTED)
         dpg.add_spacer(height=4)
-        dpg.add_text(default, tag=f"{tag}_value", color=TEXT_PRIMARY)
+        dpg.add_text(tr(default), tag=f"{tag}_value", color=TEXT_PRIMARY)
 
 
 # ---------------------------------------------------------------------------
@@ -405,29 +406,29 @@ def _state_label(state: FishingState) -> str:
         FishingState.STRUGGLING: "Tracking",
         FishingState.RESULT: "Result",
     }
-    return labels.get(state, state.value.title())
+    return tr(labels.get(state, state.value.title()))
 
 
 def _status_message(status: BotStatus) -> str:
     if status.is_stopped:
-        return "Ready"
+        return tr("Ready")
     if not status.is_running:
-        return "Paused"
+        return tr("Paused")
     if status.state is FishingState.WAITING:
-        return "Waiting for bite"
+        return tr("Waiting for bite")
     if status.state is FishingState.STRUGGLING:
-        return "Tracking fish bar"
+        return tr("Tracking fish bar")
     if status.state is FishingState.RESULT:
-        return "Closing result"
-    return "Running"
+        return tr("Closing result")
+    return tr("Running")
 
 
 def _fmt_optional(value: int | None) -> str:
-    return str(value) if value is not None else "N/A"
+    return str(value) if value is not None else tr("N/A")
 
 
 def _fmt_roi(roi: tuple[int, int, int, int]) -> str:
     left, top, width, height = roi
     if width <= 0 or height <= 0:
-        return "N/A"
+        return tr("N/A")
     return f"{left},{top} {width}x{height}"

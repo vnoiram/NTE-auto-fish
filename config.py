@@ -11,6 +11,7 @@ from typing import Tuple
 from modules.utils import APP_DIR
 
 DEFAULT_SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
+SUPPORTED_LANGUAGES = frozenset({"en", "ja"})
 log = logging.getLogger("NTEFish")
 _RNG = SystemRandom()
 
@@ -210,6 +211,7 @@ class AppConfig:
     keys: KeyConfig = field(default_factory=KeyConfig)
     hotkeys: HotkeyConfig = field(default_factory=HotkeyConfig)
     humanization: HumanizationConfig = field(default_factory=HumanizationConfig)
+    language: str = "en"
     detection_min_area: float = 30.0
     min_blue_pixels: int = 300
     result_close_method: str = "click"
@@ -261,6 +263,8 @@ class AppConfig:
                         continue
                     if isinstance(obj, HsvRange):
                         value = _validate_hsv_triplet(key, value)
+                    elif obj is self and key == "language":
+                        value = value if value in SUPPORTED_LANGUAGES else _INVALID
                     else:
                         value = _coerce_setting(attr, value)
                     if value is _INVALID:

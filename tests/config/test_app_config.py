@@ -12,6 +12,7 @@ class TestAppConfig(unittest.TestCase):
         cfg = AppConfig()
         cfg.pid.kp = 0.73
         cfg.hotkeys.toggle = "f9"
+        cfg.language = "ja"
 
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "settings.json"
@@ -22,6 +23,7 @@ class TestAppConfig(unittest.TestCase):
 
         self.assertEqual(loaded.pid.kp, 0.73)
         self.assertEqual(loaded.hotkeys.toggle, "f9")
+        self.assertEqual(loaded.language, "ja")
 
     def test_load_invalid_json_keeps_existing_values(self):
         cfg = AppConfig()
@@ -51,6 +53,7 @@ class TestAppConfig(unittest.TestCase):
             "pid": {"kp": "oops", "ki": -1, "kd": 0.01},
             "hsv": {"blue": {"lower": [0, 0, 999], "upper": [130, 255, 255]}},
             "debug_mode": "yes",
+            "language": "unsupported",
         }
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "settings.json"
@@ -64,6 +67,7 @@ class TestAppConfig(unittest.TestCase):
         self.assertEqual(cfg.hsv.blue.lower, defaults.hsv.blue.lower)
         self.assertEqual(cfg.hsv.blue.upper, (130, 255, 255))
         self.assertFalse(cfg.debug_mode)
+        self.assertEqual(cfg.language, defaults.language)
 
     def test_flick_profile_is_only_sampled_when_direction_reverses(self):
         cfg = HumanizationConfig(flick_chance_on_reverse=1.0)

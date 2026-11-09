@@ -92,6 +92,7 @@ PID 控制器用于在钓鱼小游戏中平滑且精准地追踪目标安全区�
 
 ## 6. System & Updates (系统与更新)
 
+*   **Language (界面语言):** 可选择英文或日文界面。保存后重启应用程序以应用更改。
 *   **Check for Updates:** 检查 GitHub 上是否有新版本的 NTE Auto-Fish 发布。如果有新版本，会显示“Download Update”按钮，点击将自动在浏览器中打开下载页面。
 
 ---

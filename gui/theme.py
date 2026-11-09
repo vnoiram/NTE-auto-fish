@@ -1,4 +1,5 @@
 """Design system for the NTE Auto-Fish glassmorphism UI."""
+import os
 import dearpygui.dearpygui as dpg
 
 # ---------------------------------------------------------------------------
@@ -110,6 +111,11 @@ def get_sidebar_width() -> int:
 # ---------------------------------------------------------------------------
 
 _FONT_PATH = "C:/Windows/Fonts/segoeui.ttf"
+_JAPANESE_FONT_PATHS = (
+    "C:/Windows/Fonts/YuGothM.ttc",
+    "C:/Windows/Fonts/meiryo.ttc",
+    "C:/Windows/Fonts/msgothic.ttc",
+)
 FONT_SIZES = {
     "caption": 12,
     "body": 14,
@@ -117,6 +123,13 @@ FONT_SIZES = {
     "title": 20,
     "metric": 24,
 }
+
+
+def get_font_path(language: str) -> str:
+    """Return a Windows font with Japanese glyphs when Japanese is active."""
+    if language == "ja":
+        return next((path for path in _JAPANESE_FONT_PATHS if os.path.exists(path)), _FONT_PATH)
+    return _FONT_PATH
 
 # ---------------------------------------------------------------------------
 # Theme builders

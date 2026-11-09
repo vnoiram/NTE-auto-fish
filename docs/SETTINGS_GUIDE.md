@@ -91,6 +91,7 @@ Introduces randomness and imperfect reactions to make the bot look more like a h
 
 ## 6. System & Updates
 
+*   **Language:** Selects English or Japanese for the UI. Restart the application after saving to apply the change.
 *   **Check for Updates:** Checks GitHub for new releases. If found, a "Download Update" button appears to open the release page in your browser.
 
 ---

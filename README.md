@@ -167,6 +167,7 @@ with `-OutputDirectory`, `-BuildId`, and `-Icon`. Build details and failures are
 ## Known Issues
 
 - **Dawn/dusk lighting**: During in-game sunrise and sunset, the warm yellow ambient lighting significantly interferes with HSV-based cursor detection, causing tracking failures and drastically reduced fishing success rates. This is an inherent limitation of the current color-based detection approach. If you encounter this, consider adjusting the cursor HSV thresholds in Settings to compensate for the shifted lighting conditions.
+  - **Fork note**: In the fork author's own testing, detection basically works fine even in these conditions. There are also experimental day / evening / night detection profiles (with automatic switching by background) that can help, so give them a try if you run into trouble.
 
 ---
 

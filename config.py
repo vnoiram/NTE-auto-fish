@@ -299,6 +299,8 @@ class AppConfig:
     debug_mode: bool = False
     always_on_top: bool = True
     monitor_index: int = 0
+    # On launch, pick the monitor showing the game window instead of monitor_index.
+    monitor_auto_select: bool = True
     fish_logging_enabled: bool = False
     # Drag-and-drop scan areas as (left, top, right, bottom) screen ratios; all zero
     # means automatic (see DEFAULT_BAR_RATIOS / DEFAULT_BUTTON_RATIOS).
@@ -489,4 +491,7 @@ def ensure_settings_loaded() -> None:
             if not getattr(CFG, "language_from_file", False):
                 # first launch (or no saved language): follow the OS language
                 CFG.language = detect_system_language()
+            from modules.game_window import auto_select_monitor
+
+            auto_select_monitor(CFG)
             _settings_loaded = True

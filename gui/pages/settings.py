@@ -1520,6 +1520,12 @@ def _build_input_settings(
             width=300,
             callback=lambda s, d: _set_monitor(d, monitors),
         )
+        dpg.add_checkbox(
+            label=tr("Auto-select the game's monitor on launch"),
+            tag="cfg_monitor_auto_select",
+            default_value=CFG.monitor_auto_select,
+            callback=lambda s, d: _set(CFG, "monitor_auto_select", d),
+        )
 
         dpg.add_spacer(height=12)
         dpg.add_text(tr("Global Hotkeys"), color=TEXT_MUTED)
@@ -2305,6 +2311,7 @@ def update_settings_ui(bridge: BotBridge):
     monitors = _monitor_labels()
     idx = min(CFG.monitor_index, len(monitors) - 1)
     dpg.set_value("cfg_monitor_index", monitors[idx])
+    dpg.set_value("cfg_monitor_auto_select", CFG.monitor_auto_select)
 
     dpg.set_value("cfg_hotkey_toggle", CFG.hotkeys.toggle)
     dpg.set_value("cfg_hotkey_stop", CFG.hotkeys.stop)

@@ -202,6 +202,7 @@ _JA = {
     "Always on top": "常に手前に表示",
     "Debug logging": "デバッグログ",
     "Monitor": "モニター",
+    "Auto-select the game's monitor on launch": "起動時にゲームのモニターを自動選択",
     "Monitor {index}": "モニター {index}",
     "Primary": "プライマリ",
     "Global Hotkeys": "グローバルホットキー",

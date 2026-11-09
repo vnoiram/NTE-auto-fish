@@ -203,7 +203,7 @@ class PreviewPump:
 
     def _active(self) -> bool:
         """The area check works on its own; it does not depend on the live-view toggle."""
-        return bool(self._bridge.latest_status().is_stopped and self._bridge.preview_active)
+        return bool(self._bridge.latest_status().is_running is False and self._bridge.preview_active)
 
     def _status(self, text: str) -> None:
         pv = self._bridge.preview

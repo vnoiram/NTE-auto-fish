@@ -85,7 +85,7 @@ class TestPreviewDrag(unittest.TestCase):
         self._drag("pv_bar", BAR_SIZE[0] / 10, 0)
         self.assertEqual(CFG.roi.bar_offset_x, before)
         self.bridge._current_status = BotStatus(
-            is_stopped=False, bar_roi=(100, 50, 1441, 64)
+            is_stopped=False, is_running=True, bar_roi=(100, 50, 1441, 64)
         )
         self._drag("pv_bar", BAR_SIZE[0] / 10, 0)  # running bot: always adjustable
         self.assertEqual(CFG.roi.bar_offset_x, -144)

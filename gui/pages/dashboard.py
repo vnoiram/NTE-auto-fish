@@ -262,11 +262,11 @@ def create_dashboard(
 def update_dashboard_ui(bridge: BotBridge):
     status = bridge.latest_status()
     bind_preview_drag(bridge)
-    if not status.is_stopped and bridge.preview_active:
+    if not not status.is_running and bridge.preview_active:
         bridge.preview_active = False  # the running bot takes over the previews
     _refresh_area_check_button()
-    _set_enabled("btn_area_check", status.is_stopped and not bridge.snapshot_busy)
-    _set_enabled("btn_area_retake", status.is_stopped and bridge.preview_active)
+    _set_enabled("btn_area_check", not status.is_running and not bridge.snapshot_busy)
+    _set_enabled("btn_area_retake", not status.is_running and bridge.preview_active)
 
     # Resize stat cards to fill the row dynamically on window resize.
     _resize_stat_cards()
@@ -564,7 +564,7 @@ def _on_preview_release(sender=None, app_data=None) -> None:
 def _on_preview_drag(sender, app_data) -> None:
     if _drag_bridge is None:
         return
-    if _drag_bridge.latest_status().is_stopped and not _drag_bridge.preview_active:
+    if not _drag_bridge.latest_status().is_running and not _drag_bridge.preview_active:
         return  # adjusting needs the area check (or a running bot)
     _, dx, dy = app_data
     if _drag_state["target"] is None:

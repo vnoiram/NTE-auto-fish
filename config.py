@@ -242,6 +242,9 @@ class AppConfig:
     spam_cast_interval_max: float = 1.5
     # Measure the gauge colours at the start of every fight (assist only, never auto-applied).
     gauge_assist_enabled: bool = True
+    # Stop when the cast-error dialog (bait exhausted) is detected. Turn off if a dark
+    # scene is mistaken for the dialog and the bot never reaches the bite wait.
+    bait_error_detection_enabled: bool = True
     # Show live capture previews (bar, bite prompt, OCR source) in the dashboard tracker.
     tracker_preview_enabled: bool = True
     # Detection profiles chosen by background colour (see modules/profiles.py).

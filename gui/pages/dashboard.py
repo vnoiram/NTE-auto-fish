@@ -569,6 +569,12 @@ def _status_message(status: BotStatus) -> str:
         return tr("Ready")
     if not status.is_running:
         return tr("Paused")
+    if status.state is FishingState.IDLE:
+        if status.bait_error_count > 0:
+            return tr("Cast error {n}/{limit}, retrying").format(
+                n=status.bait_error_count, limit=status.bait_error_limit
+            )
+        return tr("Casting")
     if status.state is FishingState.WAITING:
         return tr("Waiting for bite")
     if status.state is FishingState.STRUGGLING:

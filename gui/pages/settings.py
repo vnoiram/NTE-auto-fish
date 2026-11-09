@@ -1451,6 +1451,12 @@ def _build_input_settings(
             callback=lambda s, d: _on_top_changed(d),
         )
         dpg.add_checkbox(
+            label=tr("Detect bait exhaustion (cast error dialog)"),
+            tag="cfg_bait_error_detect",
+            default_value=CFG.bait_error_detection_enabled,
+            callback=lambda s, d: _set(CFG, "bait_error_detection_enabled", d),
+        )
+        dpg.add_checkbox(
             label=tr("Show live capture in tracker"),
             tag="cfg_tracker_preview",
             default_value=CFG.tracker_preview_enabled,
@@ -2249,6 +2255,7 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_always_on_top", CFG.always_on_top)
     dpg.set_value("cfg_debug_mode", CFG.debug_mode)
     dpg.set_value("cfg_tracker_preview", CFG.tracker_preview_enabled)
+    dpg.set_value("cfg_bait_error_detect", CFG.bait_error_detection_enabled)
 
     if dpg.does_item_exist("cfg_language"):
         dpg.set_value("cfg_language", language_label(CFG.language))

@@ -32,6 +32,8 @@ class BotStatus:
     last_fish_name: str | None = None
     last_fish_weight_g: str | None = None
     stop_reason: str = ""
+    bait_error_count: int = 0
+    bait_error_limit: int = 3
 
 
 from modules.calibration import BackgroundSampler, GaugeAssist  # noqa: E402

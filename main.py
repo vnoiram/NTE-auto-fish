@@ -316,6 +316,8 @@ class NTEFishingBot:
                 last_fish_name=self._last_fish_name,
                 last_fish_weight_g=self._last_fish_weight_g,
                 stop_reason=getattr(self, "_stop_reason", ""),
+                bait_error_count=getattr(self, "_bait_error_count", 0),
+                bait_error_limit=self.cfg.timing.bait_error_threshold,
             )
         )
 
@@ -680,6 +682,18 @@ class NTEFishingBot:
             hsv_img=hsv_img,
         )
 
+    @staticmethod
+    def _describe_error_region(img) -> str:
+        """Brightness and white-pixel count behind an error-dialog match, for the log."""
+        try:
+            import cv2
+
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            white = int(cv2.countNonZero(cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]))
+            return f"brightness {float(gray.mean()):.0f}, white px {white}"
+        except Exception:
+            return "no details"
+
     def _selected_bars(self, cursor_x, target_x) -> list[bool]:
         """Visibility of each bar chosen for battle detection."""
         use_cursor = self.cfg.battle_detect_cursor
@@ -750,7 +764,7 @@ class NTEFishingBot:
                 minimum=0.1,
             )
         self._stop_event.wait(timeout=error_check_delay)
-        if self._roi_error:
+        if self._roi_error and self.cfg.bait_error_detection_enabled:
             err_img = self._grab(self._roi_error)
             if self.vision.check_error_region(
                 err_img, white_pixel_min=self._scaled_error_white_min
@@ -758,7 +772,7 @@ class NTEFishingBot:
                 self._bait_error_count += 1
                 self._log(
                     f"[ERROR] Cast error ({self._bait_error_count}/{self.cfg.timing.bait_error_threshold}), "
-                    "waiting for dialog to dismiss..."
+                    f"waiting for dialog to dismiss... ({self._describe_error_region(err_img)})"
                 )
                 self.input.release_all()
                 err_wait = 5.0
@@ -931,7 +945,7 @@ class NTEFishingBot:
         self.input.press(self.cfg.keys.cast, dur)
 
         # Bait exhausted: the cast error dialog appears right after the press.
-        if self._roi_error:
+        if self._roi_error and self.cfg.bait_error_detection_enabled:
             self._stop_event.wait(timeout=0.3)
             err_img = self._grab(self._roi_error)
             if self.vision.check_error_region(

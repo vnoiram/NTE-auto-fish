@@ -328,6 +328,26 @@ class TestRoiOffsets(unittest.TestCase):
         self.assertEqual(loaded.roi.bar_offset_y, -35)
 
 
+class TestBaitErrorDetectionOption(unittest.TestCase):
+    def test_idle_skips_error_check_when_disabled(self):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.humanization.enabled = False
+        bot.cfg.bait_error_detection_enabled = False
+        bot.cfg.timing.cast_animation_secs = 0.0
+        bot.input = MagicMock()
+        bot._log = MagicMock()
+        bot._stop_event = MagicMock()
+        bot._stop_flag = False
+        bot._roi_error = {"width": 1}
+        bot._grab = MagicMock()
+        bot.vision = MagicMock()
+        bot._enter_waiting = MagicMock()
+        bot._handle_idle()
+        bot._grab.assert_not_called()
+        bot._enter_waiting.assert_called_once_with()
+
+
 class TestDeadbandPlaySelection(unittest.TestCase):
     def test_battle_gate_is_rolled_once_then_uses_existing_tap_chance(self):
         bot = NTEFishingBot.__new__(NTEFishingBot)

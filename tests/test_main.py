@@ -19,6 +19,7 @@ class TestFishingDetection(unittest.TestCase):
         bot.sm.state = FishingState.WAITING
         bot.sm.time_in_state = 0.0
         bot._waiting_timeout_secs = 30.0
+        bot._roi_bar = None
         bot._roi_button = {"width": 100, "height": 100}
         bot._scaled_blue_pixels = 1
         bot._grab = MagicMock(return_value=object())
@@ -133,6 +134,14 @@ class TestFishingDetection(unittest.TestCase):
         bot._handle_waiting()
         bot._enter_struggling.assert_called_once_with()
         bot.sm.transition.assert_not_called()
+
+    def test_waiting_handler_checks_bars_before_bite(self):
+        bot = self._make_tick_bot(FishingState.WAITING, 100, 150)
+        bot.vision.check_blue_trigger.return_value = True
+        for _ in range(3):
+            NTEFishingBot._handle_waiting(bot)
+        bot._enter_struggling.assert_called_once_with(press_hook=False)
+        bot.vision.check_blue_trigger.assert_not_called()
 
     def _make_struggling_bot(self, detections, threshold=2):
         bot = NTEFishingBot.__new__(NTEFishingBot)
@@ -473,6 +482,45 @@ class TestCastFailurePriority(unittest.TestCase):
         bot._handle_cast_failure("icons visible")
         bot.request_stop.assert_not_called()
         bot.sm.transition.assert_not_called()
+
+    def test_bite_appearing_during_error_wait_interrupts_retry(self):
+        bot = self._bot()
+        bot._detect_active_fishing = NTEFishingBot._detect_active_fishing.__get__(bot)
+        bot._scan_battle_bars = MagicMock(return_value=False)
+        bot._detect_bite = MagicMock(side_effect=[False, False, True])
+        bot._handle_cast_failure("terrain mistaken for icons")
+        bot._scan_battle_bars.assert_called()
+        self.assertEqual(bot._detect_bite.call_count, 3)
+        bot._stop_event.wait.assert_called_once_with(
+            timeout=bot.cfg.timing.waiting_poll_interval
+        )
+        bot.sm.transition.assert_not_called()
+        bot.request_stop.assert_not_called()
+
+    def test_bars_appearing_during_error_wait_take_priority_over_bite(self):
+        bot = self._bot()
+        bot._detect_active_fishing = NTEFishingBot._detect_active_fishing.__get__(bot)
+        bot._scan_battle_bars = MagicMock(side_effect=[False, False, True])
+        bot._detect_bite = MagicMock(return_value=False)
+        bot._handle_cast_failure("terrain mistaken for icons")
+        self.assertEqual(bot._detect_bite.call_count, 2)
+        bot._stop_event.wait.assert_called_once_with(
+            timeout=bot.cfg.timing.waiting_poll_interval
+        )
+        bot.sm.transition.assert_not_called()
+        bot.request_stop.assert_not_called()
+
+    def test_stop_during_error_wait_interrupts_polling(self):
+        bot = self._bot()
+
+        def stop_after_wait(**kwargs):
+            bot._stop_flag = True
+
+        bot._stop_event.wait.side_effect = stop_after_wait
+        bot._handle_cast_failure("icons visible")
+        bot._stop_event.wait.assert_called_once()
+        bot.sm.transition.assert_not_called()
+        bot.request_stop.assert_not_called()
 
 
 class TestJudgeText(unittest.TestCase):

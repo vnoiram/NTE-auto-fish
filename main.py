@@ -890,7 +890,9 @@ class NTEFishingBot:
         return self._count_action_icons() >= need
 
     def _handle_cast_failure(self, detail: str) -> None:
-        """Count a failed cast; stop once the bait-error limit is reached."""
+        """Retry a suspected cast failure while watching for bars and bites."""
+        if self._stop_flag or self._detect_active_fishing():
+            return
         self._bait_error_count += 1
         self._log(
             f"[ERROR] Cast error ({self._bait_error_count}/{self.cfg.timing.bait_error_threshold}), "
@@ -900,7 +902,16 @@ class NTEFishingBot:
         err_wait = 5.0
         if self.cfg.humanization.enabled:
             err_wait = sample_timing(err_wait, self.cfg.humanization, minimum=3.0)
-        self._stop_event.wait(timeout=err_wait)
+        # Terrain can look like action icons. Keep observing throughout the
+        # retry delay so a real bite or fight interrupts the error immediately.
+        poll = max(0.005, min(0.1, self.cfg.timing.waiting_poll_interval))
+        remaining = err_wait
+        while remaining > 0:
+            if self._stop_flag or self._detect_active_fishing():
+                return
+            interval = min(poll, remaining)
+            self._stop_event.wait(timeout=interval)
+            remaining -= interval
         if self._stop_flag or self._detect_active_fishing():
             return
         if self._bait_error_count >= self.cfg.timing.bait_error_threshold:
@@ -1153,7 +1164,7 @@ class NTEFishingBot:
         self.input.press(self.cfg.keys.cast, dur)
 
     def _handle_waiting(self) -> None:
-        if self._detect_bite():
+        if self._detect_active_fishing():
             return
         if self.sm.time_in_state > self._waiting_timeout_secs:
             self._consecutive_waiting_timeouts += 1

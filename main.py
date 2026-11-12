@@ -713,10 +713,9 @@ class NTEFishingBot:
         self._apply_roi_offsets()
         state = self.sm.state
 
-        # Priority: battle (bars on screen) > bite in progress (prompt, handled in
-        # the WAITING handler) > waiting/casting. The bars are checked first in
-        # every non-fight state, on consecutive frames to ignore one-off matches.
-        if state is not FishingState.STRUGGLING and self._scan_battle_bars(state):
+        # Preserve the current state unless a higher-priority screen detection
+        # overrides it: battle bars > bite prompt > casting/result handling.
+        if state is not FishingState.STRUGGLING and self._detect_active_fishing():
             return
 
         if state is FishingState.IDLE:
@@ -728,8 +727,27 @@ class NTEFishingBot:
         elif state is FishingState.RESULT:
             self._handle_result()
 
+    def _detect_active_fishing(self) -> bool:
+        """Override the current state when bars or a bite prompt are visible."""
+        if self._scan_battle_bars(self.sm.state):
+            return True
+        return self._detect_bite()
+
+    def _detect_bite(self) -> bool:
+        btn_img = self._grab(self._roi_button)
+        self._publish_button_preview(btn_img)
+        if not self.vision.check_blue_trigger(
+            btn_img,
+            self.cfg.hsv.blue,
+            self._scaled_blue_pixels,
+        ):
+            return False
+        self._log(f"[{self.sm.state.value}] Fish hooked (blue trigger).")
+        self._enter_struggling()
+        return True
+
     def _scan_battle_bars(self, state: FishingState) -> bool:
-        """Enter the fight after the selected bars were seen on consecutive frames."""
+        """Reserve priority for visible bars, entering after consecutive frames."""
         if not self._roi_bar:
             return False
         bar_img = self._grab(self._roi_bar)
@@ -750,7 +768,8 @@ class NTEFishingBot:
             return False
         self._bar_streak = getattr(self, "_bar_streak", 0) + 1
         if self._bar_streak < _BAR_ENTER_FRAMES:
-            return False
+            # Keep the current state while confirming; do not hook or recast.
+            return True
         self._bar_streak = 0
         self._log(f"[{state.value}] Battle bars detected -> STRUGGLING.")
         self._enter_struggling(press_hook=False)
@@ -882,6 +901,8 @@ class NTEFishingBot:
         if self.cfg.humanization.enabled:
             err_wait = sample_timing(err_wait, self.cfg.humanization, minimum=3.0)
         self._stop_event.wait(timeout=err_wait)
+        if self._stop_flag or self._detect_active_fishing():
+            return
         if self._bait_error_count >= self.cfg.timing.bait_error_threshold:
             self._log("[ERROR] Bait likely exhausted, stopping bot.")
             self.request_stop("Bait error limit reached")
@@ -953,8 +974,13 @@ class NTEFishingBot:
             self._stop_event.wait(timeout=remaining)
         if self._stop_flag:
             return
+        if self._detect_active_fishing():
+            return
         # The action-bar icons vanish once the line is cast; still visible = no cast.
         if use_icons and self._cast_failed_by_icons():
+            # The screen may have changed during the icon confirmation delay.
+            if self._stop_flag or self._detect_active_fishing():
+                return
             self._handle_cast_failure("action-bar icons still visible")
             return
         self._enter_waiting()
@@ -1127,6 +1153,8 @@ class NTEFishingBot:
         self.input.press(self.cfg.keys.cast, dur)
 
     def _handle_waiting(self) -> None:
+        if self._detect_bite():
+            return
         if self.sm.time_in_state > self._waiting_timeout_secs:
             self._consecutive_waiting_timeouts += 1
             if self._consecutive_waiting_timeouts >= 2:
@@ -1141,17 +1169,6 @@ class NTEFishingBot:
                 self._log("[WAITING] Timeout, recasting.", logging.WARNING)
 
             self.sm.transition(FishingState.IDLE)
-            return
-
-        btn_img = self._grab(self._roi_button)
-        self._publish_button_preview(btn_img)
-        if self.vision.check_blue_trigger(
-            btn_img,
-            self.cfg.hsv.blue,
-            self._scaled_blue_pixels,
-        ):
-            self._log("[WAITING] Fish hooked (blue trigger).")
-            self._enter_struggling()
             return
 
         self._maybe_switch_profile()

@@ -90,6 +90,50 @@ class TestFishingDetection(unittest.TestCase):
             bot._tick()
         bot._enter_struggling.assert_called_once_with(press_hook=False)
 
+    def test_visible_bars_block_lower_priority_actions_while_confirming(self):
+        for state in (FishingState.IDLE, FishingState.WAITING, FishingState.RESULT):
+            with self.subTest(state=state):
+                bot = self._make_tick_bot(state, 100, 150)
+                bot.vision.check_blue_trigger.return_value = True
+                bot._tick()
+                bot._tick()
+                bot._enter_struggling.assert_not_called()
+                bot.vision.check_blue_trigger.assert_not_called()
+                bot._handle_idle.assert_not_called()
+                bot._handle_waiting.assert_not_called()
+                bot._handle_result.assert_not_called()
+                bot.sm.transition.assert_not_called()
+
+    def test_bite_overrides_idle_and_result_states(self):
+        for state in (FishingState.IDLE, FishingState.RESULT):
+            with self.subTest(state=state):
+                bot = self._make_tick_bot(state, None, None)
+                bot._bait_error_count = 4
+                bot.vision.check_blue_trigger.return_value = True
+                bot._tick()
+                bot._enter_struggling.assert_called_once_with()
+                bot._handle_idle.assert_not_called()
+                bot._handle_result.assert_not_called()
+
+    def test_no_detection_preserves_state_and_runs_its_handler(self):
+        for state, handler in (
+            (FishingState.IDLE, "_handle_idle"),
+            (FishingState.WAITING, "_handle_waiting"),
+            (FishingState.RESULT, "_handle_result"),
+        ):
+            with self.subTest(state=state):
+                bot = self._make_tick_bot(state, None, None)
+                bot._tick()
+                getattr(bot, handler).assert_called_once_with()
+                bot.sm.transition.assert_not_called()
+
+    def test_bite_overrides_waiting_timeout(self):
+        bot = self._make_waiting_bot(True)
+        bot.sm.time_in_state = 100.0
+        bot._handle_waiting()
+        bot._enter_struggling.assert_called_once_with()
+        bot.sm.transition.assert_not_called()
+
     def _make_struggling_bot(self, detections, threshold=2):
         bot = NTEFishingBot.__new__(NTEFishingBot)
         bot.cfg = AppConfig()
@@ -364,9 +408,71 @@ class TestBaitErrorDetectionOption(unittest.TestCase):
         bot._grab = MagicMock()
         bot.vision = MagicMock()
         bot._enter_waiting = MagicMock()
+        bot._detect_active_fishing = MagicMock(return_value=False)
         bot._handle_idle()
         bot._grab.assert_not_called()
         bot._enter_waiting.assert_called_once_with()
+
+
+class TestCastFailurePriority(unittest.TestCase):
+    def _bot(self):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.humanization.enabled = False
+        bot.sm = MagicMock()
+        bot.sm.state = FishingState.IDLE
+        bot.input = MagicMock()
+        bot._stop_event = MagicMock()
+        bot._stop_flag = False
+        bot._log = MagicMock()
+        bot._push_status = MagicMock()
+        bot._bait_error_count = 0
+        bot._icon_check_active = MagicMock(return_value=True)
+        bot._count_action_icons = MagicMock(return_value=4)
+        bot._detect_active_fishing = MagicMock(return_value=False)
+        bot._enter_waiting = MagicMock()
+        bot.request_stop = MagicMock()
+        return bot
+
+    def test_cast_failure_requires_at_least_four_icons_in_both_checks(self):
+        for counts, failed in (([3], False), ([4, 3], False), ([4, 4], True), ([5, 5], True)):
+            with self.subTest(counts=counts):
+                bot = self._bot()
+                bot._count_action_icons.side_effect = counts
+                self.assertEqual(bot._cast_failed_by_icons(), failed)
+
+    def test_post_cast_detection_prevents_failure(self):
+        bot = self._bot()
+        bot._detect_active_fishing.return_value = True
+        bot._handle_idle()
+        bot._count_action_icons.assert_not_called()
+        self.assertEqual(bot._bait_error_count, 0)
+        bot._enter_waiting.assert_not_called()
+
+    def test_detection_during_icon_confirmation_prevents_failure(self):
+        bot = self._bot()
+        bot._detect_active_fishing.side_effect = [False, True]
+        bot._handle_idle()
+        self.assertEqual(bot._bait_error_count, 0)
+        bot._enter_waiting.assert_not_called()
+        bot.request_stop.assert_not_called()
+
+    def test_bait_exhaustion_stops_on_fifth_failure(self):
+        bot = self._bot()
+        for _ in range(4):
+            bot._handle_cast_failure("icons visible")
+            bot.request_stop.assert_not_called()
+        bot._handle_cast_failure("icons visible")
+        self.assertEqual(bot._bait_error_count, 5)
+        bot.request_stop.assert_called_once_with("Bait error limit reached")
+
+    def test_detection_during_failure_wait_overrides_stop(self):
+        bot = self._bot()
+        bot._bait_error_count = 4
+        bot._detect_active_fishing.return_value = True
+        bot._handle_cast_failure("icons visible")
+        bot.request_stop.assert_not_called()
+        bot.sm.transition.assert_not_called()
 
 
 class TestJudgeText(unittest.TestCase):

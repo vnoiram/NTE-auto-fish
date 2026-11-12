@@ -198,7 +198,7 @@ class TimingConfig:
     key_press_duration: float = 0.55
     waiting_poll_interval: float = 0.05
     struggling_poll_interval: float = 0.058
-    bait_error_threshold: int = 3
+    bait_error_threshold: int = 5
     max_struggle_secs: float = 120.0
     # Random pause between pressing start/resume and the first cast.
     start_delay_min_secs: float = 1.4
@@ -336,7 +336,7 @@ class AppConfig:
     icon_roi_ratios: tuple = (0.0, 0.0, 0.0, 0.0)
     # Detect a failed cast (no bait) by the action-bar icons still being visible.
     cast_icon_check_enabled: bool = True
-    cast_icon_fail_min: int = 3
+    cast_icon_fail_min: int = 4
     ocr_name_roi_ratios: tuple = (0.35, 0.30, 0.65, 0.42)
     ocr_weight_roi_ratios: tuple = (0.45, 0.43, 0.55, 0.52)
 

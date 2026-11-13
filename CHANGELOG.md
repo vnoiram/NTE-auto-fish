@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.15.0](https://github.com/vnoiram/NTE-auto-fish/compare/v0.14.0...v0.15.0) (2026-11-13)
+
+
+### Features
+
+* add bar-only casting mode and catch checks ([0179227](https://github.com/vnoiram/NTE-auto-fish/commit/01792278866aea5fe97711b87f5fb5ad2f04c861))
+* show both fishing modes and active selection ([25ffc12](https://github.com/vnoiram/NTE-auto-fish/commit/25ffc127683e628d7d14b6a0873493a8a025bb5c))
+
+
+### Bug Fixes
+
+* default no-bar bait timeout to 30 seconds ([0691594](https://github.com/vnoiram/NTE-auto-fish/commit/0691594dccfd9e86380487e3c4196f4117b35230))
+* fit fishing mode controls to dashboard width ([ef0249a](https://github.com/vnoiram/NTE-auto-fish/commit/ef0249a9f95da4f5ab54d57056c2c9ec1be4c6a5))
+* monitor fishing detections during cast error waits ([0b673ff](https://github.com/vnoiram/NTE-auto-fish/commit/0b673ff44b8a609da86aa100f4a05c6c0ac695c9))
+* preserve battles during catch confirmation ([0faceb0](https://github.com/vnoiram/NTE-auto-fish/commit/0faceb0a57de06dda29709d9612ea6b2113341fe))
+* prioritize fishing detections over cast failures ([98140a0](https://github.com/vnoiram/NTE-auto-fish/commit/98140a05a65329619e941e30c671d0760cfe8eb7))
+* rest in safe zone and hold distant corrections ([e565331](https://github.com/vnoiram/NTE-auto-fish/commit/e56533116ac6f71c7b42f44ba4249216695626c0))
+* restore battle tracking after pause and resume ([430d1d0](https://github.com/vnoiram/NTE-auto-fish/commit/430d1d0ebf6b07494837901824fa43172edbc4a7))
+* smooth result closing and shift icon detection ([1a86df4](https://github.com/vnoiram/NTE-auto-fish/commit/1a86df4409563b7f277c2da04fd35df8ddb13f44))
+
 ## [0.14.0](https://github.com/vnoiram/NTE-auto-fish/compare/v0.13.0...v0.14.0) (2026-11-09)
 
 

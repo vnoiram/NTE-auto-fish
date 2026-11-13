@@ -255,6 +255,31 @@ class TestBarOnlyMode(unittest.TestCase):
         bot.input.press.assert_not_called()
         self.assertEqual(bot._fish_count, 1)
 
+    def test_status_reports_applied_mode_until_worker_switches_it(self):
+        bot = make_bot()
+        bot.bridge = MagicMock()
+        for name in (
+            "_session_start",
+            "_last_pid_out",
+            "_fps",
+            "_lost_frames",
+            "_lost_cursor_frames",
+            "_lost_target_frames",
+            "_scaled_min_area",
+            "_current_scale",
+        ):
+            setattr(bot, name, 0)
+        bot._roi_bar = bot._roi_button = {}
+        bot._cursor_x_rel = bot._target_x_rel = None
+        bot._last_fish_name = bot._last_fish_weight_g = ""
+        bot._is_paused = bot._is_stopped = False
+        bot._active_bar_only_mode = False
+        NTEFishingBot._push_status(bot)
+        self.assertFalse(bot.bridge.push_status.call_args.args[0].bar_only_mode)
+        bot._sync_fishing_mode()
+        NTEFishingBot._push_status(bot)
+        self.assertTrue(bot.bridge.push_status.call_args.args[0].bar_only_mode)
+
     def test_switching_modes_keeps_an_ongoing_battle(self):
         bot = make_bot()
         bot.sm.transition(FishingState.STRUGGLING)

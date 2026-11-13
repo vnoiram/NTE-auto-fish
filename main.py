@@ -345,7 +345,9 @@ class NTEFishingBot:
                 stop_reason=getattr(self, "_stop_reason", ""),
                 bait_error_count=getattr(self, "_bait_error_count", 0),
                 bait_error_limit=self.cfg.timing.bait_error_threshold,
-                bar_only_mode=self.cfg.bar_only_mode,
+                bar_only_mode=getattr(
+                    self, "_active_bar_only_mode", self.cfg.bar_only_mode
+                ),
                 bar_only_secs_left=(
                     max(
                         0.0,

@@ -65,6 +65,7 @@ _theme_start: int | None = None
 _theme_pause: int | None = None
 _theme_stop: int | None = None
 _theme_calibrate: int | None = None
+_mode_button_themes: dict[bool, int] = {}
 log = logging.getLogger("NTEFish")
 
 
@@ -343,8 +344,10 @@ def _limit_text(status: BotStatus) -> str:
 
 
 def _set_bar_only_mode(sender, value) -> None:
-    CFG.bar_only_mode = bool(value)
-    _save_fishing_mode()
+    value = bool(value)
+    if CFG.bar_only_mode != value:
+        CFG.bar_only_mode = value
+        _save_fishing_mode()
 
 
 def _set_bar_only_timeout(sender, value) -> None:
@@ -377,11 +380,23 @@ def _create_fishing_mode_controls() -> None:
         tag="fishing_mode_bar", border=True, no_scrollbar=True, auto_resize_y=True
     ):
         apply_glass_card_theme("fishing_mode_bar")
-        dpg.add_checkbox(
-            label=tr("Bar-only cast mode"),
-            tag="bar_only_mode",
-            default_value=CFG.bar_only_mode,
-            callback=_set_bar_only_mode,
+        with dpg.group(horizontal=True):
+            dpg.add_button(
+                label=_mode_button_label(False),
+                tag="btn_mode_normal",
+                width=int(180 * _s),
+                height=int(30 * _s),
+                callback=lambda *args: _set_bar_only_mode(None, False),
+            )
+            dpg.add_button(
+                label=_mode_button_label(True),
+                tag="btn_mode_bar_only",
+                width=int(270 * _s),
+                height=int(30 * _s),
+                callback=lambda *args: _set_bar_only_mode(None, True),
+            )
+        dpg.add_text(
+            _mode_status_message(), tag="fishing_mode_status", color=TEXT_MUTED, wrap=0
         )
         with dpg.group(horizontal=True):
             dpg.add_input_float(
@@ -423,9 +438,42 @@ def _create_fishing_mode_controls() -> None:
         )
 
 
-def _refresh_fishing_mode_controls() -> None:
+def _mode_name(bar_only: bool) -> str:
+    return tr("Bar-only cast mode" if bar_only else "Normal mode")
+
+
+def _mode_button_label(bar_only: bool) -> str:
+    name = _mode_name(bar_only)
+    return tr("{mode} (selected)", mode=name) if bar_only == CFG.bar_only_mode else name
+
+
+def _mode_status_message(status: BotStatus | None = None) -> str:
+    selected = _mode_name(CFG.bar_only_mode)
+    if status is None or status.is_stopped:
+        return tr("Selected mode: {mode}", mode=selected)
+    current = _mode_name(status.bar_only_mode)
+    if status.bar_only_mode != CFG.bar_only_mode:
+        return tr(
+            "Switching from {current} to {selected}", current=current, selected=selected
+        )
+    if status.is_running:
+        return tr("Running mode: {mode}", mode=current)
+    return tr("Paused mode: {mode}", mode=current)
+
+
+def _refresh_fishing_mode_controls(status: BotStatus | None = None) -> None:
+    for tag, bar_only in (("btn_mode_normal", False), ("btn_mode_bar_only", True)):
+        if dpg.does_item_exist(tag):
+            selected = bar_only == CFG.bar_only_mode
+            if selected not in _mode_button_themes:
+                _mode_button_themes[selected] = build_button_theme(
+                    "primary" if selected else "neutral"
+                )
+            dpg.configure_item(tag, label=_mode_button_label(bar_only))
+            dpg.bind_item_theme(tag, _mode_button_themes[selected])
+    if dpg.does_item_exist("fishing_mode_status"):
+        dpg.set_value("fishing_mode_status", _mode_status_message(status))
     for tag, value in (
-        ("bar_only_mode", CFG.bar_only_mode),
         ("bar_only_timeout", CFG.timing.bar_only_timeout_secs),
         ("catch_icon_timeout", CFG.timing.catch_icon_timeout_secs),
     ):
@@ -439,7 +487,7 @@ def _refresh_fishing_mode_controls() -> None:
 
 def update_dashboard_ui(bridge: BotBridge):
     status = bridge.latest_status()
-    _refresh_fishing_mode_controls()
+    _refresh_fishing_mode_controls(status)
     bind_preview_drag(bridge)
     if not not status.is_running and bridge.preview_active:
         bridge.preview_active = False  # the running bot takes over the previews

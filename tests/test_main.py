@@ -401,6 +401,16 @@ class TestRoiOffsets(unittest.TestCase):
             loaded.load(path)
         self.assertEqual(loaded.roi.bar_offset_y, -35)
 
+    def test_default_icon_area_moves_left_by_twenty_five_pixels(self):
+        bot = self._bot()
+        bot._apply_roi_offsets()
+        shifted = dict(bot._roi_icon)
+        bot.cfg.roi.icon_offset_x = 0
+        bot._apply_roi_offsets()
+        self.assertEqual(shifted["left"], bot._roi_icon["left"] - 25)
+        for key in ("top", "width", "height"):
+            self.assertEqual(shifted[key], bot._roi_icon[key])
+
 
 class TestBaitErrorDetectionOption(unittest.TestCase):
     def test_idle_skips_the_icon_check_when_disabled(self):
@@ -684,3 +694,76 @@ class MonitorChangeResumeTest(unittest.TestCase):
         bot.calibrate = MagicMock()
         bot._handle_command("resume")
         bot.calibrate.assert_not_called()
+
+
+class TestResultMouseMovement(unittest.TestCase):
+    def _bot(self):
+        bot = NTEFishingBot.__new__(NTEFishingBot)
+        bot.cfg = AppConfig()
+        bot.cfg.humanization.enabled = False
+        bot.cfg.result_close_method = "click"
+        bot.cfg.spam_cast_enabled = False
+        bot._roi_error = None
+        bot._roi_bar = {}
+        bot._screen_w, bot._screen_h = 1920, 1080
+        bot._mon_x, bot._mon_y = -1920, 100
+        bot._stop_flag = False
+        bot._stop_event = MagicMock()
+        bot.input = MagicMock()
+        bot.input.smooth_move.return_value = True
+        bot.sm = MagicMock()
+        bot._grab = MagicMock()
+        bot._find_cursor = MagicMock(return_value=(None, None))
+        bot._find_target = MagicMock(return_value=(None, None))
+        bot._ocr_catch_screen = MagicMock(return_value=(None, None))
+        bot._publish_ocr_preview = MagicMock()
+        bot._append_catch = MagicMock()
+        bot._log = MagicMock()
+        bot._fish_count = 0
+        bot._fish_limit_target = None
+        return bot
+
+    def test_moves_during_wait_then_clicks_without_moving_again(self):
+        bot = self._bot()
+        bot._handle_result()
+        bot.input.smooth_move.assert_called_once_with(
+            -960, 910, duration=3.0, amp=0, stop_event=bot._stop_event
+        )
+        bot.input.click.assert_called_once_with()
+        actions = [call[0] for call in bot.input.method_calls]
+        self.assertLess(actions.index("smooth_move"), actions.index("click"))
+        # The result wait is spent moving; only the post-click delay remains.
+        bot._stop_event.wait.assert_called_once_with(timeout=0.5)
+        bot.input.humanized_click.assert_not_called()
+
+    def test_stop_during_movement_prevents_click_and_catch_count(self):
+        bot = self._bot()
+        bot.input.smooth_move.return_value = False
+        bot._handle_result()
+        bot.input.click.assert_not_called()
+        bot._ocr_catch_screen.assert_not_called()
+        self.assertEqual(bot._fish_count, 0)
+
+    def test_active_battle_after_wait_prevents_click(self):
+        bot = self._bot()
+        bot._find_cursor.return_value = (100, None)
+        bot._handle_result()
+        bot.input.click.assert_not_called()
+        self.assertEqual(bot._fish_count, 0)
+
+    def test_keyboard_close_uses_the_wait_without_mouse_movement(self):
+        bot = self._bot()
+        bot.cfg.result_close_method = "key"
+        bot._handle_result()
+        bot.input.smooth_move.assert_not_called()
+        bot.input.click.assert_not_called()
+        bot.input.press.assert_called_once_with(
+            bot.cfg.keys.exit, bot.cfg.timing.key_press_duration
+        )
+
+    def test_spam_cast_leaves_closing_to_the_cast_key(self):
+        bot = self._bot()
+        bot.cfg.spam_cast_enabled = True
+        bot._handle_result()
+        bot.input.smooth_move.assert_not_called()
+        bot.input.click.assert_not_called()

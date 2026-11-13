@@ -52,7 +52,7 @@ class TestAreaReset(unittest.TestCase):
         reset_area("icons", cfg)
         reset_area("ocr_name", cfg)
         self.assertEqual(cfg.icon_roi_ratios, (0.0, 0.0, 0.0, 0.0))
-        self.assertEqual(cfg.roi.icon_offset_x, 0)
+        self.assertEqual(cfg.roi.icon_offset_x, -25)
         self.assertEqual(cfg.ocr_name_roi_ratios, AppConfig().ocr_name_roi_ratios)
 
     def test_icon_offset_moves_the_icon_area(self):
@@ -64,7 +64,8 @@ class TestAreaReset(unittest.TestCase):
         mon = SimpleNamespace(x=0, y=0, width=1920, height=1080)
         cfg = AppConfig()
         base = compute_icon_roi(cfg, mon)
-        cfg.roi.icon_offset_x, cfg.roi.icon_offset_y = 15, -7
+        cfg.roi.icon_offset_x += 15
+        cfg.roi.icon_offset_y -= 7
         moved = compute_icon_roi(cfg, mon)
         self.assertEqual(
             (moved["left"] - base["left"], moved["top"] - base["top"]), (15, -7)

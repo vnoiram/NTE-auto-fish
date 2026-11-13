@@ -6,6 +6,7 @@ wraps pydirectinput and tracks held keys so state changes can release them.
 """
 
 import logging
+import math
 import threading
 import time
 from random import SystemRandom
@@ -136,27 +137,50 @@ class InputModule:
                     "Failed to release key '%s' in release_all.", key, exc_info=True
                 )
 
-    def click(self, x: int, y: int) -> None:
+    def click(self, x: int | None = None, y: int | None = None) -> None:
         """Click a screen coordinate."""
         pydirectinput.click(x, y)
+
+    def smooth_move(
+        self,
+        x: int,
+        y: int,
+        duration: float,
+        amp: int = 0,
+        stop_event: threading.Event | None = None,
+    ) -> bool:
+        """Move along an eased curve over duration; return False if stopped."""
+        if stop_event is not None and stop_event.is_set():
+            return False
+        start_x, start_y = pydirectinput.position()
+        curve = min(abs(amp), math.hypot(x - start_x, y - start_y) / 4)
+        control_x = (start_x + x) / 2 + _RNG.uniform(-curve, curve)
+        control_y = (start_y + y) / 2 + _RNG.uniform(-curve, curve)
+        steps = max(1, math.ceil(max(0.0, duration) * 60))
+        started = time.monotonic()
+        for step in range(1, steps + 1):
+            delay = started + max(0.0, duration) * step / steps - time.monotonic()
+            if stop_event is not None:
+                if stop_event.wait(timeout=max(0.0, delay)):
+                    return False
+            elif delay > 0:
+                time.sleep(delay)
+            if stop_event is not None and stop_event.is_set():
+                return False
+            t = step / steps
+            eased = t * t * (3 - 2 * t)
+            inverse = 1 - eased
+            px = inverse**2 * start_x + 2 * inverse * eased * control_x + eased**2 * x
+            py = inverse**2 * start_y + 2 * inverse * eased * control_y + eased**2 * y
+            # pydirectinput ignores duration, so send each intermediate position.
+            pydirectinput.moveTo(round(px), round(py))
+        return True
 
     def humanized_move(
         self, x: int, y: int, amp: int = 150, d_min: float = 0.15, d_max: float = 0.3
     ) -> None:
         """Move the mouse to (x,y) with a human-like trajectory."""
-        try:
-            curr_x, curr_y = pydirectinput.position()
-            mid_x = int((curr_x + x) / 2) + _RNG.randint(-amp, amp)
-            mid_y = int((curr_y + y) / 2) + _RNG.randint(-amp, amp)
-            dur1 = _RNG.uniform(d_min, d_max)
-            dur2 = _RNG.uniform(d_min, d_max)
-            pydirectinput.moveTo(mid_x, mid_y, duration=dur1)
-            pydirectinput.moveTo(x, y, duration=dur2)
-        except Exception:
-            log.debug(
-                "Humanized move failed; falling back to direct move.", exc_info=True
-            )
-            pydirectinput.moveTo(x, y, duration=_RNG.uniform(d_min * 2, d_max * 2))
+        self.smooth_move(x, y, duration=_RNG.uniform(d_min, d_max) * 2, amp=amp)
 
     def humanized_click(
         self, x: int, y: int, amp: int = 150, d_min: float = 0.15, d_max: float = 0.3

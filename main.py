@@ -1589,7 +1589,21 @@ class NTEFishingBot:
         result_w = self.cfg.timing.result_wait_secs
         if self.cfg.humanization.enabled:
             result_w = sample_timing(result_w, self.cfg.humanization, minimum=1.0)
-        self._stop_event.wait(timeout=result_w)
+        mouse_prepared = False
+        if self.cfg.result_close_method == "click" and not self.cfg.spam_cast_enabled:
+            cx, cy = self._result_close_target()
+            amp = (
+                self.cfg.humanization.mouse_move_curve_amplitude
+                if self.cfg.humanization.enabled
+                else 0
+            )
+            if not self.input.smooth_move(
+                cx, cy, duration=result_w, amp=amp, stop_event=self._stop_event
+            ):
+                return
+            mouse_prepared = True
+        else:
+            self._stop_event.wait(timeout=result_w)
         if self._stop_flag:
             return
 
@@ -1616,7 +1630,7 @@ class NTEFishingBot:
         catch_info = f" ({fish_name}, {weight_g} g)" if fish_name or weight_g else ""
         self._log(f"[RESULT] Fish #{self._fish_count}{catch_info}.")
         self._append_catch(fish_name, weight_g)
-        self._dismiss_result()
+        self._dismiss_result(mouse_prepared=mouse_prepared)
         self.sm.transition(FishingState.IDLE)
         target = self._fish_limit_target
         if target is not None and self._fish_count >= target:
@@ -1624,7 +1638,21 @@ class NTEFishingBot:
             self.request_stop("Fish count limit reached")
             self._push_status()
 
-    def _dismiss_result(self) -> None:
+    def _result_close_target(self) -> tuple[int, int]:
+        base_x = self._screen_w // 2 if self._screen_w else _RESULT_CLOSE_FALLBACK_X
+        base_y = (
+            int(self._screen_h * 0.75)
+            if self._screen_h
+            else int(_RESULT_CLOSE_FALLBACK_Y * 1.5)
+        )
+        cx, cy = self._mon_x + base_x, self._mon_y + base_y
+        if self.cfg.humanization.enabled:
+            hcfg = self.cfg.humanization
+            cx += _RNG.randint(-hcfg.mouse_offset_x, hcfg.mouse_offset_x)
+            cy += _RNG.randint(-hcfg.mouse_offset_y, hcfg.mouse_offset_y)
+        return cx, cy
+
+    def _dismiss_result(self, mouse_prepared: bool = False) -> None:
         """Dismiss the result screen by clicking or pressing the exit key."""
         if self._stop_flag:
             return
@@ -1634,37 +1662,21 @@ class NTEFishingBot:
             return
 
         if self.cfg.result_close_method == "click":
-            base_x = self._screen_w // 2 if self._screen_w else _RESULT_CLOSE_FALLBACK_X
-            # Typically click towards the lower middle (e.g. around 75% height)
-            base_y = (
-                int(self._screen_h * 0.75)
-                if self._screen_h
-                else int(_RESULT_CLOSE_FALLBACK_Y * 1.5)
-            )
-
-            if self.cfg.humanization.enabled:
-                hcfg = self.cfg.humanization
-                cx = (
-                    self._mon_x
-                    + base_x
-                    + _RNG.randint(-hcfg.mouse_offset_x, hcfg.mouse_offset_x)
-                )
-                cy = (
-                    self._mon_y
-                    + base_y
-                    + _RNG.randint(-hcfg.mouse_offset_y, hcfg.mouse_offset_y)
-                )
-                self.input.humanized_click(
-                    cx,
-                    cy,
-                    amp=hcfg.mouse_move_curve_amplitude,
-                    d_min=hcfg.mouse_move_duration_min,
-                    d_max=hcfg.mouse_move_duration_max,
-                )
+            if mouse_prepared:
+                self.input.click()
             else:
-                cx = self._mon_x + base_x
-                cy = self._mon_y + base_y
-                self.input.click(cx, cy)
+                cx, cy = self._result_close_target()
+                if self.cfg.humanization.enabled:
+                    hcfg = self.cfg.humanization
+                    self.input.humanized_click(
+                        cx,
+                        cy,
+                        amp=hcfg.mouse_move_curve_amplitude,
+                        d_min=hcfg.mouse_move_duration_min,
+                        d_max=hcfg.mouse_move_duration_max,
+                    )
+                else:
+                    self.input.click(cx, cy)
         else:
             exit_dur = self.cfg.timing.key_press_duration
             if self.cfg.humanization.enabled:

@@ -46,7 +46,7 @@ class TestIconRoi(unittest.TestCase):
             AppConfig(), SimpleNamespace(x=0, y=0, width=1920, height=1080)
         )
         self.assertLess(roi["left"] + roi["width"], 1920)
-        self.assertGreater(roi["left"] + roi["width"], 1900)
+        self.assertEqual(roi["left"] + roi["width"], 1885)
         self.assertLess(roi["top"] + roi["height"], 1080)
         self.assertEqual(roi["width"], 515)
 

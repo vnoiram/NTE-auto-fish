@@ -31,6 +31,15 @@ class TestDashboardFishingMode(unittest.TestCase):
         self.assertEqual(fields["bar_only_timeout"]["default_value"], 90.0)
         self.assertEqual(fields["catch_icon_timeout"]["default_value"], 0.5)
 
+    def test_mode_card_grows_with_its_controls_instead_of_clipping_them(self):
+        fake_dpg = MagicMock()
+        with (
+            patch.object(dashboard, "dpg", fake_dpg),
+            patch.object(dashboard, "apply_glass_card_theme"),
+        ):
+            dashboard._create_fishing_mode_controls()
+        self.assertTrue(fake_dpg.child_window.call_args.kwargs.get("auto_resize_y"))
+
     def test_dashboard_changes_save_settings_and_clamp_timeouts(self):
         cfg = AppConfig()
         with (

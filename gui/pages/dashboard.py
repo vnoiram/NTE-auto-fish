@@ -374,18 +374,16 @@ def _save_fishing_mode() -> None:
 
 def _create_fishing_mode_controls() -> None:
     with dpg.child_window(
-        height=int(122 * _s), tag="fishing_mode_bar", border=True, no_scrollbar=True
+        tag="fishing_mode_bar", border=True, no_scrollbar=True, auto_resize_y=True
     ):
         apply_glass_card_theme("fishing_mode_bar")
+        dpg.add_checkbox(
+            label=tr("Bar-only cast mode"),
+            tag="bar_only_mode",
+            default_value=CFG.bar_only_mode,
+            callback=_set_bar_only_mode,
+        )
         with dpg.group(horizontal=True):
-            dpg.add_checkbox(
-                label=tr("Bar-only cast mode"),
-                tag="bar_only_mode",
-                default_value=CFG.bar_only_mode,
-                callback=_set_bar_only_mode,
-            )
-            dpg.add_spacer(width=int(20 * _s))
-            dpg.add_text(tr("No-bar bait timeout (sec)"))
             dpg.add_input_float(
                 tag="bar_only_timeout",
                 default_value=CFG.timing.bar_only_timeout_secs,
@@ -396,8 +394,8 @@ def _create_fishing_mode_controls() -> None:
                 width=int(110 * _s),
                 callback=_set_bar_only_timeout,
             )
+            dpg.add_text(tr("No-bar bait timeout (sec)"), wrap=0)
         with dpg.group(horizontal=True):
-            dpg.add_text(tr("Zero-icon catch check timeout (sec)"))
             dpg.add_input_float(
                 tag="catch_icon_timeout",
                 default_value=CFG.timing.catch_icon_timeout_secs,
@@ -408,6 +406,7 @@ def _create_fishing_mode_controls() -> None:
                 width=int(110 * _s),
                 callback=_set_catch_icon_timeout,
             )
+            dpg.add_text(tr("Zero-icon catch check timeout (sec)"), wrap=0)
         dpg.add_text(
             tr(
                 "Repeat casts outside battle; stop if no bars appear before the timeout."

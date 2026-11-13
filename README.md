@@ -54,6 +54,14 @@ This repository is a fork of [Chizukuo/NTE-auto-fish](https://github.com/Chizuku
 - **Fast capture and input**: `mss` captures screen regions efficiently, while `PyDirectInput` sends game-friendly input events.
 - **Portable builds**: GitHub Actions produces a single-file Windows EXE for GUI and a lightweight source package for CLI.
 
+### Bar-only cast mode
+
+Enable **Bar-only cast mode** on the dashboard to repeat the cast key at randomized intervals outside battle. Battle bars alone control entering and leaving fights; bite prompts, cast-error icons, result-screen detection, and mouse closing are bypassed. Cast intervals use the existing input settings.
+
+The dashboard exposes a no-bar bait timeout (default 120 active seconds outside battle) and a zero-icon catch-check timeout (default 1 second). After bars disappear, icons are checked **before casting resumes**: 1–2 icons confirm a catch, 0 retries briefly, and 3+ or a zero-icon timeout does not count. Normal mode uses the same check before clicking or pressing the close key. Bar-only mode skips fish-name/weight OCR.
+
+Both fish-count and running-time auto-stop limits work in either mode. A running battle finishes before a time-based stop; pauses do not consume the no-bar timeout. Switching modes during battle preserves the fight. Mode and timeout settings persist; CLI config keys are `bar_only_mode`, `timing.bar_only_timeout_secs`, and `timing.catch_icon_timeout_secs`.
+
 ## Project Structure
 
 | Path | Description |

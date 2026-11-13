@@ -34,6 +34,8 @@ class BotStatus:
     stop_reason: str = ""
     bait_error_count: int = 0
     bait_error_limit: int = 3
+    bar_only_mode: bool = False
+    bar_only_secs_left: float | None = None
     fish_left: int | None = None  # fish still to catch before the auto stop
     secs_left: float | None = None  # running seconds left before the auto stop
 

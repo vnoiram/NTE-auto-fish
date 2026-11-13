@@ -767,6 +767,7 @@ class TestResultMouseMovement(unittest.TestCase):
         bot._grab = MagicMock()
         bot._find_cursor = MagicMock(return_value=(None, None))
         bot._find_target = MagicMock(return_value=(None, None))
+        bot._count_action_icons = MagicMock(return_value=1)
         bot._ocr_catch_screen = MagicMock(return_value=(None, None))
         bot._publish_ocr_preview = MagicMock()
         bot._append_catch = MagicMock()
@@ -819,3 +820,33 @@ class TestResultMouseMovement(unittest.TestCase):
         bot._handle_result()
         bot.input.smooth_move.assert_not_called()
         bot.input.click.assert_not_called()
+
+
+class TestNormalCatchCount(unittest.TestCase):
+    _bot = TestResultMouseMovement._bot
+
+    def test_confirmation_occurs_before_either_close_method(self):
+        for method in ("click", "key"):
+            with self.subTest(method=method):
+                bot = self._bot()
+                bot.cfg.result_close_method = method
+                events = []
+                bot.input.smooth_move.side_effect = (
+                    lambda *a, **k: events.append("move") or True
+                )
+                bot._count_action_icons.side_effect = lambda: events.append("icons") or 2
+                bot.input.click.side_effect = lambda: events.append("close")
+                bot.input.press.side_effect = lambda *a: events.append("close")
+                bot._handle_result()
+                self.assertLess(events.index("icons"), events.index("close"))
+                if method == "click":
+                    self.assertLess(events.index("move"), events.index("icons"))
+                self.assertEqual(bot._fish_count, 1)
+
+    def test_unconfirmed_catch_is_closed_but_never_counted(self):
+        bot = self._bot()
+        bot._count_action_icons.return_value = 3
+        bot._handle_result()
+        self.assertEqual(bot._fish_count, 0)
+        bot._ocr_catch_screen.assert_not_called()
+        bot.input.click.assert_called_once_with()

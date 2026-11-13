@@ -25,6 +25,22 @@ class TestAppConfig(unittest.TestCase):
         self.assertEqual(loaded.hotkeys.toggle, "f9")
         self.assertEqual(loaded.language, "ja")
 
+    def test_fishing_mode_and_watchdogs_persist(self):
+        cfg = AppConfig()
+        self.assertFalse(cfg.bar_only_mode)
+        self.assertEqual(cfg.timing.catch_icon_timeout_secs, 1.0)
+        cfg.bar_only_mode = True
+        cfg.timing.bar_only_timeout_secs = 90.0
+        cfg.timing.catch_icon_timeout_secs = 0.5
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "settings.json")
+            cfg.save(path)
+            loaded = AppConfig()
+            loaded.load(path)
+        self.assertTrue(loaded.bar_only_mode)
+        self.assertEqual(loaded.timing.bar_only_timeout_secs, 90.0)
+        self.assertEqual(loaded.timing.catch_icon_timeout_secs, 0.5)
+
     def test_load_invalid_json_keeps_existing_values(self):
         cfg = AppConfig()
         cfg.pid.kp = 0.91

@@ -200,6 +200,9 @@ class NTEFishingBot:
         self._battle_visible = False
         self._battle_absent_frames = 0
         self._next_spam_at = 0.0
+        self._active_bar_only_mode = self.cfg.bar_only_mode
+        self._bar_only_wait_started = None
+        self._bar_streak = 0
         self._next_bg_sample_at = 0.0
         self._next_preview_at = 0.0
         self._assist_done = True
@@ -284,6 +287,9 @@ class NTEFishingBot:
         self._battle_visible = False
         self._battle_absent_frames = 0
         self._next_spam_at = 0.0
+        self._active_bar_only_mode = self.cfg.bar_only_mode
+        self._bar_only_wait_started = None
+        self._bar_streak = 0
         self._last_fish_name = ""
         self._last_fish_weight_g = ""
         self._bar_detected_in_struggle = False
@@ -339,6 +345,17 @@ class NTEFishingBot:
                 stop_reason=getattr(self, "_stop_reason", ""),
                 bait_error_count=getattr(self, "_bait_error_count", 0),
                 bait_error_limit=self.cfg.timing.bait_error_threshold,
+                bar_only_mode=self.cfg.bar_only_mode,
+                bar_only_secs_left=(
+                    max(
+                        0.0,
+                        max(1.0, self.cfg.timing.bar_only_timeout_secs)
+                        - (self._active_secs - self._bar_only_wait_started),
+                    )
+                    if self.cfg.bar_only_mode
+                    and getattr(self, "_bar_only_wait_started", None) is not None
+                    else None
+                ),
                 fish_left=(
                     max(0, self._fish_limit_target - self._fish_count)
                     if self._fish_limit_target is not None
@@ -389,6 +406,8 @@ class NTEFishingBot:
                     if self._stop_flag:
                         return
                 self._bait_error_count = 0
+                self._bar_only_wait_started = None
+                self._next_spam_at = 0.0
                 self._is_paused = False
                 self._start_delay_pending = True
                 if (
@@ -711,6 +730,10 @@ class NTEFishingBot:
     def _tick(self) -> None:
         """Run one iteration of the control loop."""
         self._apply_roi_offsets()
+        self._sync_fishing_mode()
+        if self.cfg.bar_only_mode:
+            self._tick_bar_only()
+            return
         state = self.sm.state
 
         # Preserve the current state unless a higher-priority screen detection
@@ -726,6 +749,61 @@ class NTEFishingBot:
             self._handle_struggling()
         elif state is FishingState.RESULT:
             self._handle_result()
+
+    def _sync_fishing_mode(self) -> None:
+        mode = self.cfg.bar_only_mode
+        if mode == getattr(self, "_active_bar_only_mode", mode):
+            return
+        self._active_bar_only_mode = mode
+        self._bar_only_wait_started = None
+        self._next_spam_at = 0.0
+        self._bar_streak = 0
+        self._bait_error_count = 0
+        # A dashboard mode change must not interrupt an ongoing battle.
+        if self.sm.state is not FishingState.STRUGGLING:
+            self.input.release_all()
+            self.pid.reset()
+            self._reset_humanization_state()
+            if self.sm.state is not FishingState.RESULT:
+                self.sm.transition(FishingState.IDLE)
+        self._log(f"[Mode] {'Bar-only cast' if mode else 'Normal'} mode enabled.")
+
+    def _tick_bar_only(self) -> None:
+        """Repeat casts outside battle; only bars decide state transitions."""
+        if self.sm.state is FishingState.STRUGGLING:
+            self._handle_struggling()
+            if self.sm.state is not FishingState.RESULT:
+                return
+        if self.sm.state is FishingState.RESULT:
+            # Inspect icons for catch accounting before resuming cast repeats.
+            self._record_catch(read_details=False)
+            self.sm.transition(FishingState.IDLE)
+            self._bar_only_wait_started = self._active_secs
+            self._next_spam_at = 0.0
+            self._stop_at_fish_limit()
+            return
+
+        self.sm.transition(FishingState.IDLE)
+        if self._bar_only_wait_started is None:
+            self._bar_only_wait_started = self._active_secs
+        if self._scan_battle_bars(FishingState.IDLE):
+            if self.sm.state is FishingState.STRUGGLING:
+                self._bar_only_wait_started = None
+            else:
+                self._stop_event.wait(timeout=self.cfg.timing.waiting_poll_interval)
+            return
+
+        timeout = max(1.0, self.cfg.timing.bar_only_timeout_secs)
+        if self._active_secs - self._bar_only_wait_started >= timeout:
+            self._log(
+                f"[BAR ONLY] No battle bars for {timeout:g}s; bait likely exhausted.",
+                logging.WARNING,
+            )
+            self.request_stop("Bait error: no battle bars detected")
+            self._push_status()
+            return
+        self._spam_cast_if_due(force=True)
+        self._stop_event.wait(timeout=self.cfg.timing.waiting_poll_interval)
 
     def _detect_active_fishing(self) -> bool:
         """Override the current state when bars or a bite prompt are visible."""
@@ -1147,9 +1225,9 @@ class NTEFishingBot:
         self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 1.0))
         self._log(f"[Profile] Switched to '{profile['name']}' (background match).")
 
-    def _spam_cast_if_due(self) -> None:
+    def _spam_cast_if_due(self, force: bool = False) -> None:
         """Press the cast key at random intervals while waiting for a bite."""
-        if not self.cfg.spam_cast_enabled:
+        if not (self.cfg.spam_cast_enabled or force):
             return
         now = time.perf_counter()
         if now < self._next_spam_at:
@@ -1158,11 +1236,17 @@ class NTEFishingBot:
             (self.cfg.spam_cast_interval_min, self.cfg.spam_cast_interval_max)
         )
         lo = max(lo, 0.1)
-        self._next_spam_at = now + _RNG.uniform(lo, max(hi, lo))
+        interval = _RNG.uniform(lo, max(hi, lo))
+        self._next_spam_at = now + interval
         dur = self.cfg.timing.key_press_duration
         if self.cfg.humanization.enabled:
             dur = sample_timing(dur, self.cfg.humanization, minimum=0.02)
+        elif force:
+            dur *= _RNG.uniform(0.85, 1.15)
         self.input.press(self.cfg.keys.cast, dur)
+        if force:
+            # Leave a real randomized gap after key-up, even with a long hold.
+            self._next_spam_at = time.perf_counter() + interval
 
     def _handle_waiting(self) -> None:
         if self._detect_active_fishing():
@@ -1284,11 +1368,13 @@ class NTEFishingBot:
 
             outside_distance = (
                 max(target_bounds[0] - cursor_x, cursor_x - target_bounds[1], 0)
-                if target_bounds is not None else abs(error)
+                if target_bounds is not None
+                else abs(error)
             )
             safe_width = (
                 target_bounds[1] - target_bounds[0] + 1
-                if target_bounds is not None else deadband * 4
+                if target_bounds is not None
+                else deadband * 4
             )
             far_from_safe_zone = outside_distance > max(deadband, safe_width * 0.25)
 
@@ -1658,14 +1744,41 @@ class NTEFishingBot:
             self.sm.transition(FishingState.IDLE)
             return
 
-        fish_name, weight_g = self._ocr_catch_screen()
-        self._publish_ocr_preview()
+        self._record_catch()
+        self._dismiss_result(mouse_prepared=mouse_prepared)
+        self.sm.transition(FishingState.IDLE)
+        self._stop_at_fish_limit()
+
+    def _record_catch(self, read_details: bool = True) -> bool:
+        """Confirm a catch before closing; allow up to two icons (including the mouse)."""
+        deadline = time.monotonic() + max(0.0, self.cfg.timing.catch_icon_timeout_secs)
+        while True:
+            if self._stop_flag:
+                return False
+            icons = self._count_action_icons()
+            if icons != 0:
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            if self._stop_event.wait(timeout=min(0.05, remaining)):
+                return False
+        if not 1 <= icons <= 2:
+            self._log(
+                f"[RESULT] {icons} action icons; catch not confirmed, not counted."
+            )
+            return False
+        fish_name, weight_g = ("", "")
+        if read_details:
+            fish_name, weight_g = self._ocr_catch_screen()
+            self._publish_ocr_preview()
         self._fish_count += 1
         catch_info = f" ({fish_name}, {weight_g} g)" if fish_name or weight_g else ""
         self._log(f"[RESULT] Fish #{self._fish_count}{catch_info}.")
         self._append_catch(fish_name, weight_g)
-        self._dismiss_result(mouse_prepared=mouse_prepared)
-        self.sm.transition(FishingState.IDLE)
+        return True
+
+    def _stop_at_fish_limit(self) -> None:
         target = self._fish_limit_target
         if target is not None and self._fish_count >= target:
             self._log("[Limit] Fish count limit reached.")

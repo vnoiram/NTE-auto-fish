@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from collections import deque
 from collections.abc import Callable
 
@@ -179,6 +180,8 @@ def create_dashboard(
             dpg.add_text(tr("Ready"), tag="stat_status_message", color=TEXT_MUTED)
 
     dpg.add_spacer(height=int(6 * _s))
+    _create_fishing_mode_controls()
+    dpg.add_spacer(height=int(6 * _s))
     with dpg.child_window(
         height=int(56 * _s), tag="limit_bar", border=True, no_scrollbar=True
     ):
@@ -339,8 +342,105 @@ def _limit_text(status: BotStatus) -> str:
     return " / ".join(parts)
 
 
+def _set_bar_only_mode(sender, value) -> None:
+    CFG.bar_only_mode = bool(value)
+    _save_fishing_mode()
+
+
+def _set_bar_only_timeout(sender, value) -> None:
+    value = float(value)
+    if not math.isfinite(value):
+        return
+    CFG.timing.bar_only_timeout_secs = max(1.0, value)
+    dpg.set_value("bar_only_timeout", CFG.timing.bar_only_timeout_secs)
+    _save_fishing_mode()
+
+
+def _set_catch_icon_timeout(sender, value) -> None:
+    value = float(value)
+    if not math.isfinite(value):
+        return
+    CFG.timing.catch_icon_timeout_secs = max(0.0, value)
+    dpg.set_value("catch_icon_timeout", CFG.timing.catch_icon_timeout_secs)
+    _save_fishing_mode()
+
+
+def _save_fishing_mode() -> None:
+    try:
+        CFG.save()
+    except OSError:
+        log.warning("Could not save fishing mode settings.", exc_info=True)
+
+
+def _create_fishing_mode_controls() -> None:
+    with dpg.child_window(
+        height=int(122 * _s), tag="fishing_mode_bar", border=True, no_scrollbar=True
+    ):
+        apply_glass_card_theme("fishing_mode_bar")
+        with dpg.group(horizontal=True):
+            dpg.add_checkbox(
+                label=tr("Bar-only cast mode"),
+                tag="bar_only_mode",
+                default_value=CFG.bar_only_mode,
+                callback=_set_bar_only_mode,
+            )
+            dpg.add_spacer(width=int(20 * _s))
+            dpg.add_text(tr("No-bar bait timeout (sec)"))
+            dpg.add_input_float(
+                tag="bar_only_timeout",
+                default_value=CFG.timing.bar_only_timeout_secs,
+                min_value=1.0,
+                min_clamped=True,
+                step=1.0,
+                format="%.1f",
+                width=int(110 * _s),
+                callback=_set_bar_only_timeout,
+            )
+        with dpg.group(horizontal=True):
+            dpg.add_text(tr("Zero-icon catch check timeout (sec)"))
+            dpg.add_input_float(
+                tag="catch_icon_timeout",
+                default_value=CFG.timing.catch_icon_timeout_secs,
+                min_value=0.0,
+                min_clamped=True,
+                step=0.1,
+                format="%.1f",
+                width=int(110 * _s),
+                callback=_set_catch_icon_timeout,
+            )
+        dpg.add_text(
+            tr(
+                "Repeat casts outside battle; stop if no bars appear before the timeout."
+            ),
+            color=TEXT_MUTED,
+            wrap=0,
+        )
+        dpg.add_text(
+            tr(
+                "Fish count: 1-2 icons before closing; retry 0 briefly. Uses cast interval settings."
+            ),
+            color=TEXT_MUTED,
+            wrap=0,
+        )
+
+
+def _refresh_fishing_mode_controls() -> None:
+    for tag, value in (
+        ("bar_only_mode", CFG.bar_only_mode),
+        ("bar_only_timeout", CFG.timing.bar_only_timeout_secs),
+        ("catch_icon_timeout", CFG.timing.catch_icon_timeout_secs),
+    ):
+        if (
+            dpg.does_item_exist(tag)
+            and not dpg.is_item_active(tag)
+            and dpg.get_value(tag) != value
+        ):
+            dpg.set_value(tag, value)
+
+
 def update_dashboard_ui(bridge: BotBridge):
     status = bridge.latest_status()
+    _refresh_fishing_mode_controls()
     bind_preview_drag(bridge)
     if not not status.is_running and bridge.preview_active:
         bridge.preview_active = False  # the running bot takes over the previews
@@ -1039,6 +1139,12 @@ def _status_message(status: BotStatus) -> str:
         return tr("Ready")
     if not status.is_running:
         return tr("Paused")
+    if status.bar_only_mode and status.state is not FishingState.STRUGGLING:
+        if status.bar_only_secs_left is not None:
+            return tr("Repeating casts; no-bar timeout in {seconds:.0f}s").format(
+                seconds=status.bar_only_secs_left
+            )
+        return tr("Repeating casts; watching battle bars")
     if status.state is FishingState.IDLE:
         if status.bait_error_count > 0:
             return tr("Cast error {n}/{limit}, retrying").format(

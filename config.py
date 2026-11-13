@@ -200,6 +200,10 @@ class TimingConfig:
     struggling_poll_interval: float = 0.058
     bait_error_threshold: int = 5
     max_struggle_secs: float = 120.0
+    # Bar-only mode: stop after this much active time without a battle.
+    bar_only_timeout_secs: float = 120.0
+    # Briefly retry a zero-icon catch check while rare-fish effects clear.
+    catch_icon_timeout_secs: float = 1.0
     # Random pause between pressing start/resume and the first cast.
     start_delay_min_secs: float = 1.4
     start_delay_max_secs: float = 2.6
@@ -306,6 +310,8 @@ class AppConfig:
     # the battle (STRUGGLING) state and never transitions elsewhere.
     battle_detect_cursor: bool = True
     battle_detect_safe_zone: bool = True
+    # Alternative flow: repeat casts outside battle and watch only the battle bars.
+    bar_only_mode: bool = False
     # Press the cast key at random intervals while waiting for a bite. This also
     # closes the result screen and forces the bot into the fight if a bite is missed.
     spam_cast_enabled: bool = False

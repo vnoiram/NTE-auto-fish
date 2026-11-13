@@ -201,7 +201,7 @@ class TimingConfig:
     bait_error_threshold: int = 5
     max_struggle_secs: float = 120.0
     # Bar-only mode: stop after this much active time without a battle.
-    bar_only_timeout_secs: float = 120.0
+    bar_only_timeout_secs: float = 30.0
     # Briefly retry a zero-icon catch check while rare-fish effects clear.
     catch_icon_timeout_secs: float = 1.0
     # Random pause between pressing start/resume and the first cast.

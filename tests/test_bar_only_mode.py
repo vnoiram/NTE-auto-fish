@@ -125,7 +125,6 @@ class TestBarOnlyMode(unittest.TestCase):
 
     def test_no_bar_timeout_stops_without_counting_or_casting(self):
         bot = make_bot()
-        bot.cfg.timing.bar_only_timeout_secs = 30.0
         bot._tick()
         bot.input.reset_mock()
         bot._active_secs = 30.0

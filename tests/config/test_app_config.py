@@ -28,6 +28,7 @@ class TestAppConfig(unittest.TestCase):
     def test_fishing_mode_and_watchdogs_persist(self):
         cfg = AppConfig()
         self.assertFalse(cfg.bar_only_mode)
+        self.assertEqual(cfg.timing.bar_only_timeout_secs, 30.0)
         self.assertEqual(cfg.timing.catch_icon_timeout_secs, 1.0)
         cfg.bar_only_mode = True
         cfg.timing.bar_only_timeout_secs = 90.0

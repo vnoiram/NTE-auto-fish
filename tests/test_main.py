@@ -159,7 +159,8 @@ class TestFishingDetection(unittest.TestCase):
         # one (cursor, target) pair per frame; cursor is queried first
         flat = []
         for cursor, target in detections:
-            flat += [(cursor, None), (target, None)]
+            bounds = (target - 20, target + 20) if target is not None else None
+            flat += [(cursor, None), (target, None, bounds)]
         bot.vision.get_hsv_centroid_x.side_effect = flat
         bot.input = MagicMock()
         bot._stop_event = MagicMock()
@@ -180,6 +181,57 @@ class TestFishingDetection(unittest.TestCase):
         bot._last_action = "NONE"
         bot._hum_pulse_state = "IDLE"
         return bot
+
+    def test_safe_zone_needs_no_centering_even_with_noise_and_taps_enabled(self):
+        for humanized in (False, True):
+            for cursor in (130, 135, 150, 165, 170):
+                with self.subTest(humanized=humanized, cursor=cursor):
+                    bot = self._make_struggling_bot([(cursor, 150)])
+                    bot.cfg.humanization.enabled = humanized
+                    bot.pid.update.return_value = 100.0
+                    bot._last_action = "RIGHT"
+                    bot._hum_pulse_state = "HOLD"
+                    bot._hum_reaction_end = float("inf")
+                    bot._handle_struggling()
+                    bot.input.hold.assert_not_called()
+                    bot.input.pulse_hold.assert_not_called()
+                    bot.input.release.assert_any_call(bot.cfg.keys.left)
+                    bot.input.release.assert_any_call(bot.cfg.keys.right)
+                    bot.pid.update.assert_not_called()
+                    bot.pid.reset.assert_called_once_with()
+                    self.assertEqual(bot._last_action, "NONE")
+                    self.assertEqual(bot._hum_pulse_state, "IDLE")
+
+    def test_far_outside_zone_holds_direction_across_expired_pulses(self):
+        for cursor, action in ((50, "RIGHT"), (250, "LEFT")):
+            for humanized in (False, True):
+                with self.subTest(cursor=cursor, humanized=humanized):
+                    bot = self._make_struggling_bot([(cursor, 150)] * 4)
+                    bot.cfg.humanization.enabled = humanized
+                    bot._hum_pulse_state = "GAP"
+                    bot._hum_pulse_end = 0.0
+                    # Even PID overshoot/noise cannot send recovery the wrong way.
+                    bot.pid.update.return_value = -999.0 if action == "RIGHT" else 999.0
+                    key = bot.cfg.keys.right if action == "RIGHT" else bot.cfg.keys.left
+                    for _ in range(4):
+                        bot._handle_struggling()
+                    self.assertEqual(bot.input.hold.call_count, 4)
+                    bot.input.hold.assert_called_with(key)
+                    self.assertNotIn((key,), [c.args for c in bot.input.release.call_args_list])
+                    bot.input.pulse_hold.assert_not_called()
+                    self.assertEqual(bot._last_action, action)
+
+    def test_entering_safe_zone_immediately_releases_recovery_hold(self):
+        bot = self._make_struggling_bot([(50, 150), (135, 150)])
+        bot.cfg.humanization.enabled = True
+        bot._handle_struggling()
+        bot.input.hold.assert_called_once_with(bot.cfg.keys.right)
+        bot.input.reset_mock()
+        bot._handle_struggling()
+        bot.input.hold.assert_not_called()
+        bot.input.pulse_hold.assert_not_called()
+        bot.input.release.assert_any_call(bot.cfg.keys.right)
+        self.assertEqual(bot._last_action, "NONE")
 
     def test_struggling_returns_to_waiting_if_no_bar_was_ever_seen(self):
         bot = self._make_struggling_bot([(None, None), (None, None)])

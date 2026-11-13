@@ -787,7 +787,7 @@ class NTEFishingBot:
             hsv_img=hsv_img,
         )
 
-    def _find_target(self, bar_img, hsv_img=None, last_x=None):
+    def _find_target(self, bar_img, hsv_img=None, last_x=None, include_bounds=False):
         return self.vision.get_hsv_centroid_x(
             bar_img,
             self.cfg.hsv.safe_zone.lower,
@@ -796,6 +796,7 @@ class NTEFishingBot:
             ignore_margin_ratio=0.0,
             last_known_x=last_x,
             hsv_img=hsv_img,
+            include_bounds=include_bounds,
         )
 
     def _publish_icon_preview(self, img, count: int) -> None:
@@ -1219,7 +1220,9 @@ class NTEFishingBot:
             else getattr(self, "_cursor_last_seen", None)
         )
         cursor_x, _ = self._find_cursor(bar_img, hsv_img, last_cursor)
-        target_x, _ = self._find_target(bar_img, hsv_img, self._target_x_rel)
+        target_x, _, target_bounds = self._find_target(
+            bar_img, hsv_img, self._target_x_rel, include_bounds=True
+        )
 
         self._cursor_x_rel = cursor_x
         if cursor_x is not None:
@@ -1262,16 +1265,47 @@ class NTEFishingBot:
             self._lost_target_frames = 0
             error = float(target_x) - float(cursor_x)
             bar_half = self._roi_bar.get("width", 400) / 2
-            output = self.pid.update(
-                float(cursor_x), float(target_x), bar_half_width=bar_half
+            inside_safe_zone = (
+                target_bounds is not None
+                and target_bounds[0] <= cursor_x <= target_bounds[1]
             )
+            if inside_safe_zone:
+                # A successful position needs no centering, noise, or tiny taps.
+                self.pid.reset()
+            else:
+                output = self.pid.update(
+                    float(cursor_x), float(target_x), bar_half_width=bar_half
+                )
             self._last_pid_out = output
             hcfg = self.cfg.humanization
             deadband = self.cfg.pid.deadband
             bar_width = self._roi_bar.get("width", 400)
             intensity = min(1.0, abs(error) / max(bar_width / 2, 1.0))
 
-            if hcfg.enabled:
+            outside_distance = (
+                max(target_bounds[0] - cursor_x, cursor_x - target_bounds[1], 0)
+                if target_bounds is not None else abs(error)
+            )
+            safe_width = (
+                target_bounds[1] - target_bounds[0] + 1
+                if target_bounds is not None else deadband * 4
+            )
+            far_from_safe_zone = outside_distance > max(deadband, safe_width * 0.25)
+
+            if inside_safe_zone:
+                self.input.release(self.cfg.keys.left)
+                self.input.release(self.cfg.keys.right)
+                self._reset_humanization_state()
+            elif far_from_safe_zone:
+                # Keep the key down across frame capture and polling. Pulse gaps,
+                # random actions, and PID noise must not interrupt recovery.
+                action = "RIGHT" if error > 0 else "LEFT"
+                target_key = self.cfg.keys.right if error > 0 else self.cfg.keys.left
+                opposite_key = self.cfg.keys.left if error > 0 else self.cfg.keys.right
+                self.input.release(opposite_key)
+                self.input.hold(target_key)
+                self._reset_humanization_state()
+            elif hcfg.enabled:
                 now = time.perf_counter()
 
                 # PID noise overlay

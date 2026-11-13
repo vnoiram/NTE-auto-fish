@@ -77,6 +77,8 @@ class InputModule:
     def hold(self, key: str) -> None:
         """Keep a key held down."""
         with self._lock:
+            if key in self._held:
+                return
             self._held.add(key)
         try:
             pydirectinput.keyDown(key)

@@ -142,3 +142,27 @@ class TestEdgeTracking(unittest.TestCase):
 
     def test_margin_still_applies_when_the_cursor_was_far_from_the_edge(self):
         self.assertIsNone(self._find(self._bar_with_cursor_at(2), 500.0))
+
+
+class TestSafeZoneBounds(unittest.TestCase):
+    def test_bounds_include_both_sides_of_a_cursor_occlusion(self):
+        image = np.zeros((40, 400, 3), np.uint8)
+        image[10:30, 100:200] = (0, 255, 0)
+        image[10:30, 147:153] = (0, 255, 255)
+        center, area, bounds = VisionModule.get_hsv_centroid_x(
+            image, (50, 200, 200), (70, 255, 255), min_area=10, include_bounds=True
+        )
+        self.assertEqual(center, 150)
+        self.assertGreater(area, 0)
+        self.assertEqual(bounds, (100, 199))
+
+    def test_absent_or_filtered_zone_has_no_bounds(self):
+        for min_area in (10, 10000):
+            image = np.zeros((40, 400, 3), np.uint8)
+            if min_area == 10000:
+                image[10:30, 100:200] = (0, 255, 0)
+            result = VisionModule.get_hsv_centroid_x(
+                image, (50, 200, 200), (70, 255, 255),
+                min_area=min_area, include_bounds=True,
+            )
+            self.assertEqual(result, (None, 0.0, None))

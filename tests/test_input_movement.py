@@ -46,3 +46,17 @@ class TestSmoothMouseMovement(unittest.TestCase):
         backend.position.return_value = (0, 0)
         self.assertTrue(InputModule().smooth_move(-400, 200, 0.0))
         backend.moveTo.assert_called_once_with(-400, 200)
+
+
+class TestContinuousKeyHold(unittest.TestCase):
+    @patch("modules.io_module.pydirectinput")
+    def test_repeated_hold_only_sends_key_down_once_until_released(self, backend):
+        inputs = InputModule()
+        for _ in range(5):
+            inputs.hold("d")
+        backend.keyDown.assert_called_once_with("d")
+        backend.keyUp.assert_not_called()
+        inputs.release("d")
+        backend.keyUp.assert_called_once_with("d")
+        inputs.hold("d")
+        self.assertEqual(backend.keyDown.call_count, 2)

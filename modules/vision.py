@@ -39,8 +39,9 @@ class VisionModule:
         ignore_margin_ratio: float = 0.0,
         last_known_x: float | None = None,
         hsv_img: np.ndarray | None = None,
+        include_bounds: bool = False,
     ):
-        """Return the horizontal centroid for pixels inside an HSV range."""
+        """Return (centroid, area), optionally with inclusive horizontal bounds."""
         hsv = (
             hsv_img if hsv_img is not None else cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
         )
@@ -53,7 +54,7 @@ class VisionModule:
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if not contours:
-            return None, 0.0
+            return (None, 0.0, None) if include_bounds else (None, 0.0)
 
         valid_contours = []
         img_width = bgr_img.shape[1]
@@ -83,7 +84,7 @@ class VisionModule:
             valid_contours.append(contour)
 
         if not valid_contours:
-            return None, 0.0
+            return (None, 0.0, None) if include_bounds else (None, 0.0)
 
         if last_known_x is None:
             last_known_x = img_width / 2.0
@@ -110,6 +111,8 @@ class VisionModule:
                 total_area += w * h
 
         cx = int((group_min_x + group_max_x) / 2.0)
+        if include_bounds:
+            return cx, float(total_area), (group_min_x, group_max_x - 1)
         return cx, float(total_area)
 
     @staticmethod

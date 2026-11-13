@@ -268,6 +268,8 @@ class NTEFishingBot:
         self._time_limit_until = None
         self._time_limit_notified = False
         self.sm = FishingStateMachine()
+        if paused:
+            self.sm.pause()
         self.pid.reset()
         self._fish_count = 0
         self._bait_error_count = 0
@@ -395,7 +397,11 @@ class NTEFishingBot:
     def _handle_command(self, cmd: str) -> None:
         if cmd == "pause":
             self._is_paused = True
+            self.sm.pause()
             self.input.release_all()
+            self._reset_humanization_state()
+            self._last_action = "NONE"
+            self._last_pid_out = 0.0
             self._log("Bot paused by user.")
         elif cmd == "resume":
             if not self._is_stopped:
@@ -407,11 +413,21 @@ class NTEFishingBot:
                     self.calibrate()
                     if self._stop_flag:
                         return
+                self.sm.resume()
+                self.pid.reset()
+                self._reset_humanization_state()
+                self._last_action = "NONE"
+                self._last_pid_out = 0.0
+                self._lost_frames = 0
+                self._lost_cursor_frames = 0
+                self._lost_target_frames = 0
+                self._battle_absent_frames = self._bar_streak = 0
                 self._bait_error_count = 0
                 self._bar_only_wait_started = None
                 self._next_spam_at = 0.0
                 self._is_paused = False
-                self._start_delay_pending = True
+                # The start delay is for casting, not an already-running fight.
+                self._start_delay_pending = self.sm.state is not FishingState.STRUGGLING
                 if (
                     self.cfg.fish_logging_enabled
                     and self._session_manager.active_session_id() is None
@@ -420,6 +436,7 @@ class NTEFishingBot:
                 self._log("Bot resumed by user.")
         elif cmd == "recalibrate":
             self._is_paused = True
+            self.sm.pause()
             self.input.release_all()
             self._log("Recalibration requested.")
             self.calibrate()

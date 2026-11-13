@@ -155,6 +155,7 @@ class FishingStateMachine:
     def __init__(self) -> None:
         self._state = FishingState.IDLE
         self._entered_at = time.perf_counter()
+        self._paused_at: float | None = None
 
     @property
     def state(self) -> FishingState:
@@ -162,11 +163,23 @@ class FishingStateMachine:
 
     @property
     def time_in_state(self) -> float:
-        return time.perf_counter() - self._entered_at
+        now = self._paused_at if self._paused_at is not None else time.perf_counter()
+        return now - self._entered_at
+
+    def pause(self) -> None:
+        if self._paused_at is None:
+            self._paused_at = time.perf_counter()
+
+    def resume(self) -> None:
+        if self._paused_at is not None:
+            self._entered_at += time.perf_counter() - self._paused_at
+            self._paused_at = None
 
     def transition(self, new_state: FishingState) -> None:
         if new_state is self._state:
             return
         log.info(f"[State] {self._state.value:12s} -> {new_state.value}")
         self._state = new_state
-        self._entered_at = time.perf_counter()
+        self._entered_at = (
+            self._paused_at if self._paused_at is not None else time.perf_counter()
+        )

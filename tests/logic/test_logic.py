@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from modules.logic import FishingState, FishingStateMachine, PIDController
 
@@ -26,6 +27,34 @@ class TestPIDController(unittest.TestCase):
 
 
 class TestFishingStateMachine(unittest.TestCase):
+    def test_repeated_pause_and_resume_do_not_double_count_paused_time(self):
+        clock = [0.0]
+        with patch("modules.logic.time.perf_counter", side_effect=lambda: clock[0]):
+            sm = FishingStateMachine()
+            clock[0] = 2.0
+            sm.pause()
+            clock[0] = 7.0
+            sm.pause()
+            self.assertEqual(sm.time_in_state, 2.0)
+            clock[0] = 10.0
+            sm.resume()
+            clock[0] = 12.0
+            sm.resume()
+            self.assertEqual(sm.time_in_state, 4.0)
+
+    def test_changing_state_while_paused_does_not_start_its_timeout(self):
+        clock = [0.0]
+        with patch("modules.logic.time.perf_counter", side_effect=lambda: clock[0]):
+            sm = FishingStateMachine()
+            clock[0] = 2.0
+            sm.pause()
+            clock[0] = 30.0
+            sm.transition(FishingState.WAITING)
+            self.assertEqual(sm.time_in_state, 0.0)
+            sm.resume()
+            clock[0] = 31.0
+            self.assertEqual(sm.time_in_state, 1.0)
+
     def test_transition_changes_state(self):
         sm = FishingStateMachine()
         self.assertEqual(sm.state, FishingState.IDLE)

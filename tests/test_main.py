@@ -725,6 +725,8 @@ class MonitorChangeResumeTest(unittest.TestCase):
     def test_resume_recalibrates_when_the_monitor_changed(self):
         bot = NTEFishingBot.__new__(NTEFishingBot)
         bot.cfg = AppConfig()
+        bot.sm = MagicMock()
+        bot.pid = MagicMock()
         bot.cfg.monitor_index = 1
         bot._calibrated_monitor = 0
         bot._is_stopped = False
@@ -742,6 +744,8 @@ class MonitorChangeResumeTest(unittest.TestCase):
     def test_resume_skips_calibration_when_unchanged(self):
         bot = NTEFishingBot.__new__(NTEFishingBot)
         bot.cfg = AppConfig()
+        bot.sm = MagicMock()
+        bot.pid = MagicMock()
         bot._calibrated_monitor = bot.cfg.monitor_index
         bot._is_stopped = False
         bot._is_paused = True
@@ -872,3 +876,83 @@ class TestNormalCatchCount(unittest.TestCase):
         self.assertEqual(bot._fish_count, 0)
         bot._ocr_catch_screen.assert_not_called()
         bot.input.click.assert_called_once_with()
+
+
+class TestBattlePauseResume(unittest.TestCase):
+    def _bot(self, detections):
+        from modules.logic import FishingStateMachine
+
+        bot = TestFishingDetection._make_struggling_bot(self, detections)
+        bot.cfg.bar_only_mode = True
+        bot.sm = FishingStateMachine()
+        bot.sm.transition(FishingState.STRUGGLING)
+        bot._is_paused = False
+        bot._is_stopped = False
+        bot._stop_flag = False
+        bot._start_delay_pending = False
+        bot._stop_event.is_set.return_value = False
+        bot._stop_event.wait.return_value = False
+        return bot
+
+    def test_paused_time_does_not_expire_the_battle(self):
+        clock = [10.0]
+        with patch("main.time.perf_counter", side_effect=lambda: clock[0]):
+            bot = self._bot([(50, 150)])
+            clock[0] = 14.0
+            bot._handle_command("pause")
+            clock[0] = 314.0
+            self.assertEqual(bot.sm.time_in_state, 4.0)
+            bot._handle_command("resume")
+            clock[0] = 315.0
+            self.assertEqual(bot.sm.time_in_state, 5.0)
+            bot._handle_struggling()
+        self.assertEqual(bot.sm.state, FishingState.STRUGGLING)
+        bot.input.hold.assert_called_with(bot.cfg.keys.right)
+
+    def test_resuming_keeps_tracking_a_cursor_outside_safe_zone_at_screen_edge(self):
+        import cv2
+        import numpy as np
+
+        from modules.vision import VisionModule
+
+        bot = self._bot([(5, 150)])
+        bot.vision = VisionModule()
+        hsv = np.zeros((100, 400, 3), np.uint8)
+        hsv[10:30, 130:171] = (85, 220, 220)
+        hsv[10:30, 2:8] = (30, 130, 250)
+        bot._grab.return_value = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+        bot._cursor_x_rel = bot._cursor_last_seen = 5
+        bot._target_x_rel = 150
+        bot._handle_command("pause")
+        bot._handle_command("resume")
+        bot._handle_struggling()
+        self.assertEqual(bot._cursor_x_rel, 5)
+        bot.input.hold.assert_called_with(bot.cfg.keys.right)
+        self.assertEqual(bot.sm.state, FishingState.STRUGGLING)
+
+    def test_resuming_battle_does_not_schedule_a_cast_start_delay(self):
+        bot = self._bot([(50, 150)])
+        bot._handle_command("pause")
+        bot._handle_command("resume")
+        self.assertFalse(bot._start_delay_pending)
+        self.assertEqual(bot.sm.state, FishingState.STRUGGLING)
+
+    def test_released_key_is_pressed_again_on_the_first_tracking_frame(self):
+        with patch("main.time.perf_counter", return_value=10.0):
+            bot = self._bot([(125, 150)])
+            hcfg = bot.cfg.humanization
+            hcfg.enabled = True
+            hcfg.pid_noise_enabled = False
+            hcfg.reaction_latency_min = hcfg.reaction_latency_max = 0.0
+            hcfg.random_action_chance = hcfg.slow_move_chance = 0.0
+            bot.pid.update.return_value = 20.0
+            bot._last_action = bot._hum_target_action = "RIGHT"
+            bot._hum_pulse_state = "HOLD"
+            bot._hum_pulse_end = 10.5
+            bot._hum_reaction_end = 0.0
+            bot._handle_command("pause")
+            bot._handle_command("resume")
+            bot.input.reset_mock()
+            bot._handle_struggling()
+        bot.input.hold.assert_called_once_with(bot.cfg.keys.right)
+        bot.input.press.assert_not_called()

@@ -224,7 +224,9 @@ class TestFishingDetection(unittest.TestCase):
                         bot._handle_struggling()
                     self.assertEqual(bot.input.hold.call_count, 4)
                     bot.input.hold.assert_called_with(key)
-                    self.assertNotIn((key,), [c.args for c in bot.input.release.call_args_list])
+                    self.assertNotIn(
+                        (key,), [c.args for c in bot.input.release.call_args_list]
+                    )
                     bot.input.pulse_hold.assert_not_called()
                     self.assertEqual(bot._last_action, action)
 
@@ -513,7 +515,12 @@ class TestCastFailurePriority(unittest.TestCase):
         return bot
 
     def test_cast_failure_requires_at_least_four_icons_in_both_checks(self):
-        for counts, failed in (([3], False), ([4, 3], False), ([4, 4], True), ([5, 5], True)):
+        for counts, failed in (
+            ([3], False),
+            ([4, 3], False),
+            ([4, 4], True),
+            ([5, 5], True),
+        ):
             with self.subTest(counts=counts):
                 bot = self._bot()
                 bot._count_action_icons.side_effect = counts
@@ -843,10 +850,12 @@ class TestNormalCatchCount(unittest.TestCase):
                 bot = self._bot()
                 bot.cfg.result_close_method = method
                 events = []
-                bot.input.smooth_move.side_effect = (
-                    lambda *a, **k: events.append("move") or True
+                bot.input.smooth_move.side_effect = lambda *a, **k: (
+                    events.append("move") or True
                 )
-                bot._count_action_icons.side_effect = lambda: events.append("icons") or 2
+                bot._count_action_icons.side_effect = lambda: (
+                    events.append("icons") or 2
+                )
                 bot.input.click.side_effect = lambda: events.append("close")
                 bot.input.press.side_effect = lambda *a: events.append("close")
                 bot._handle_result()

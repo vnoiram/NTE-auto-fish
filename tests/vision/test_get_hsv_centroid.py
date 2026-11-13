@@ -162,7 +162,10 @@ class TestSafeZoneBounds(unittest.TestCase):
             if min_area == 10000:
                 image[10:30, 100:200] = (0, 255, 0)
             result = VisionModule.get_hsv_centroid_x(
-                image, (50, 200, 200), (70, 255, 255),
-                min_area=min_area, include_bounds=True,
+                image,
+                (50, 200, 200),
+                (70, 255, 255),
+                min_area=min_area,
+                include_bounds=True,
             )
             self.assertEqual(result, (None, 0.0, None))

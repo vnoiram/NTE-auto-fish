@@ -59,6 +59,13 @@ class TestFishingDetection(unittest.TestCase):
                 bot._tick()
             bot._enter_struggling.assert_called_once_with(press_hook=False)
 
+    def test_result_recovers_with_one_bar_without_losing_confirmation_streak(self):
+        bot = self._make_tick_bot(FishingState.RESULT, None, 150)
+        for _ in range(3):
+            bot._tick()
+        bot._enter_struggling.assert_called_once_with(press_hook=False)
+        bot._handle_result.assert_not_called()
+
     def test_tick_needs_consecutive_frames_before_entering(self):
         bot = self._make_tick_bot(FishingState.IDLE, 100, 150)
         bot._tick()
@@ -756,7 +763,8 @@ class TestResultMouseMovement(unittest.TestCase):
         bot.cfg.result_close_method = "click"
         bot.cfg.spam_cast_enabled = False
         bot._roi_error = None
-        bot._roi_bar = {}
+        bot._roi_bar = {"width": 400, "height": 40}
+        bot.vision = MagicMock()
         bot._screen_w, bot._screen_h = 1920, 1080
         bot._mon_x, bot._mon_y = -1920, 100
         bot._stop_flag = False
@@ -842,6 +850,20 @@ class TestNormalCatchCount(unittest.TestCase):
                 if method == "click":
                     self.assertLess(events.index("move"), events.index("icons"))
                 self.assertEqual(bot._fish_count, 1)
+
+    def test_bars_returning_during_retry_cancel_both_close_methods(self):
+        for method in ("click", "key"):
+            with self.subTest(method=method):
+                bot = self._bot()
+                bot.cfg.result_close_method = method
+                bot._scan_battle_bars = MagicMock(side_effect=[False, True])
+                bot._count_action_icons.side_effect = [0, 2]
+                bot._stop_event.wait.return_value = False
+                bot._handle_result()
+                bot.input.click.assert_not_called()
+                bot.input.press.assert_not_called()
+                bot._count_action_icons.assert_called_once_with()
+                self.assertEqual(bot._fish_count, 0)
 
     def test_unconfirmed_catch_is_closed_but_never_counted(self):
         bot = self._bot()

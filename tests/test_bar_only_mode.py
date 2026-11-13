@@ -81,7 +81,7 @@ class TestBarOnlyMode(unittest.TestCase):
         hsv[10:30, 147:153] = (30, 130, 250)
         bars = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
         blank = np.zeros_like(bars)
-        bot._grab = MagicMock(side_effect=[bars] * 4 + [blank] * 3)
+        bot._grab = MagicMock(side_effect=[bars] * 4 + [blank] * 4)
         for _ in range(3):
             bot._tick()
         self.assertEqual(bot.sm.state, FishingState.STRUGGLING)
@@ -171,6 +171,63 @@ class TestBarOnlyMode(unittest.TestCase):
             if count == 1:
                 bot.request_stop.assert_not_called()
         bot.request_stop.assert_called_once_with("Fish count limit reached")
+
+    def test_reappearing_bars_defer_catch_count_and_cast_restart(self):
+        bot = make_bot()
+        bot.sm.transition(FishingState.RESULT)
+        bot._scan_battle_bars.return_value = True
+        bot._tick()
+        self.assertEqual(bot.sm.state, FishingState.RESULT)
+        self.assertEqual(bot._fish_count, 0)
+        bot._count_action_icons.assert_not_called()
+        bot.input.press.assert_not_called()
+
+    def test_one_reappearing_bar_recovers_battle_without_counting(self):
+        bot = make_bot()
+        bot.sm.transition(FishingState.RESULT)
+        bot._scan_battle_bars = NTEFishingBot._scan_battle_bars.__get__(bot)
+        bot._roi_bar = {"width": 400, "height": 40}
+        bot._grab = MagicMock(return_value=object())
+        bot.vision = MagicMock()
+        bot._find_cursor = MagicMock(return_value=(None, 0.0))
+        bot._find_target = MagicMock(return_value=(150, 100.0))
+        for _ in range(3):
+            bot._tick()
+        self.assertEqual(bot.sm.state, FishingState.STRUGGLING)
+        self.assertEqual(bot._fish_count, 0)
+        bot._count_action_icons.assert_not_called()
+        bot.input.press.assert_not_called()
+
+    def test_reappearing_bars_during_zero_icon_retry_prevent_counting(self):
+        bot = make_bot()
+        bot.sm.transition(FishingState.RESULT)
+        bot._count_action_icons.side_effect = [0, 1]
+        bot._scan_battle_bars.side_effect = [False, True]
+        bot._tick()
+        self.assertEqual(bot.sm.state, FishingState.RESULT)
+        self.assertEqual(bot._fish_count, 0)
+        bot._count_action_icons.assert_called_once_with()
+        bot.input.press.assert_not_called()
+
+    def test_confirmed_catch_without_ocr_is_written_to_session_history(self):
+        import tempfile
+
+        from modules.session_manager import SessionManager
+
+        bot = make_bot()
+        bot.cfg.fish_logging_enabled = True
+        bot._append_catch = NTEFishingBot._append_catch.__get__(bot)
+        with tempfile.TemporaryDirectory() as folder:
+            bot._session_manager = SessionManager(sessions_dir=folder)
+            bot._session_manager.start_session()
+            bot.sm.transition(FishingState.RESULT)
+            bot._tick()
+            try:
+                self.assertEqual(bot._session_manager.active_fish_count(), 1)
+                self.assertEqual(bot._fish_count, 1)
+                bot._ocr_catch_screen.assert_not_called()
+            finally:
+                bot._session_manager.end_session()
 
     def test_failed_catch_still_resumes_casting_without_reaching_fish_limit(self):
         bot = make_bot()

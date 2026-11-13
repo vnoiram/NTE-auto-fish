@@ -776,7 +776,8 @@ class NTEFishingBot:
                 return
         if self.sm.state is FishingState.RESULT:
             # Inspect icons for catch accounting before resuming cast repeats.
-            self._record_catch(read_details=False)
+            if self._record_catch(read_details=False) is None:
+                return
             self.sm.transition(FishingState.IDLE)
             self._bar_only_wait_started = self._active_secs
             self._next_spam_at = 0.0
@@ -807,7 +808,9 @@ class NTEFishingBot:
 
     def _detect_active_fishing(self) -> bool:
         """Override the current state when bars or a bite prompt are visible."""
-        if self._scan_battle_bars(self.sm.state):
+        if self._scan_battle_bars(
+            self.sm.state, require_all=self.sm.state is not FishingState.RESULT
+        ):
             return True
         return self._detect_bite()
 
@@ -824,7 +827,7 @@ class NTEFishingBot:
         self._enter_struggling()
         return True
 
-    def _scan_battle_bars(self, state: FishingState) -> bool:
+    def _scan_battle_bars(self, state: FishingState, require_all: bool = True) -> bool:
         """Reserve priority for visible bars, entering after consecutive frames."""
         if not self._roi_bar:
             return False
@@ -839,7 +842,12 @@ class NTEFishingBot:
             f"enter battle after {_BAR_ENTER_FRAMES} frames in a row "
             f"(now {getattr(self, '_bar_streak', 0)})",
         )
-        if not self._battle_bars_all_visible(cursor_x, target_x):
+        visible = (
+            self._battle_bars_all_visible(cursor_x, target_x)
+            if require_all
+            else self._battle_bars_visible(cursor_x, target_x)
+        )
+        if not visible:
             self._bar_streak = 0
             if state is FishingState.WAITING:
                 self._sample_background(bar_img, cursor_x, target_x)
@@ -1660,7 +1668,7 @@ class NTEFishingBot:
         """Write one catch to the active session and cache for the UI."""
         self._last_fish_name = name
         self._last_fish_weight_g = weight_g
-        if self.cfg.fish_logging_enabled and (name or weight_g):
+        if self.cfg.fish_logging_enabled:
             self._session_manager.append_catch(name, weight_g)
 
     def _ocr_catch_screen(self) -> tuple[str, str]:
@@ -1727,34 +1735,23 @@ class NTEFishingBot:
         if self._stop_flag:
             return
 
-        # Verify the mini-game actually ended before counting a fish.
-        # If the cursor or safe zone is still visible on the bar, the
-        # STRUGGLING → RESULT transition was premature (tracking was
-        # temporarily lost). Release keys and go back to IDLE to recast.
-        bar_img = self._grab(self._roi_bar)
-        cur_x, _ = self._find_cursor(bar_img)
-        tgt_x, _ = self._find_target(bar_img)
-        if self._battle_bars_visible(cur_x, tgt_x):
-            self._log(
-                "[RESULT] Mini-game still active (bar elements detected) — "
-                "recovering to IDLE.",
-                logging.WARNING,
-            )
-            self.input.release_all()
-            self.sm.transition(FishingState.IDLE)
+        if self._record_catch() is None:
             return
-
-        self._record_catch()
         self._dismiss_result(mouse_prepared=mouse_prepared)
         self.sm.transition(FishingState.IDLE)
         self._stop_at_fish_limit()
 
-    def _record_catch(self, read_details: bool = True) -> bool:
-        """Confirm a catch before closing; allow up to two icons (including the mouse)."""
+    def _record_catch(self, read_details: bool = True) -> bool | None:
+        """Return counted/unconfirmed, or None when bars or a stop interrupt closing."""
         deadline = time.monotonic() + max(0.0, self.cfg.timing.catch_icon_timeout_secs)
         while True:
             if self._stop_flag:
-                return False
+                return None
+            # A lost bar can reappear during a result animation or zero-icon retry.
+            # One selected bar is enough to preserve a previously detected battle.
+            if self._scan_battle_bars(FishingState.RESULT, require_all=False):
+                self._stop_event.wait(timeout=self.cfg.timing.waiting_poll_interval)
+                return None
             icons = self._count_action_icons()
             if icons != 0:
                 break
@@ -1762,7 +1759,9 @@ class NTEFishingBot:
             if remaining <= 0:
                 break
             if self._stop_event.wait(timeout=min(0.05, remaining)):
-                return False
+                return None
+        if self._stop_flag:
+            return None
         if not 1 <= icons <= 2:
             self._log(
                 f"[RESULT] {icons} action icons; catch not confirmed, not counted."
